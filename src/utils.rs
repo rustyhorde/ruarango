@@ -10,6 +10,15 @@
 
 use reqwest::Error;
 use serde::de::DeserializeOwned;
+#[cfg(test)]
+use {
+    crate::{builder::ConnectionBuilder, conn::Connection, model::AuthResponse},
+    anyhow::Result,
+    wiremock::{
+        matchers::{body_string_contains, method, path},
+        Mock, MockServer, ResponseTemplate,
+    },
+};
 
 async fn to_json<T>(res: reqwest::Response) -> Result<T, Error>
 where
@@ -25,4 +34,45 @@ where
     T: DeserializeOwned,
 {
     res.map(to_json)?.await
+}
+
+#[cfg(test)]
+pub(crate) async fn mock_auth(mock_server: &MockServer) {
+    let body: AuthResponse = "not a real jwt".into();
+    let mock_response = ResponseTemplate::new(200).set_body_json(body);
+
+    Mock::given(method("POST"))
+        .and(path("/_open/auth"))
+        .and(body_string_contains("username"))
+        .and(body_string_contains("password"))
+        .respond_with(mock_response)
+        .mount(&mock_server)
+        .await;
+}
+
+#[cfg(test)]
+pub(crate) async fn default_conn<T>(uri: T) -> Result<Connection>
+where
+    T: Into<String>,
+{
+    ConnectionBuilder::new()
+        .url(uri)
+        .username("root")
+        .password("")
+        .database("keti")
+        .build()
+        .await
+}
+
+#[cfg(test)]
+pub(crate) async fn no_db_conn<T>(uri: T) -> Result<Connection>
+where
+    T: Into<String>,
+{
+    ConnectionBuilder::new()
+        .url(uri)
+        .username("root")
+        .password("")
+        .build()
+        .await
 }

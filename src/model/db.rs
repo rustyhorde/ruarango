@@ -8,10 +8,68 @@
 
 //! `ruarango` database response models
 
+use derive_builder::Builder;
 use getset::Getters;
-use serde_derive::Deserialize;
-#[cfg(test)]
-use {super::Response, serde_derive::Serialize};
+use serde_derive::{Deserialize, Serialize};
+
+/// Create
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct Create {
+    /// A valid database name
+    #[builder(setter(into))]
+    name: String,
+    /// Optional database options
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(strip_option), default)]
+    options: Option<Options>,
+    /// Optional array of users to initially create for the new database.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(strip_option), default)]
+    users: Option<Vec<User>>,
+}
+
+/// Optional clustering options used during database creation
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct Options {
+    /// The sharding method to use for new collections in this database. Valid values are: "", "flexible", or "single".
+    /// The first two are equivalent. (cluster only)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    sharding: Option<String>,
+    /// Default replication factor for new collections created in this database.
+    /// Special values include "satellite", which will replicate the collection
+    /// to every DB-Server (Enterprise Edition only), and 1, which disables replication (cluster only)
+    #[serde(rename = "replicationFactor", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    replication_factor: Option<String>,
+    /// Default write concern for new collections created in this database.
+    /// It determines how many copies of each shard are required to be
+    /// in sync on the different DB-Servers. If there are less then these many copies
+    /// in the cluster a shard will refuse to write. Writes to shards with enough
+    /// up-to-date copies will succeed at the same time however. The value of
+    /// writeConcern can not be larger than replicationFactor. (cluster only)
+    #[serde(rename = "writeConcern", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    write_concern: Option<String>,
+}
+
+/// Optional user information for database creation
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct User {
+    /// Login name of the user to be created.
+    #[builder(setter(into))]
+    username: String,
+    /// The user password as a string. If not specified, it will default to an empty string.
+    #[builder(setter(into))]
+    password: String,
+    /// A flag indicating whether the user account should be activated or not.
+    /// The default value is true. If set to false, the user won't be able to
+    /// log into the database.
+    active: bool,
+}
 
 /// Response for the `_api/database/current` endpoint
 #[derive(Clone, Debug, Deserialize, Getters)]
@@ -49,28 +107,6 @@ impl Default for Current {
             sharding: None,
             replication_factor: None,
             write_concern: None,
-        }
-    }
-}
-
-#[cfg(test)]
-impl Default for Response<Current> {
-    fn default() -> Self {
-        Response {
-            error: false,
-            code: 200,
-            result: Current::default(),
-        }
-    }
-}
-
-#[cfg(test)]
-impl Default for Response<Vec<String>> {
-    fn default() -> Self {
-        Response {
-            error: false,
-            code: 200,
-            result: vec!["keti".to_string()],
         }
     }
 }

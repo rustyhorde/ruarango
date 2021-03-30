@@ -48,6 +48,13 @@ impl From<&str> for RuarangoError {
 }
 
 #[cfg(test)]
+impl From<String> for RuarangoError {
+    fn from(val: String) -> Self {
+        Self::TestError { val }
+    }
+}
+
+#[cfg(test)]
 mod test {
     use super::RuarangoError::{self, TestError};
     use anyhow::Result;

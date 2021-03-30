@@ -118,6 +118,7 @@
     while_true
 )]
 #![deny(clippy::all, clippy::pedantic)]
+#![allow(clippy::clippy::default_trait_access)]
 #![cfg_attr(
     beta_lints,
     deny(
@@ -164,4 +165,5 @@ mod utils;
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
 pub use model::db;
+pub use model::Response;
 pub use traits::Database;

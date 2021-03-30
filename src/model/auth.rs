@@ -6,29 +6,29 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` connection
+//! `ruarango` auth model
 
 use getset::Getters;
-use reqwest::{Client, Url};
+use serde_derive::{Deserialize, Serialize};
 
-/// An `ArangoDB` connection
-#[derive(Clone, Debug, Getters)]
-#[getset(get = "pub(crate)")]
-pub struct Connection {
-    #[doc(hidden)]
-    base_url: Url,
-    #[doc(hidden)]
-    db_url: Url,
-    #[doc(hidden)]
-    client: Client,
+#[derive(Serialize)]
+pub(crate) struct AuthBody {
+    pub(crate) username: String,
+    pub(crate) password: String,
 }
 
-impl Connection {
-    pub(crate) fn new(base_url: Url, db_url: Url, client: Client) -> Self {
+#[derive(Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub(crate)")]
+pub(crate) struct AuthResponse {
+    jwt: String,
+}
+
+#[cfg(test)]
+impl From<&str> for AuthResponse {
+    fn from(val: &str) -> AuthResponse {
         Self {
-            base_url,
-            db_url,
-            client,
+            jwt: val.to_string(),
         }
     }
 }
