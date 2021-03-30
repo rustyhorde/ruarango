@@ -1,0 +1,23 @@
+[package]
+name = "ruarango"
+version = "0.1.0"
+authors = ["Jason Ozias <jason.ozias@kroger.com>"]
+edition = "2018"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0"
+futures = "0"
+getset = "0"
+reqwest = { version = "0", features = [ "json" ] }
+serde = "1"
+serde_derive = "1"
+thiserror = "1"
+
+[dev-dependencies]
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt"] }
+wiremock = "0"
+
+[build-dependencies]
+rustversion = "1"
