@@ -82,4 +82,20 @@ mod test {
         assert_eq!("{\"reason\":\"A test error has occurred: test\"}", result);
         Ok(())
     }
+
+    #[test]
+    fn from_str_works() -> Result<()> {
+        let err: RuarangoError = "test".into();
+        let result = serde_json::to_string(&err)?;
+        assert_eq!("{\"reason\":\"A test error has occurred: test\"}", result);
+        Ok(())
+    }
+
+    #[test]
+    fn from_string_works() -> Result<()> {
+        let err: RuarangoError = String::from("test").into();
+        let result = serde_json::to_string(&err)?;
+        assert_eq!("{\"reason\":\"A test error has occurred: test\"}", result);
+        Ok(())
+    }
 }

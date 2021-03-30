@@ -12,7 +12,12 @@ use reqwest::Error;
 use serde::de::DeserializeOwned;
 #[cfg(test)]
 use {
-    crate::{builder::ConnectionBuilder, conn::Connection, model::AuthResponse},
+    crate::{
+        builder::ConnectionBuilder,
+        conn::Connection,
+        error::RuarangoError::{self, TestError},
+        model::AuthResponse,
+    },
     anyhow::Result,
     wiremock::{
         matchers::{body_string_contains, method, path},
@@ -75,4 +80,9 @@ where
         .password("")
         .build()
         .await
+}
+
+#[cfg(test)]
+pub(crate) fn to_test_error(val: String) -> RuarangoError {
+    TestError { val }
 }

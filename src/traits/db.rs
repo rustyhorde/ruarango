@@ -18,7 +18,12 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use const_format::concatcp;
 use futures::future::FutureExt;
+
+const BASE_SUFFIX: &str = "_api/database";
+const USER_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/user");
+const CURRENT_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/current");
 
 /// Database related operations
 #[async_trait]
@@ -41,7 +46,7 @@ pub trait Database {
 }
 
 macro_rules! api_get {
-    ($self:ident, $url:ident, $suffix:literal) => {{
+    ($self:ident, $url:ident, $suffix:expr) => {{
         let current_url = $self
             .$url()
             .join($suffix)
@@ -58,22 +63,22 @@ macro_rules! api_get {
 #[async_trait]
 impl Database for Connection {
     async fn current(&self) -> Result<Response<Current>> {
-        api_get!(self, db_url, "_api/database/current")
+        api_get!(self, db_url, CURRENT_SUFFIX)
     }
 
     async fn user(&self) -> Result<Response<Vec<String>>> {
-        api_get!(self, db_url, "_api/database/user")
+        api_get!(self, db_url, USER_SUFFIX)
     }
 
     async fn list(&self) -> Result<Response<Vec<String>>> {
-        api_get!(self, base_url, "_api/database")
+        api_get!(self, base_url, BASE_SUFFIX)
     }
 
     async fn create(&self, create: &Create) -> Result<Response<bool>> {
         let current_url = self
             .base_url()
-            .join("_api/database")
-            .with_context(|| "Unable to build '_api/database' url")?;
+            .join(BASE_SUFFIX)
+            .with_context(|| format!("Unable to build '{}' url", BASE_SUFFIX))?;
         Ok(self
             .client()
             .post(current_url)
@@ -82,11 +87,12 @@ impl Database for Connection {
             .then(handle_response)
             .await?)
     }
+
     async fn drop(&self, name: &str) -> Result<Response<bool>> {
         let current_url = self
             .base_url()
-            .join(&format!("_api/database/{}", name))
-            .with_context(|| "Unable to build '_api/database' url")?;
+            .join(&format!("{}/{}", BASE_SUFFIX, name))
+            .with_context(|| format!("Unable to build '{}/{}' url", BASE_SUFFIX, name))?;
         Ok(self
             .client()
             .delete(current_url)
@@ -101,9 +107,8 @@ mod test {
     use super::Database;
     use crate::{
         db::{CreateBuilder, Current, OptionsBuilder, UserBuilder},
-        error::RuarangoError::{self, TestError},
         model::Response,
-        utils::{default_conn, mock_auth, no_db_conn},
+        utils::{default_conn, mock_auth, no_db_conn, to_test_error},
     };
     use anyhow::Result;
     use wiremock::{
@@ -175,22 +180,17 @@ mod test {
         mock_current(&mock_server).await;
 
         let conn = default_conn(mock_server.uri()).await?;
-
-        match conn.current().await {
-            Ok(res) => {
-                assert_eq!(*res.code(), 200);
-                assert!(!res.error());
-                assert_eq!(res.result().name(), "test");
-                assert_eq!(res.result().id(), "123");
-                assert!(!res.result().is_system());
-                assert_eq!(res.result().path(), "abcdef");
-                assert!(res.result().sharding().is_none());
-                assert!(res.result().replication_factor().is_none());
-                assert!(res.result().write_concern().is_none());
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        let res = conn.current().await?;
+        assert_eq!(*res.code(), 200);
+        assert!(!res.error());
+        assert_eq!(res.result().name(), "test");
+        assert_eq!(res.result().id(), "123");
+        assert!(!res.result().is_system());
+        assert_eq!(res.result().path(), "abcdef");
+        assert!(res.result().sharding().is_none());
+        assert!(res.result().replication_factor().is_none());
+        assert!(res.result().write_concern().is_none());
+        Ok(())
     }
 
     #[tokio::test]
@@ -201,15 +201,11 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
 
-        match conn.user().await {
-            Ok(res) => {
-                assert_eq!(*res.code(), 200);
-                assert!(!res.error());
-                assert!(res.result().len() > 0);
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        let res = conn.user().await?;
+        assert_eq!(*res.code(), 200);
+        assert!(!res.error());
+        assert!(res.result().len() > 0);
+        Ok(())
     }
 
     #[tokio::test]
@@ -219,21 +215,12 @@ mod test {
         mock_list(&mock_server).await;
 
         let conn = no_db_conn(mock_server.uri()).await?;
-
-        match conn.list().await {
-            Ok(res) => {
-                assert_eq!(*res.code(), 200);
-                assert!(!res.error());
-                assert!(res.result().len() > 0);
-                assert!(res.result().contains(&"_system".to_string()));
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    fn to_test_error(val: String) -> RuarangoError {
-        TestError { val }
+        let res = conn.list().await?;
+        assert_eq!(*res.code(), 200);
+        assert!(!res.error());
+        assert!(res.result().len() > 0);
+        assert!(res.result().contains(&"_system".to_string()));
+        Ok(())
     }
 
     #[tokio::test]
@@ -258,23 +245,15 @@ mod test {
             .build()
             .map_err(to_test_error)?;
 
-        match conn.create(&create).await {
-            Ok(res) => {
-                assert_eq!(*res.code(), 201);
-                assert!(!res.error());
-                assert!(res.result());
-            }
-            Err(e) => return Err(e),
-        }
+        let res = conn.create(&create).await?;
+        assert_eq!(*res.code(), 201);
+        assert!(!res.error());
+        assert!(res.result());
 
-        match conn.drop("test_db").await {
-            Ok(res) => {
-                assert_eq!(*res.code(), 200);
-                assert!(!res.error());
-                assert!(res.result());
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+        let res = conn.drop("test_db").await?;
+        assert_eq!(*res.code(), 200);
+        assert!(!res.error());
+        assert!(res.result());
+        Ok(())
     }
 }

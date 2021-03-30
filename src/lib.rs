@@ -11,6 +11,7 @@
 //! ```
 //! use ruarango::ConnectionBuilder;
 //! ```
+// Common lints
 #![deny(
     absolute_paths_not_starting_with_crate,
     anonymous_parameters,
@@ -116,8 +117,6 @@
     where_clauses_object_safety,
     while_true
 )]
-#![deny(clippy::all, clippy::pedantic)]
-#![allow(clippy::clippy::default_trait_access)]
 // nightly only lints
 #![cfg_attr(nightly_lints, deny(unaligned_references))]
 // nightly or beta only lints
@@ -146,6 +145,10 @@
         private_intra_doc_links,
     )
 )]
+// clippy lints
+#![deny(clippy::all, clippy::pedantic)]
+#![allow(clippy::clippy::default_trait_access)]
+// rustdoc lints
 #![cfg_attr(
     any(nightly_lints, beta_lints),
     deny(
