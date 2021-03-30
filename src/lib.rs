@@ -69,7 +69,6 @@
     proc_macro_derive_resolution_fallback,
     redundant_semicolons,
     renamed_and_removed_lints,
-    safe_packed_borrows,
     semicolon_in_expressions_from_macros,
     single_use_lifetimes,
     stable_features,
@@ -119,8 +118,11 @@
 )]
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(clippy::clippy::default_trait_access)]
+// nightly only lints
+#![cfg_attr(nightly_lints, deny(unaligned_references))]
+// nightly or beta only lints
 #![cfg_attr(
-    beta_lints,
+    any(beta_lints, nightly_lints),
     deny(
         legacy_derive_helpers,
         noop_method_call,
@@ -128,21 +130,11 @@
         unsafe_op_in_unsafe_fn,
     )
 )]
+// beta or stable only lints
+#![cfg_attr(any(beta_lints, stable_lints), deny(safe_packed_borrows))]
+// stable only lints
 #![cfg_attr(
-    beta_lints,
-    deny(
-        rustdoc::broken_intra_doc_links,
-        rustdoc::invalid_codeblock_attributes,
-        rustdoc::invalid_html_tags,
-        rustdoc::missing_crate_level_docs,
-        rustdoc::missing_doc_code_examples,
-        rustdoc::non_autolinks,
-        rustdoc::private_doc_tests,
-        rustdoc::private_intra_doc_links,
-    )
-)]
-#![cfg_attr(
-    not(beta_lints),
+    stable_lints,
     deny(
         broken_intra_doc_links,
         invalid_codeblock_attributes,
@@ -152,6 +144,19 @@
         non_autolinks,
         private_doc_tests,
         private_intra_doc_links,
+    )
+)]
+#![cfg_attr(
+    any(nightly_lints, beta_lints),
+    deny(
+        rustdoc::broken_intra_doc_links,
+        rustdoc::invalid_codeblock_attributes,
+        rustdoc::invalid_html_tags,
+        rustdoc::missing_crate_level_docs,
+        rustdoc::missing_doc_code_examples,
+        rustdoc::non_autolinks,
+        rustdoc::private_doc_tests,
+        rustdoc::private_intra_doc_links,
     )
 )]
 

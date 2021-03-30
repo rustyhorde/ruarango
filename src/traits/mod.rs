@@ -8,31 +8,6 @@
 
 //! `ruarango` traits
 
-use crate::{
-    db::Create,
-    model::{db::Current, Response},
-};
-use anyhow::Result;
-use async_trait::async_trait;
-
 mod db;
 
-/// Database related operations
-#[async_trait]
-pub trait Database {
-    /// Retrieves the properties of the current database
-    async fn current(&self) -> Result<Response<Current>>;
-    /// Retrieves the list of all databases the current user can access without specifying a different username or password.
-    async fn user(&self) -> Result<Response<Vec<String>>>;
-    /// Retrieves the list of all existing databases
-    /// *Note*: retrieving the list of databases is only possible from within the _system database.
-    /// *Note*: You should use the `GET user API` to fetch the list of the available databases now.
-    async fn list(&self) -> Result<Response<Vec<String>>>;
-    /// Creates a new database
-    /// *Note*: creating a new database is only possible from within the _system database.
-    async fn create(&self, db: &Create) -> Result<Response<bool>>;
-    /// Drops the database along with all data stored in it.
-    /// *Note*: dropping a database is only possible from within the _system database.
-    /// The _system database itself cannot be dropped.
-    async fn drop(&self, name: &str) -> Result<Response<bool>>;
-}
+pub use db::Database;
