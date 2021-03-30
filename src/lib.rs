@@ -163,6 +163,9 @@
     )
 )]
 
+#[macro_use]
+mod impls;
+
 mod builder;
 mod conn;
 mod error;
@@ -172,6 +175,8 @@ mod utils;
 
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
+pub use model::coll;
 pub use model::db;
 pub use model::Response;
+pub use traits::Collection;
 pub use traits::Database;

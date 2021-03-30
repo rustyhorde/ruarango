@@ -8,6 +8,8 @@
 
 //! `ruarango` traits
 
+mod coll;
 mod db;
 
+pub use coll::Collection;
 pub use db::Database;

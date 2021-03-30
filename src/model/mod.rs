@@ -11,12 +11,16 @@
 use getset::Getters;
 use serde_derive::Deserialize;
 #[cfg(test)]
-use {self::db::Current, getset::Setters, serde_derive::Serialize};
+use {
+    self::{coll::Collection, db::Current},
+    getset::Setters,
+    serde_derive::Serialize,
+};
 
 mod auth;
-pub mod db;
-
 pub(crate) use auth::{AuthBody, AuthResponse};
+pub mod coll;
+pub mod db;
 
 /// A base response
 #[derive(Clone, Debug, Deserialize, Getters)]
@@ -61,6 +65,17 @@ impl Default for Response<bool> {
             error: false,
             code: 200,
             result: true,
+        }
+    }
+}
+
+#[cfg(test)]
+impl Default for Response<Vec<Collection>> {
+    fn default() -> Self {
+        Response {
+            error: false,
+            code: 200,
+            result: vec![Collection::default()],
         }
     }
 }
