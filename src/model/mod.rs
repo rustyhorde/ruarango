@@ -6,15 +6,20 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` traits
+//! `ruarango` model
 
-use crate::model::{DatabaseCurrent, Response};
-use anyhow::Result;
-use async_trait::async_trait;
+use getset::Getters;
+use serde_derive::Deserialize;
+#[cfg(test)]
+use serde_derive::Serialize;
 
-/// Database related operations
-#[async_trait]
-pub trait Database {
-    /// Get information on the current database
-    async fn current(&self) -> Result<Response<DatabaseCurrent>>;
+pub mod db;
+
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct Response<T> {
+    error: bool,
+    code: usize,
+    result: T,
 }

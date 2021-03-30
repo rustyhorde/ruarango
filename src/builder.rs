@@ -6,67 +6,20 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` connection
+//! `ruarango` connection builder
 
+use crate::{conn::Connection, utils::handle_response};
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use futures::future::FutureExt;
-use reqwest::Error;
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION},
-    Client, ClientBuilder, Url,
+    ClientBuilder, Url,
 };
-use serde::de::DeserializeOwned;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::{
-    model::{DatabaseCurrent, Response},
-    Database,
-};
-
-async fn to_json<T>(res: reqwest::Response) -> Result<T, Error>
-where
-    T: DeserializeOwned,
-{
-    res.error_for_status()
-        .map(|res| async move { res.json::<T>().await })?
-        .await
-}
-
-async fn handle_response<T>(res: Result<reqwest::Response, Error>) -> Result<T, Error>
-where
-    T: DeserializeOwned,
-{
-    res.map(to_json)?.await
-}
-
-/// An ArangoDB connection
-#[derive(Clone, Debug)]
-pub struct Connection {
-    #[doc(hidden)]
-    url: Url,
-    #[doc(hidden)]
-    client: Client,
-}
-
-#[async_trait]
-impl Database for Connection {
-    async fn current(&self) -> Result<Response<DatabaseCurrent>> {
-        let current_url = self
-            .url
-            .join("_api/database/current")
-            .with_context(|| "Unable to build 'current' url")?;
-        Ok(self
-            .client
-            .get(current_url)
-            .send()
-            .then(handle_response)
-            .await?)
-    }
-}
-
-/// An ArangoDB connection builder
+/// An `ArangoDB` connection builder
 #[derive(Clone, Debug, Default)]
+#[allow(clippy::clippy::module_name_repetitions)]
 pub struct ConnectionBuilder {
     url: String,
     username: Option<String>,
@@ -76,6 +29,7 @@ pub struct ConnectionBuilder {
 
 impl ConnectionBuilder {
     /// Create a new connection builder
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -117,9 +71,12 @@ impl ConnectionBuilder {
     }
 
     /// Build the connection
+    ///
+    /// # Errors
+    ///
     pub async fn build(self) -> Result<Connection> {
         let mut headers = HeaderMap::new();
-        let _ = headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        let _old = headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
 
         // Setup the client to grab a JWT
         let tmp_client = ClientBuilder::new()
@@ -136,7 +93,7 @@ impl ConnectionBuilder {
         // Make the request with the given username/password
         let username = self.username.unwrap_or_else(|| "root".to_string());
         let password = self.password.unwrap_or_default();
-        let auth_res: AuthResponse<String> = tmp_client
+        let auth_res: AuthResponse = tmp_client
             .post(auth_url)
             .json(&AuthBody { username, password })
             .send()
@@ -152,7 +109,7 @@ impl ConnectionBuilder {
 
         // Add the default Authorization header
         let bearer = format!("Bearer {}", auth_res.jwt);
-        let _ = headers.insert(AUTHORIZATION, HeaderValue::from_bytes(bearer.as_bytes())?);
+        let _old = headers.insert(AUTHORIZATION, HeaderValue::from_bytes(bearer.as_bytes())?);
 
         // Setup the client
         let client = ClientBuilder::new()
@@ -160,7 +117,7 @@ impl ConnectionBuilder {
             .build()
             .with_context(|| "Unable to build the client")?;
 
-        Ok(Connection { url, client })
+        Ok(Connection::new(url, client))
     }
 }
 
@@ -172,16 +129,13 @@ struct AuthBody {
 
 #[derive(Deserialize)]
 #[cfg_attr(test, derive(Serialize))]
-struct AuthResponse<T>
-where
-    T: Into<String>,
-{
-    jwt: T,
+struct AuthResponse {
+    jwt: String,
 }
 
 #[cfg(test)]
-impl From<&str> for AuthResponse<String> {
-    fn from(val: &str) -> AuthResponse<String> {
+impl From<&str> for AuthResponse {
+    fn from(val: &str) -> AuthResponse {
         Self {
             jwt: val.to_string(),
         }
@@ -191,7 +145,7 @@ impl From<&str> for AuthResponse<String> {
 #[cfg(test)]
 mod test {
     use super::{AuthResponse, Connection, ConnectionBuilder};
-    use crate::{model::Response, traits::Database};
+    use crate::{db::Current, model::Response, traits::Database};
     use anyhow::Result;
     use wiremock::{
         matchers::{body_string_contains, method, path},
@@ -212,7 +166,7 @@ mod test {
     }
 
     async fn mock_auth(mock_server: &MockServer) {
-        let body: AuthResponse<String> = "not a real jwt".into();
+        let body: AuthResponse = "not a real jwt".into();
         let mock_response = ResponseTemplate::new(200).set_body_json(body);
 
         Mock::given(method("POST"))
@@ -225,11 +179,22 @@ mod test {
     }
 
     async fn mock_current(mock_server: &MockServer) {
-        let body = Response::default();
+        let body = Response::<Current>::default();
         let mock_response = ResponseTemplate::new(200).set_body_json(body);
 
         Mock::given(method("GET"))
             .and(path("/_db/keti/_api/database/current"))
+            .respond_with(mock_response)
+            .mount(&mock_server)
+            .await;
+    }
+
+    async fn mock_user(mock_server: &MockServer) {
+        let body = Response::<Vec<String>>::default();
+        let mock_response = ResponseTemplate::new(200).set_body_json(body);
+
+        Mock::given(method("GET"))
+            .and(path("/_db/keti/_api/database/user"))
             .respond_with(mock_response)
             .mount(&mock_server)
             .await;
@@ -258,6 +223,28 @@ mod test {
                 assert_eq!(res.result().id(), "123");
                 assert!(!res.result().is_system());
                 assert_eq!(res.result().path(), "abcdef");
+                assert!(res.result().sharding().is_none());
+                assert!(res.result().replication_factor().is_none());
+                assert!(res.result().write_concern().is_none());
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_user() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_user(&&mock_server).await;
+
+        let conn = default_conn(mock_server.uri()).await?;
+
+        match conn.user().await {
+            Ok(res) => {
+                assert_eq!(*res.code(), 200);
+                assert!(!res.error());
+                assert!(res.result().len() > 0);
                 Ok(())
             }
             Err(e) => Err(e),

@@ -7,7 +7,10 @@
 // modified, or distributed except according to those terms.
 
 //! `ruarango`
-
+//!
+//! ```
+//! use ruarango::ConnectionBuilder;
+//! ```
 #![deny(
     absolute_paths_not_starting_with_crate,
     anonymous_parameters,
@@ -151,11 +154,14 @@
     )
 )]
 
-mod db;
+mod builder;
+mod conn;
 mod error;
 mod model;
 mod traits;
+mod utils;
 
-pub use db::Connection;
-pub use db::ConnectionBuilder;
+pub use builder::ConnectionBuilder;
+pub use conn::Connection;
+pub use model::db;
 pub use traits::Database;
