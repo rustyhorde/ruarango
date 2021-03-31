@@ -8,14 +8,11 @@
 
 //! `ruarango` model
 
+use crate::db::Current;
 use getset::Getters;
-use serde_derive::Deserialize;
+use serde_derive::{Deserialize, Serialize};
 #[cfg(test)]
-use {
-    self::{coll::Collection, db::Current},
-    getset::Setters,
-    serde_derive::Serialize,
-};
+use {self::coll::GetCollsResponse, getset::Setters};
 
 mod auth;
 pub(crate) use auth::{AuthBody, AuthResponse};
@@ -23,8 +20,8 @@ pub mod coll;
 pub mod db;
 
 /// A base response
-#[derive(Clone, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize, Setters))]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[cfg_attr(test, derive(Setters))]
 #[getset(get = "pub")]
 #[cfg_attr(test, getset(set = "pub(crate)"))]
 pub struct Response<T> {
@@ -36,7 +33,6 @@ pub struct Response<T> {
     result: T,
 }
 
-#[cfg(test)]
 impl Default for Response<Current> {
     fn default() -> Self {
         Response {
@@ -70,12 +66,12 @@ impl Default for Response<bool> {
 }
 
 #[cfg(test)]
-impl Default for Response<Vec<Collection>> {
+impl Default for Response<Vec<GetCollsResponse>> {
     fn default() -> Self {
         Response {
             error: false,
             code: 200,
-            result: vec![Collection::default()],
+            result: vec![GetCollsResponse::default()],
         }
     }
 }

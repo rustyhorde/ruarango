@@ -10,7 +10,7 @@
 //!
 //! ```
 //! # use anyhow::Result;
-//! # use ruarango::ConnectionBuilder;
+//! # use ruarango::{ConnectionBuilder, Database, Response, db::Current};
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #    matchers::{method, path, body_string_contains},
@@ -42,7 +42,19 @@
 //! #     .respond_with(mock_response)
 //! #     .mount(&mock_server)
 //! #     .await;
+//! #
+//! # let body = Response::<Current>::default();
+//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
+//! #
+//! # Mock::given(method("GET"))
+//! #     .and(path("/_db/keti/_api/database/current"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
 //! # let url = mock_server.uri();
+//! // Setup a connection to the database
+//! // The normal url for ArangoDB running locally is http://localhost:8529
 //! let conn = ConnectionBuilder::new()
 //!     .url(url)
 //!     .username("root")
@@ -50,6 +62,17 @@
 //!     .database("keti")
 //!     .build()
 //!     .await?;
+//!
+//! // Use the connection to query information about the
+//! // current database
+//! let res = conn.current().await?;
+//!
+//! // Assert on the results
+//! assert!(!res.error());
+//! assert_eq!(*res.code(), 200);
+//! assert_eq!(res.result().name(), "test");
+//! assert_eq!(res.result().id(), "123");
+//! assert!(!res.result().is_system());
 //! #     Ok(())
 //! # }
 //! ```

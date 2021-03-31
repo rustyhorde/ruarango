@@ -9,7 +9,9 @@
 //! `ruarango` collection trait
 
 use crate::model::{
-    coll::{Collection as Coll, CollectionInfo},
+    coll::{
+        CollectionCreate, CreateCollResponse, DropCollResponse, GetCollResponse, GetCollsResponse,
+    },
     Response,
 };
 use anyhow::Result;
@@ -29,7 +31,11 @@ pub trait Collection {
     /// **Warning**:
     /// Accessing collections by their numeric ID is deprecated from version 3.4.0 on.
     /// You should reference them via their names instead.
-    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<Coll>>>;
+    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<GetCollsResponse>>>;
     /// Return information about a collection
-    async fn collection(&self, name: &str) -> Result<CollectionInfo>;
+    async fn collection(&self, name: &str) -> Result<GetCollResponse>;
+    /// Create a collection
+    async fn create(&self, collection: &CollectionCreate) -> Result<CreateCollResponse>;
+    /// Drop a collection
+    async fn drop(&self, name: &str, is_system: bool) -> Result<DropCollResponse>;
 }

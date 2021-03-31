@@ -72,8 +72,7 @@ pub struct User {
 }
 
 /// Response for the `_api/database/current` endpoint
-#[derive(Clone, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize))]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct Current {
     /// The name of the current database
@@ -96,7 +95,6 @@ pub struct Current {
     write_concern: Option<String>,
 }
 
-#[cfg(test)]
 impl Default for Current {
     fn default() -> Self {
         Self {
