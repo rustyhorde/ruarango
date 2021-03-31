@@ -9,7 +9,49 @@
 //! `ruarango`
 //!
 //! ```
-//! use ruarango::ConnectionBuilder;
+//! # use anyhow::Result;
+//! # use ruarango::ConnectionBuilder;
+//! # use serde_derive::{Deserialize, Serialize};
+//! # use wiremock::{
+//! #    matchers::{method, path, body_string_contains},
+//! #    Mock, MockServer, ResponseTemplate,
+//! # };
+//! # #[derive(Deserialize, Serialize)]
+//! # pub(crate) struct AuthResponse {
+//! #     jwt: String,
+//! # }
+//! #
+//! # impl From<&str> for AuthResponse {
+//! #     fn from(val: &str) -> AuthResponse {
+//! #         Self {
+//! #             jwt: val.to_string(),
+//! #         }
+//! #     }
+//! # }
+//! #
+//! # #[tokio::main]
+//! # async fn blah() -> Result<()> {
+//! # let mock_server = MockServer::start().await;
+//! # let body: AuthResponse = "not a real jwt".into();
+//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
+//! #
+//! # Mock::given(method("POST"))
+//! #     .and(path("/_open/auth"))
+//! #     .and(body_string_contains("username"))
+//! #     .and(body_string_contains("password"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! # let url = mock_server.uri();
+//! let conn = ConnectionBuilder::new()
+//!     .url(url)
+//!     .username("root")
+//!     .password("")
+//!     .database("keti")
+//!     .build()
+//!     .await?;
+//! #     Ok(())
+//! # }
 //! ```
 // Common lints
 #![deny(
