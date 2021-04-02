@@ -112,13 +112,9 @@ impl Default for Current {
 #[cfg(test)]
 mod test {
     use super::CreateBuilder;
-    use crate::utils::to_test_error;
 
     #[test]
     fn current_builder_fails_when_missing_name() {
-        assert!(CreateBuilder::default()
-            .build()
-            .map_err(to_test_error)
-            .is_err());
+        assert!(CreateBuilder::default().build().is_err());
     }
 }

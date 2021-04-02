@@ -54,83 +54,18 @@ impl Database for Connection {
 mod test {
     use super::Database;
     use crate::{
-        db::{CreateBuilder, Current, OptionsBuilder, UserBuilder},
-        model::Response,
-        utils::{default_conn, mock_auth, no_db_conn, to_test_error},
+        db::{CreateBuilder, OptionsBuilder, UserBuilder},
+        mock_test,
+        utils::{
+            default_conn, mock_auth,
+            mocks::db::{mock_create, mock_current, mock_drop, mock_list, mock_user},
+            no_db_conn,
+        },
     };
     use anyhow::Result;
-    use wiremock::{
-        matchers::{body_string_contains, method, path},
-        Mock, MockServer, ResponseTemplate,
-    };
+    use wiremock::MockServer;
 
-    async fn mock_current(mock_server: &MockServer) {
-        let body = Response::<Current>::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("GET"))
-            .and(path("/_db/keti/_api/database/current"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_user(mock_server: &MockServer) {
-        let body = Response::<Vec<String>>::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("GET"))
-            .and(path("/_db/keti/_api/database/user"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_list(mock_server: &MockServer) {
-        let body = Response::<Vec<String>>::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("GET"))
-            .and(path("_api/database"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_create(mock_server: &MockServer) {
-        let mut body = Response::<bool>::default();
-        let _ = body.set_code(201);
-        let mock_response = ResponseTemplate::new(201).set_body_json(body);
-
-        Mock::given(method("POST"))
-            .and(path("_api/database"))
-            .and(body_string_contains("test_db"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_drop(mock_server: &MockServer) {
-        let body = Response::<bool>::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("DELETE"))
-            .and(path("_api/database/test_db"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    #[tokio::test]
-    async fn test_current() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_current(&mock_server).await;
-
-        let conn = default_conn(mock_server.uri()).await?;
-        let res = conn.current().await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(test_current, res; current(); mock_current => {
         assert_eq!(res.result().name(), "test");
         assert_eq!(res.result().id(), "123");
         assert!(!res.result().is_system());
@@ -138,38 +73,16 @@ mod test {
         assert!(res.result().sharding().is_none());
         assert!(res.result().replication_factor().is_none());
         assert!(res.result().write_concern().is_none());
-        Ok(())
-    }
+    });
 
-    #[tokio::test]
-    async fn test_user() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_user(&mock_server).await;
-
-        let conn = default_conn(mock_server.uri()).await?;
-
-        let res = conn.user().await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(test_user, res; user(); mock_user => {
         assert!(res.result().len() > 0);
-        Ok(())
-    }
+    });
 
-    #[tokio::test]
-    async fn test_list() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_list(&mock_server).await;
-
-        let conn = no_db_conn(mock_server.uri()).await?;
-        let res = conn.list().await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(no_db_conn, 200, test_list, res; list(); mock_list => {
         assert!(res.result().len() > 0);
         assert!(res.result().contains(&"_system".to_string()));
-        Ok(())
-    }
+    });
 
     #[tokio::test]
     async fn test_create_drop() -> Result<()> {
@@ -179,19 +92,17 @@ mod test {
         mock_drop(&&mock_server).await;
 
         let conn = no_db_conn(mock_server.uri()).await?;
-        let options = OptionsBuilder::default().build().map_err(to_test_error)?;
+        let options = OptionsBuilder::default().build()?;
         let users = UserBuilder::default()
             .username("test")
             .password("test")
             .active(true)
-            .build()
-            .map_err(to_test_error)?;
+            .build()?;
         let create = CreateBuilder::default()
             .name("test_db")
             .options(options)
             .users(vec![users])
-            .build()
-            .map_err(to_test_error)?;
+            .build()?;
 
         let res = conn.create(&create).await?;
         assert_eq!(*res.code(), 201);

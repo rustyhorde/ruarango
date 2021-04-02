@@ -444,7 +444,7 @@ impl Default for CreateCollResponse {
 }
 
 /// key options for collection response
-#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[derive(Clone, Debug, Deserialize, Getters)]
 #[cfg_attr(test, derive(Serialize))]
 #[getset(get = "pub")]
 pub struct KeyOptionsResponse {
@@ -454,12 +454,26 @@ pub struct KeyOptionsResponse {
     /// in the _key attribute of documents is considered an error.
     #[serde(rename = "allowUserKeys")]
     allow_user_keys: bool,
-    /// Last value
+    /// The last key value used
     #[serde(rename = "lastValue")]
     last_value: usize,
-    /// Kind
+    /// Specifies the type of the key generator. The currently available generators are
+    /// traditional, autoincrement, uuid and padded.
+    ///
+    /// The traditional key generator generates numerical keys in ascending order.
+    /// The autoincrement key generator generates numerical keys in ascending order,
+    /// the initial offset and the spacing can be configured (note: autoincrement is currently only
+    /// supported for non-sharded collections).
+    /// The padded key generator generates keys of a fixed length (16 bytes) in
+    /// ascending lexicographical sort order. This is ideal for usage with the RocksDB
+    /// engine, which will slightly benefit keys that are inserted in lexicographically
+    /// ascending order. The key generator can be used in a single-server or cluster.
+    /// The uuid key generator generates universally unique 128 bit keys, which
+    /// are stored in hexadecimal human-readable format. This key generator can be used
+    /// in a single-server or cluster to generate "seemingly random" keys. The keys
+    /// produced by this key generator are not lexicographically sorted.
     #[serde(rename = "type")]
-    kind: usize,
+    kind: String,
 }
 
 #[cfg(test)]
@@ -468,7 +482,7 @@ impl Default for KeyOptionsResponse {
         Self {
             allow_user_keys: false,
             last_value: 0,
-            kind: 0,
+            kind: "traditional".to_string(),
         }
     }
 }
@@ -493,6 +507,459 @@ impl Default for DropCollResponse {
             error: false,
             code: 200,
             id: "abc".to_string(),
+        }
+    }
+}
+
+/// checksum collection response
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct ChecksumResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// The id of the dropped collection
+    id: String,
+    /// true if this is a system collection; usually name will
+    /// start with an underscore.
+    #[serde(rename = "isSystem")]
+    is_system: bool,
+    /// The kind of the collection:
+    ///
+    /// 0: "unknown"
+    /// 2: regular document collection
+    /// 3: edge collection
+    #[serde(rename = "type")]
+    kind: usize,
+    /// The revision
+    revision: String,
+    /// The checksum
+    checksum: String,
+    /// The globally unique id
+    #[serde(rename = "globallyUniqueId")]
+    globally_unique_id: String,
+    /// The collection name
+    name: String,
+    /// The status
+    status: usize,
+}
+
+#[cfg(test)]
+impl Default for ChecksumResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            id: "5847".to_string(),
+            is_system: false,
+            kind: 2,
+            revision: "_cF8MSCu---".to_string(),
+            checksum: "0".to_string(),
+            globally_unique_id: "hD4537D142F4C/5847".to_string(),
+            name: "test_coll".to_string(),
+            status: 3,
+        }
+    }
+}
+
+/// count collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct CountResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    // /// The collection name
+    // name: String,
+    // /// Whether the collection is used in a SmartGraph (Enterprise Edition
+    // /// only). (cluster only)
+    // #[serde(rename = "isSmartChild")]
+    // is_smart_child: bool,
+    // /// Is this collection cache enabled
+    // #[serde(rename = "cacheEnabled")]
+    // is_cache_enabled: bool,
+    // /// Any of: ["unloaded", "loading", "loaded", "unloading", "deleted",
+    // /// "unknown"] Only relevant for the MMFiles storage engine
+    // #[serde(rename = "statusString")]
+    // status_string: String,
+    // /// Unique identifier of the collection
+    // #[serde(rename = "globallyUniqueId")]
+    // globally_unique_id: String,
+    // /// unique identifier of the collection; deprecated
+    // id: String,
+    // /// unique identifier of the collection; deprecated
+    // #[serde(rename = "objectId")]
+    // object_id: String,
+    // /// unique identifier of the collection; deprecated
+    // #[serde(rename = "tempObjectId")]
+    // temp_object_id: String,
+    // /// The kind of the collection:
+    // ///
+    // /// 0: "unknown"
+    // /// 2: regular document collection
+    // /// 3: edge collection
+    // #[serde(rename = "type")]
+    // kind: usize,
+    // /// The collection level schema for documents.
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // schema: Option<String>,
+    // /// Corresponds to statusString; Only relevant for the MMFiles storage
+    // /// engine
+    // ///
+    // /// 0: "unknown" - may be corrupted
+    // /// 1: (deprecated, maps to "unknown")
+    // /// 2: "unloaded"
+    // /// 3: "loaded"
+    // /// 4: "unloading"
+    // /// 5: "deleted"
+    // /// 6: "loading"
+    // status: usize,
+    // /// true if this is a system collection; usually name will
+    // /// start with an underscore.
+    // #[serde(rename = "isSystem")]
+    // is_system: bool,
+    // /// If true then the collection is disjoint
+    // #[serde(rename = "isDisjoint")]
+    // is_disjoint: bool,
+    // /// Key Options
+    // #[serde(rename = "keyOptions")]
+    // key_options: KeyOptionsResponse,
+    /// Count
+    count: usize,
+}
+
+#[cfg(test)]
+impl Default for CountResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            count: 10,
+        }
+    }
+}
+
+/// figures collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct FiguresResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// Figures details
+    figures: Figures,
+}
+
+#[cfg(test)]
+impl Default for FiguresResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            figures: Figures::default(),
+        }
+    }
+}
+
+/// Collection figures
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct Figures {
+    /// Index details
+    indexes: Indexes,
+    /// The size of all the documents in bytes
+    #[serde(rename = "documentsSize")]
+    documents_size: usize,
+    /// Is the cache in use?
+    #[serde(rename = "cacheInUse")]
+    cache_in_use: bool,
+    /// Cache size in bytes
+    #[serde(rename = "cacheSize")]
+    cache_size: usize,
+    /// Cache usage in bytes
+    #[serde(rename = "cacheUsage")]
+    cache_usage: usize,
+}
+
+#[cfg(test)]
+impl Default for Figures {
+    fn default() -> Self {
+        Self {
+            indexes: Indexes::default(),
+            documents_size: 0,
+            cache_in_use: false,
+            cache_size: 0,
+            cache_usage: 0,
+        }
+    }
+}
+
+/// Index details
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct Indexes {
+    /// The total number of indexes defined for the collection, including the pre-defined
+    /// indexes (e.g. primary index).
+    count: usize,
+    /// The total memory allocated for indexes in bytes
+    size: usize,
+}
+
+#[cfg(test)]
+impl Default for Indexes {
+    fn default() -> Self {
+        Self { count: 1, size: 0 }
+    }
+}
+
+/// revision collection response
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct RevisionResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// The revision id is a server-generated
+    /// string that clients can use to check whether data in a collection
+    /// has changed since the last revision check.
+    revision: String,
+}
+
+#[cfg(test)]
+impl Default for RevisionResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            revision: "1695597447239172096".to_string(),
+        }
+    }
+}
+
+/// load collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct LoadResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// The number of documents inside the collection. This is only
+    /// returned if the count input parameters is set to true or has
+    /// not been specified.
+    count: usize,
+}
+
+#[cfg(test)]
+impl Default for LoadResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            count: 10,
+        }
+    }
+}
+
+/// Should a count happen on puts
+#[derive(Builder, Clone, Copy, Debug, Setters, Serialize)]
+pub struct ShouldCount {
+    /// If set, this controls whether the return value should include
+    /// the number of documents in the collection. Setting count to
+    /// false may speed up loading a collection. The default value for
+    /// count is true.
+    count: bool,
+}
+
+/// load collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct LoadIndexesResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// true on success
+    result: bool,
+}
+
+#[cfg(test)]
+impl Default for LoadIndexesResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            result: true,
+        }
+    }
+}
+
+/// Collection properties to modify
+#[derive(Builder, Clone, Debug, Setters, Serialize)]
+pub struct Props {
+    /// If true then creating or changing a document
+    /// will wait until the data has been synchronized to disk.
+    #[serde(rename = "waitForSync", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(strip_option), default)]
+    wait_for_sync: Option<bool>,
+    /// The maximal size of a journal or datafile in bytes.
+    /// The value must be at least 1048576 (1 MB). Note that when
+    /// changing the `journalSize` value, it will only have an effect for
+    /// additional journals or datafiles that are created. Already
+    /// existing journals or datafiles will not be affected.
+    #[serde(rename = "journalSize", skip_serializing_if = "Option::is_none")]
+    #[builder(setter(strip_option), default)]
+    journal_size: Option<usize>,
+    /// Object that specifies the collection level schema
+    /// for documents. The attribute keys rule, level and message must follow
+    /// the rules documented in Document Schema Validation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    schema: Option<String>,
+}
+
+/// load collection response
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct PutPropertiesResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// New wait for sync
+    #[serde(rename = "waitForSync")]
+    wait_for_sync: bool,
+    /// New journal size
+    #[serde(rename = "journalSize", skip_serializing_if = "Option::is_none")]
+    journal_size: Option<usize>,
+    /// New schema
+    #[serde(skip_serializing_if = "Option::is_none")]
+    schema: Option<String>,
+}
+
+#[cfg(test)]
+impl Default for PutPropertiesResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            wait_for_sync: true,
+            journal_size: Some(12000000),
+            schema: None,
+        }
+    }
+}
+
+/// recalculate count collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct RecalculateCountResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// The result
+    result: bool,
+    /// The new count
+    count: usize,
+}
+
+#[cfg(test)]
+impl Default for RecalculateCountResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            result: true,
+            count: 10,
+        }
+    }
+}
+
+/// rename collection response
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct RenameResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+    /// The new name
+    name: String,
+}
+
+#[cfg(test)]
+impl Default for RenameResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+            name: "test_boll".to_string(),
+        }
+    }
+}
+
+/// A new collection
+#[derive(Builder, Clone, Debug, Setters, Serialize)]
+pub struct NewName {
+    /// A new collection name
+    #[builder(setter(into))]
+    name: String,
+}
+
+/// rename collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct TruncateResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+}
+
+#[cfg(test)]
+impl Default for TruncateResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
+        }
+    }
+}
+
+/// unload collection response
+#[derive(Clone, Copy, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize))]
+#[getset(get = "pub")]
+pub struct UnloadResponse {
+    /// Is this respone an error?
+    error: bool,
+    /// The response code, i.e. 200, 404
+    code: usize,
+}
+
+#[cfg(test)]
+impl Default for UnloadResponse {
+    fn default() -> Self {
+        Self {
+            error: false,
+            code: 200,
         }
     }
 }

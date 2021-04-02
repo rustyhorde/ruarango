@@ -62,3 +62,33 @@ macro_rules! api_delete {
             .await?)
     }};
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! api_put {
+    ($self:ident, $url:ident, $suffix:expr, $json:expr) => {{
+        let current_url = $self
+            .$url()
+            .join($suffix)
+            .with_context(|| format!("Unable to build '{}' url", $suffix))?;
+        Ok($self
+            .client()
+            .put(current_url)
+            .json($json)
+            .send()
+            .then(handle_response)
+            .await?)
+    }};
+    ($self:ident, $url:ident, $suffix:expr) => {{
+        let current_url = $self
+            .$url()
+            .join($suffix)
+            .with_context(|| format!("Unable to build '{}' url", $suffix))?;
+        Ok($self
+            .client()
+            .put(current_url)
+            .send()
+            .then(handle_response)
+            .await?)
+    }};
+}

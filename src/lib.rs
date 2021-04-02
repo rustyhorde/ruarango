@@ -230,13 +230,14 @@
 
 #[macro_use]
 mod impls;
+#[macro_use]
+mod utils;
 
 mod builder;
 mod conn;
 mod error;
 mod model;
 mod traits;
-mod utils;
 
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;

@@ -9,12 +9,15 @@
 //! `ruarango` collection trait implementation
 
 use crate::{
-    api_delete, api_get, api_post,
+    api_delete, api_get, api_post, api_put,
     conn::Connection,
     model::{
         coll::{
-            CollectionCreate, CreateCollResponse, DropCollResponse, GetCollResponse,
-            GetCollsResponse,
+            ChecksumResponse, CollectionCreate, CountResponse, CreateCollResponse,
+            DropCollResponse, FiguresResponse, GetCollResponse, GetCollsResponse,
+            LoadIndexesResponse, LoadResponse, NewNameBuilder, Props, PutPropertiesResponse,
+            RecalculateCountResponse, RenameResponse, RevisionResponse, ShouldCountBuilder,
+            TruncateResponse, UnloadResponse,
         },
         Response,
     },
@@ -58,120 +61,129 @@ impl Collection for Connection {
             api_delete!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
         }
     }
+
+    async fn checksum(
+        &self,
+        name: &str,
+        with_revisions: bool,
+        with_data: bool,
+    ) -> Result<ChecksumResponse> {
+        let mut url = format!("{}/{}/checksum", BASE_SUFFIX, name);
+        let mut has_qp = false;
+        if with_revisions {
+            url += "?withRevisions=true";
+            has_qp = true;
+        }
+        if with_data {
+            if has_qp {
+                url += "&";
+            } else {
+                url += "?";
+            }
+            url += "withData=true";
+        }
+        api_get!(self, db_url, &url)
+    }
+
+    async fn count(&self, name: &str) -> Result<CountResponse> {
+        api_get!(self, db_url, &format!("{}/{}/count", BASE_SUFFIX, name))
+    }
+
+    async fn figures(&self, name: &str) -> Result<FiguresResponse> {
+        api_get!(self, db_url, &format!("{}/{}/figures", BASE_SUFFIX, name))
+    }
+
+    async fn revision(&self, name: &str) -> Result<RevisionResponse> {
+        api_get!(self, db_url, &format!("{}/{}/revision", BASE_SUFFIX, name))
+    }
+
+    async fn load(&self, name: &str, count: bool) -> Result<LoadResponse> {
+        api_put!(
+            self,
+            db_url,
+            &format!("{}/{}/load", BASE_SUFFIX, name),
+            &ShouldCountBuilder::default().count(count).build()?
+        )
+    }
+
+    async fn load_indexes(&self, name: &str) -> Result<LoadIndexesResponse> {
+        api_put!(
+            self,
+            db_url,
+            &format!("{}/{}/loadIndexesIntoMemory", BASE_SUFFIX, name)
+        )
+    }
+
+    async fn modify_props(&self, name: &str, props: Props) -> Result<PutPropertiesResponse> {
+        api_put!(
+            self,
+            db_url,
+            &format!("{}/{}/properties", BASE_SUFFIX, name),
+            &props
+        )
+    }
+
+    async fn recalculate_count(&self, name: &str) -> Result<RecalculateCountResponse> {
+        api_put!(
+            self,
+            db_url,
+            &format!("{}/{}/recalculateCount", BASE_SUFFIX, name)
+        )
+    }
+
+    async fn rename(&self, name: &str, new_name: &str) -> Result<RenameResponse> {
+        api_put!(
+            self,
+            db_url,
+            &format!("{}/{}/rename", BASE_SUFFIX, name),
+            &NewNameBuilder::default().name(new_name).build()?
+        )
+    }
+
+    async fn truncate(&self, name: &str) -> Result<TruncateResponse> {
+        api_put!(self, db_url, &format!("{}/{}/truncate", BASE_SUFFIX, name))
+    }
+
+    async fn unload(&self, name: &str) -> Result<UnloadResponse> {
+        api_put!(self, db_url, &format!("{}/{}/unload", BASE_SUFFIX, name))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::Collection;
     use crate::{
-        model::{
-            coll::{
-                CollectionCreateBuilder, CreateCollResponse, DropCollResponse, GetCollResponse,
-                GetCollsResponse,
+        mock_test,
+        model::coll::{CollectionCreateBuilder, PropsBuilder},
+        utils::{
+            default_conn, mock_auth,
+            mocks::collection::{
+                mock_checksum, mock_collection, mock_collections, mock_collections_exclude,
+                mock_count, mock_create, mock_drop, mock_figures, mock_load, mock_load_indexes,
+                mock_modify_props, mock_recalculate, mock_rename, mock_revision, mock_truncate,
+                mock_unload,
             },
-            Response,
         },
-        utils::{default_conn, mock_auth, to_test_error},
     };
     use anyhow::Result;
-    use wiremock::{
-        matchers::{body_string_contains, method, path, query_param},
-        Mock, MockServer, ResponseTemplate,
-    };
+    use wiremock::MockServer;
 
-    async fn mock_collections(mock_server: &MockServer, exclude: bool) {
-        let body = Response::<Vec<GetCollsResponse>>::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        let mut mock = Mock::given(method("GET")).and(path("/_db/keti/_api/collection"));
-
-        if exclude {
-            mock = mock.and(query_param("excludeSystem", "true"));
-        }
-
-        mock.respond_with(mock_response).mount(&mock_server).await;
-    }
-
-    async fn mock_collection(mock_server: &MockServer) {
-        let body = GetCollResponse::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("GET"))
-            .and(path("/_db/keti/_api/collection/keti"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_create(mock_server: &MockServer) {
-        let body = CreateCollResponse::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("POST"))
-            .and(path("_db/keti/_api/collection"))
-            .and(body_string_contains("test_coll"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    async fn mock_drop(mock_server: &MockServer) {
-        let body = DropCollResponse::default();
-        let mock_response = ResponseTemplate::new(200).set_body_json(body);
-
-        Mock::given(method("DELETE"))
-            .and(path("_db/keti/_api/collection/test_coll"))
-            .respond_with(mock_response)
-            .mount(&mock_server)
-            .await;
-    }
-
-    #[tokio::test]
-    async fn get_collections_works() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_collections(&mock_server, true).await;
-
-        let conn = default_conn(mock_server.uri()).await?;
-        let res = conn.collections(true).await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(get_collections, res; collections(true); mock_collections_exclude => {
         assert!(res.result().len() > 0);
-        Ok(())
-    }
+    });
 
-    #[tokio::test]
-    async fn get_collections_with_sys_works() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_collections(&mock_server, false).await;
-
-        let conn = default_conn(mock_server.uri()).await?;
-        let res = conn.collections(false).await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(get_collections_with_sys_works, res; collections(false); mock_collections => {
         assert!(res.result().len() > 0);
-        Ok(())
-    }
+    });
 
-    #[tokio::test]
-    async fn get_collection() -> Result<()> {
-        let mock_server = MockServer::start().await;
-        mock_auth(&mock_server).await;
-        mock_collection(&mock_server).await;
-
-        let conn = default_conn(mock_server.uri()).await?;
-        let res = conn.collection("keti").await?;
-        assert_eq!(*res.code(), 200);
-        assert!(!res.error());
+    mock_test!(get_collection, res; collection("keti"); mock_collection => {
         assert_eq!(*res.kind(), 2);
         assert_eq!(*res.status(), 3);
         assert!(!res.is_system());
         assert_eq!(res.name(), "keti");
         assert_eq!(res.id(), "5847");
         assert_eq!(res.globally_unique_id(), "hD4537D142F4C/5847");
-        Ok(())
-    }
+    });
 
     #[tokio::test]
     async fn create_then_drop() -> Result<()> {
@@ -183,8 +195,7 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let create = CollectionCreateBuilder::default()
             .name("test_coll")
-            .build()
-            .map_err(to_test_error)?;
+            .build()?;
 
         let res = conn.create(&create).await?;
         assert_eq!(*res.code(), 200);
@@ -196,4 +207,67 @@ mod test {
         assert!(!res.error());
         Ok(())
     }
+
+    mock_test!(get_checksum, res; checksum("test_coll", false, false); mock_checksum => {
+        assert_eq!(*res.kind(), 2);
+        assert_eq!(*res.status(), 3);
+        assert!(!res.is_system());
+        assert_eq!(res.name(), "test_coll");
+        assert_eq!(res.id(), "5847");
+        assert_eq!(res.globally_unique_id(), "hD4537D142F4C/5847");
+        assert_eq!(res.revision(), "_cF8MSCu---");
+        assert_eq!(res.checksum(), "0");
+    });
+
+    mock_test!(get_count, res; count("test_coll"); mock_count => {
+        assert_eq!(*res.count(), 10);
+    });
+
+    mock_test!(get_figures, res; figures("test_coll"); mock_figures => {
+        assert_eq!(*res.figures().indexes().count(), 1);
+        assert_eq!(*res.figures().indexes().size(), 0);
+        assert_eq!(*res.figures().documents_size(), 0);
+        assert!(!res.figures().cache_in_use());
+        assert_eq!(*res.figures().cache_size(), 0);
+        assert_eq!(*res.figures().cache_usage(), 0);
+    });
+
+    mock_test!(get_revision, res; revision("test_coll"); mock_revision => {});
+
+    mock_test!(put_load, res; load("test_coll", true); mock_load => {
+        assert_eq!(*res.count(), 10);
+    });
+
+    mock_test!(put_load_indexes, res; load_indexes("test_coll"); mock_load_indexes => {
+        assert!(res.result());
+    });
+
+    #[tokio::test]
+    async fn put_props() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_modify_props(&mock_server).await;
+
+        let props = PropsBuilder::default().wait_for_sync(true).build()?;
+        let conn = default_conn(mock_server.uri()).await?;
+        let res = conn.modify_props("test_coll", props).await?;
+        assert_eq!(*res.code(), 200);
+        assert!(!res.error());
+        assert!(res.wait_for_sync());
+
+        Ok(())
+    }
+
+    mock_test!(put_recalculate, res; recalculate_count("test_coll"); mock_recalculate => {
+        assert!(res.result());
+        assert_eq!(*res.count(), 10);
+    });
+
+    mock_test!(put_rename, res; rename("test_coll", "test_boll"); mock_rename => {
+        assert_eq!(res.name(), "test_boll");
+    });
+
+    mock_test!(put_truncate, res; truncate("test_coll"); mock_truncate => {});
+
+    mock_test!(put_unload, res; unload("test_coll"); mock_unload => {});
 }
