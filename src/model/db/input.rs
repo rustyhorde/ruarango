@@ -6,15 +6,44 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` database response models
-
+//! Database Input Structs
+//!
+//! # Example
+//! ```
+//! # use anyhow::Result;
+//! # use ruarango::db::input::{CreateBuilder, OptionsBuilder, UserBuilder};
+//! #
+//! # pub fn main() -> Result<()> {
+//! // Use the default options
+//! let options = OptionsBuilder::default().build()?;
+//!
+//! // Configure an active user authorized for this database
+//! let user = UserBuilder::default()
+//!     .username("test")
+//!     .password("test")
+//!     .active(true)
+//!     .build()?;
+//!
+//! // Setup the final `Create` configuration
+//! let create = CreateBuilder::default()
+//!     .name("test_db")
+//!     .options(options)
+//!     .users(vec![user])
+//!     .build()?;
+//!
+//! // The name field is required
+//! assert!(CreateBuilder::default().build().is_err());
+//!
+//! // The `Options` and `User` configuration are optional
+//! let base = CreateBuilder::default().name("test_db_1").build()?;
+//! #   Ok(())
+//! # }
+//! ```
 use derive_builder::Builder;
-use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 
-/// Create
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub")]
+/// Database creation configuration
+#[derive(Builder, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Create {
     /// A valid database name
     #[builder(setter(into))]
@@ -29,9 +58,8 @@ pub struct Create {
     users: Option<Vec<User>>,
 }
 
-/// Optional clustering options used during database creation
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub")]
+/// Optional clustering configuration used during database creation
+#[derive(Builder, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Options {
     /// The sharding method to use for new collections in this database. Valid values are: "", "flexible", or "single".
     /// The first two are equivalent. (cluster only)
@@ -55,9 +83,8 @@ pub struct Options {
     write_concern: Option<String>,
 }
 
-/// Optional user information for database creation
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub")]
+/// Optional user information used during database creation
+#[derive(Builder, Clone, Debug, Default, Deserialize, Serialize)]
 pub struct User {
     /// Login name of the user to be created.
     #[builder(setter(into))]
@@ -69,44 +96,6 @@ pub struct User {
     /// The default value is true. If set to false, the user won't be able to
     /// log into the database.
     active: bool,
-}
-
-/// Response for the `_api/database/current` endpoint
-#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
-#[getset(get = "pub")]
-pub struct Current {
-    /// The name of the current database
-    name: String,
-    /// The id of the current database
-    id: String,
-    /// Is the current database the `_system` database
-    #[serde(rename = "isSystem")]
-    is_system: bool,
-    /// The filesystem path of the current database
-    path: String,
-    /// The default sharding method for collections created in this database
-    #[serde(skip_serializing_if = "Option::is_none")]
-    sharding: Option<String>,
-    /// The default replication factor for collections in this database
-    #[serde(rename = "replicationFactor", skip_serializing_if = "Option::is_none")]
-    replication_factor: Option<String>,
-    /// The default write concern for collections in this database
-    #[serde(rename = "writeConcern", skip_serializing_if = "Option::is_none")]
-    write_concern: Option<String>,
-}
-
-impl Default for Current {
-    fn default() -> Self {
-        Self {
-            name: "test".to_string(),
-            id: "123".to_string(),
-            is_system: false,
-            path: "abcdef".to_string(),
-            sharding: None,
-            replication_factor: None,
-            write_concern: None,
-        }
-    }
 }
 
 #[cfg(test)]

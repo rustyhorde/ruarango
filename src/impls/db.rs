@@ -10,11 +10,9 @@
 
 use crate::{
     api_delete, api_get, api_post,
+    common::output::Response,
     conn::Connection,
-    model::{
-        db::{Create, Current},
-        Response,
-    },
+    db::{input::Create, output::Current},
     traits::Database,
     utils::handle_response,
 };
@@ -54,7 +52,7 @@ impl Database for Connection {
 mod test {
     use super::Database;
     use crate::{
-        db::{CreateBuilder, OptionsBuilder, UserBuilder},
+        db::input::{CreateBuilder, OptionsBuilder, UserBuilder},
         mock_test,
         utils::{
             default_conn, mock_auth,

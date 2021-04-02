@@ -16,6 +16,8 @@ use std::num::ParseIntError;
 #[derive(thiserror::Error, Debug)]
 #[allow(variant_size_differences)]
 pub(crate) enum RuarangoError {
+    #[error("You have supplied an invalid connection url")]
+    InvalidConnectionUrl,
     #[cfg(test)]
     #[error("Unable to parse the given value")]
     ParseInt(#[from] ParseIntError),

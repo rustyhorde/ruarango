@@ -6,9 +6,15 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Input/Output Models
+//! Auth Input Structs
 
-pub(crate) mod auth;
-pub mod coll;
-pub mod common;
-pub mod db;
+use derive_builder::Builder;
+use getset::Getters;
+use serde_derive::Serialize;
+
+#[derive(Builder, Clone, Debug, Getters, Serialize)]
+#[getset(get = "pub(crate)")]
+pub(crate) struct Auth {
+    username: String,
+    password: String,
+}

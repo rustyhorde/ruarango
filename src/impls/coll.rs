@@ -10,17 +10,15 @@
 
 use crate::{
     api_delete, api_get, api_post, api_put,
-    conn::Connection,
-    model::{
-        coll::{
-            ChecksumResponse, CollectionCreate, CountResponse, CreateCollResponse,
-            DropCollResponse, FiguresResponse, GetCollResponse, GetCollsResponse,
-            LoadIndexesResponse, LoadResponse, NewNameBuilder, Props, PutPropertiesResponse,
-            RecalculateCountResponse, RenameResponse, RevisionResponse, ShouldCountBuilder,
-            TruncateResponse, UnloadResponse,
+    coll::{
+        input::{Config, NewNameBuilder, Props, ShouldCountBuilder},
+        output::{
+            Checksum, Collection as Coll, Collections, Count, Create, Drop, Figures, Load,
+            LoadIndexes, ModifyProps, RecalculateCount, Rename, Revision, Truncate, Unload,
         },
-        Response,
     },
+    common::output::Response,
+    conn::Connection,
     traits::Collection,
     utils::handle_response,
 };
@@ -34,7 +32,7 @@ const EXCLUDE_SUFFIX: &str = concatcp!(BASE_SUFFIX, "?excludeSystem=true");
 
 #[async_trait]
 impl Collection for Connection {
-    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<GetCollsResponse>>> {
+    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<Collections>>> {
         if exclude_system {
             api_get!(self, db_url, EXCLUDE_SUFFIX)
         } else {
@@ -42,15 +40,15 @@ impl Collection for Connection {
         }
     }
 
-    async fn collection(&self, name: &str) -> Result<GetCollResponse> {
+    async fn collection(&self, name: &str) -> Result<Coll> {
         api_get!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
     }
 
-    async fn create(&self, create: &CollectionCreate) -> Result<CreateCollResponse> {
-        api_post!(self, db_url, BASE_SUFFIX, create)
+    async fn create(&self, config: &Config) -> Result<Create> {
+        api_post!(self, db_url, BASE_SUFFIX, config)
     }
 
-    async fn drop(&self, name: &str, is_system: bool) -> Result<DropCollResponse> {
+    async fn drop(&self, name: &str, is_system: bool) -> Result<Drop> {
         if is_system {
             api_delete!(
                 self,
@@ -67,7 +65,7 @@ impl Collection for Connection {
         name: &str,
         with_revisions: bool,
         with_data: bool,
-    ) -> Result<ChecksumResponse> {
+    ) -> Result<Checksum> {
         let mut url = format!("{}/{}/checksum", BASE_SUFFIX, name);
         let mut has_qp = false;
         if with_revisions {
@@ -85,28 +83,28 @@ impl Collection for Connection {
         api_get!(self, db_url, &url)
     }
 
-    async fn count(&self, name: &str) -> Result<CountResponse> {
+    async fn count(&self, name: &str) -> Result<Count> {
         api_get!(self, db_url, &format!("{}/{}/count", BASE_SUFFIX, name))
     }
 
-    async fn figures(&self, name: &str) -> Result<FiguresResponse> {
+    async fn figures(&self, name: &str) -> Result<Figures> {
         api_get!(self, db_url, &format!("{}/{}/figures", BASE_SUFFIX, name))
     }
 
-    async fn revision(&self, name: &str) -> Result<RevisionResponse> {
+    async fn revision(&self, name: &str) -> Result<Revision> {
         api_get!(self, db_url, &format!("{}/{}/revision", BASE_SUFFIX, name))
     }
 
-    async fn load(&self, name: &str, count: bool) -> Result<LoadResponse> {
+    async fn load(&self, name: &str, include_count: bool) -> Result<Load> {
         api_put!(
             self,
             db_url,
             &format!("{}/{}/load", BASE_SUFFIX, name),
-            &ShouldCountBuilder::default().count(count).build()?
+            &ShouldCountBuilder::default().count(include_count).build()?
         )
     }
 
-    async fn load_indexes(&self, name: &str) -> Result<LoadIndexesResponse> {
+    async fn load_indexes(&self, name: &str) -> Result<LoadIndexes> {
         api_put!(
             self,
             db_url,
@@ -114,7 +112,7 @@ impl Collection for Connection {
         )
     }
 
-    async fn modify_props(&self, name: &str, props: Props) -> Result<PutPropertiesResponse> {
+    async fn modify_props(&self, name: &str, props: Props) -> Result<ModifyProps> {
         api_put!(
             self,
             db_url,
@@ -123,7 +121,7 @@ impl Collection for Connection {
         )
     }
 
-    async fn recalculate_count(&self, name: &str) -> Result<RecalculateCountResponse> {
+    async fn recalculate_count(&self, name: &str) -> Result<RecalculateCount> {
         api_put!(
             self,
             db_url,
@@ -131,7 +129,7 @@ impl Collection for Connection {
         )
     }
 
-    async fn rename(&self, name: &str, new_name: &str) -> Result<RenameResponse> {
+    async fn rename(&self, name: &str, new_name: &str) -> Result<Rename> {
         api_put!(
             self,
             db_url,
@@ -140,11 +138,11 @@ impl Collection for Connection {
         )
     }
 
-    async fn truncate(&self, name: &str) -> Result<TruncateResponse> {
+    async fn truncate(&self, name: &str) -> Result<Truncate> {
         api_put!(self, db_url, &format!("{}/{}/truncate", BASE_SUFFIX, name))
     }
 
-    async fn unload(&self, name: &str) -> Result<UnloadResponse> {
+    async fn unload(&self, name: &str) -> Result<Unload> {
         api_put!(self, db_url, &format!("{}/{}/unload", BASE_SUFFIX, name))
     }
 }
@@ -153,8 +151,9 @@ impl Collection for Connection {
 mod test {
     use super::Collection;
     use crate::{
+        coll::{CollectionKind, Status},
         mock_test,
-        model::coll::{CollectionCreateBuilder, PropsBuilder},
+        model::coll::input::{ConfigBuilder, PropsBuilder},
         utils::{
             default_conn, mock_auth,
             mocks::collection::{
@@ -177,8 +176,8 @@ mod test {
     });
 
     mock_test!(get_collection, res; collection("keti"); mock_collection => {
-        assert_eq!(*res.kind(), 2);
-        assert_eq!(*res.status(), 3);
+        assert_eq!(*res.kind(), CollectionKind::Document);
+        assert_eq!(*res.status(), Status::Loaded);
         assert!(!res.is_system());
         assert_eq!(res.name(), "keti");
         assert_eq!(res.id(), "5847");
@@ -193,9 +192,7 @@ mod test {
         mock_drop(&mock_server).await;
 
         let conn = default_conn(mock_server.uri()).await?;
-        let create = CollectionCreateBuilder::default()
-            .name("test_coll")
-            .build()?;
+        let create = ConfigBuilder::default().name("test_coll").build()?;
 
         let res = conn.create(&create).await?;
         assert_eq!(*res.code(), 200);
@@ -209,13 +206,6 @@ mod test {
     }
 
     mock_test!(get_checksum, res; checksum("test_coll", false, false); mock_checksum => {
-        assert_eq!(*res.kind(), 2);
-        assert_eq!(*res.status(), 3);
-        assert!(!res.is_system());
-        assert_eq!(res.name(), "test_coll");
-        assert_eq!(res.id(), "5847");
-        assert_eq!(res.globally_unique_id(), "hD4537D142F4C/5847");
-        assert_eq!(res.revision(), "_cF8MSCu---");
         assert_eq!(res.checksum(), "0");
     });
 

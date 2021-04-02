@@ -6,16 +6,12 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` auth model
+//! Auth Output Structs
 
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
-
-#[derive(Serialize)]
-pub(crate) struct AuthBody {
-    pub(crate) username: String,
-    pub(crate) password: String,
-}
+use serde_derive::Deserialize;
+#[cfg(test)]
+use serde_derive::Serialize;
 
 #[derive(Deserialize, Getters)]
 #[cfg_attr(test, derive(Serialize))]

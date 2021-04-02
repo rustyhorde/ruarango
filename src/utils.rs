@@ -17,7 +17,7 @@ use {
         builder::ConnectionBuilder,
         conn::Connection,
         error::RuarangoError::{self, TestError},
-        model::AuthResponse,
+        model::auth::output::AuthResponse,
     },
     anyhow::Result,
     wiremock::{
@@ -61,7 +61,7 @@ pub(crate) async fn default_conn<T>(uri: T) -> Result<Connection>
 where
     T: Into<String>,
 {
-    ConnectionBuilder::new()
+    ConnectionBuilder::default()
         .url(uri)
         .username("root")
         .password("")
@@ -75,7 +75,7 @@ pub(crate) async fn no_db_conn<T>(uri: T) -> Result<Connection>
 where
     T: Into<String>,
 {
-    ConnectionBuilder::new()
+    ConnectionBuilder::default()
         .url(uri)
         .username("root")
         .password("")
@@ -163,13 +163,11 @@ macro_rules! mock_x {
 pub(crate) mod mocks {
     pub(crate) mod collection {
         use crate::{
-            coll::{
-                ChecksumResponse, CountResponse, CreateCollResponse, DropCollResponse,
-                FiguresResponse, GetCollResponse, GetCollsResponse, LoadIndexesResponse,
-                LoadResponse, PutPropertiesResponse, RecalculateCountResponse, RenameResponse,
-                RevisionResponse, TruncateResponse, UnloadResponse,
+            coll::output::{
+                Checksum, Collection, Collections, Count, Create, Drop, Figures, Load, LoadIndexes,
+                ModifyProps, RecalculateCount, Rename, Revision, Truncate, Unload,
             },
-            model::Response,
+            common::output::Response,
         };
         use wiremock::{
             matchers::{body_string_contains, method, path, query_param},
@@ -178,28 +176,28 @@ pub(crate) mod mocks {
 
         mock_x!(
             mock_unload,
-            UnloadResponse,
+            Unload,
             "PUT",
             path("_db/keti/_api/collection/test_coll/unload")
         );
 
         mock_x!(
             mock_collection,
-            GetCollResponse,
+            Collection,
             "GET",
             path("_db/keti/_api/collection/keti")
         );
 
         mock_x!(
             mock_drop,
-            DropCollResponse,
+            Drop,
             "DELETE",
             path("_db/keti/_api/collection/test_coll")
         );
 
         mock_x!(
             mock_create,
-            CreateCollResponse,
+            Create,
             "POST",
             path("_db/keti/_api/collection"),
             body_string_contains("test_coll")
@@ -207,35 +205,35 @@ pub(crate) mod mocks {
 
         mock_x!(
             mock_checksum,
-            ChecksumResponse,
+            Checksum,
             "GET",
             path("_db/keti/_api/collection/test_coll/checksum")
         );
 
         mock_x!(
             mock_count,
-            CountResponse,
+            Count,
             "GET",
             path("_db/keti/_api/collection/test_coll/count")
         );
 
         mock_x!(
             mock_figures,
-            FiguresResponse,
+            Figures,
             "GET",
             path("_db/keti/_api/collection/test_coll/figures")
         );
 
         mock_x!(
             mock_revision,
-            RevisionResponse,
+            Revision,
             "GET",
             path("_db/keti/_api/collection/test_coll/revision")
         );
 
         mock_x!(
             mock_load,
-            LoadResponse,
+            Load,
             "PUT",
             path("_db/keti/_api/collection/test_coll/load"),
             body_string_contains("count")
@@ -243,14 +241,14 @@ pub(crate) mod mocks {
 
         mock_x!(
             mock_load_indexes,
-            LoadIndexesResponse,
+            LoadIndexes,
             "PUT",
             path("_db/keti/_api/collection/test_coll/loadIndexesIntoMemory")
         );
 
         mock_x!(
             mock_modify_props,
-            PutPropertiesResponse,
+            ModifyProps,
             "PUT",
             path("_db/keti/_api/collection/test_coll/properties"),
             body_string_contains("waitForSync")
@@ -258,14 +256,14 @@ pub(crate) mod mocks {
 
         mock_x!(
             mock_recalculate,
-            RecalculateCountResponse,
+            RecalculateCount,
             "PUT",
             path("_db/keti/_api/collection/test_coll/recalculateCount")
         );
 
         mock_x!(
             mock_rename,
-            RenameResponse,
+            Rename,
             "PUT",
             path("_db/keti/_api/collection/test_coll/rename"),
             body_string_contains("test_boll")
@@ -273,21 +271,21 @@ pub(crate) mod mocks {
 
         mock_x!(
             mock_truncate,
-            TruncateResponse,
+            Truncate,
             "PUT",
             path("_db/keti/_api/collection/test_coll/truncate")
         );
 
         mock_x!(
             mock_collections,
-            Response<Vec<GetCollsResponse>>,
+            Response<Vec<Collections>>,
             "GET",
             path("_db/keti/_api/collection")
         );
 
         mock_x!(
             mock_collections_exclude,
-            Response<Vec<GetCollsResponse>>,
+            Response<Vec<Collections>>,
             "GET",
             path("_db/keti/_api/collection"),
             query_param("excludeSystem", "true")
@@ -295,7 +293,7 @@ pub(crate) mod mocks {
     }
 
     pub(crate) mod db {
-        use crate::{db::Current, model::Response};
+        use crate::{common::output::Response, db::output::Current};
         use wiremock::{
             matchers::{body_string_contains, method, path},
             Mock, MockServer, ResponseTemplate,

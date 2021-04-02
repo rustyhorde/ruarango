@@ -6,9 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Input/Output Models
+//! [`Input`](crate::common::input)/[`Output`](crate::common::output) that is common/shared
 
-pub(crate) mod auth;
-pub mod coll;
-pub mod common;
-pub mod db;
+pub mod input;
+pub mod output;

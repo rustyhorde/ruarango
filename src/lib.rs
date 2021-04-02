@@ -10,7 +10,10 @@
 //!
 //! ```
 //! # use anyhow::Result;
-//! # use ruarango::{ConnectionBuilder, Database, Response, db::Current};
+//! // Use `ConnectionBuilder` to build a connection and pull in the
+//! // traits for operations you wish to use
+//! use ruarango::{ConnectionBuilder, Database};
+//! # use ruarango::{common::output::Response, db::output::Current};
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #    matchers::{method, path, body_string_contains},
@@ -47,19 +50,19 @@
 //! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
 //! #
 //! # Mock::given(method("GET"))
-//! #     .and(path("/_db/keti/_api/database/current"))
+//! #     .and(path("/_db/test_db/_api/database/current"))
 //! #     .respond_with(mock_response)
 //! #     .mount(&mock_server)
 //! #     .await;
 //! #
 //! # let url = mock_server.uri();
+//!
 //! // Setup a connection to the database
-//! // The normal url for ArangoDB running locally is http://localhost:8529
-//! let conn = ConnectionBuilder::new()
-//!     .url(url)
+//! let conn = ConnectionBuilder::default()
+//!     .url(url) // The normal url for ArangoDB running locally is http://localhost:8529
 //!     .username("root")
 //!     .password("")
-//!     .database("keti")
+//!     .database("test_db")
 //!     .build()
 //!     .await?;
 //!
@@ -223,7 +226,7 @@
         rustdoc::missing_crate_level_docs,
         rustdoc::missing_doc_code_examples,
         rustdoc::non_autolinks,
-        rustdoc::private_doc_tests,
+        // rustdoc::private_doc_tests,
         rustdoc::private_intra_doc_links,
     )
 )]
@@ -239,10 +242,11 @@ mod error;
 mod model;
 mod traits;
 
+pub use builder::Connection as BaseConnection;
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
 pub use model::coll;
+pub use model::common;
 pub use model::db;
-pub use model::Response;
 pub use traits::Collection;
 pub use traits::Database;

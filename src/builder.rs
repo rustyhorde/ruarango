@@ -9,11 +9,13 @@
 //! `ruarango` connection builder
 
 use crate::{
-    conn::Connection,
-    model::{AuthBody, AuthResponse},
+    conn::Connection as Conn,
+    error::RuarangoError,
+    model::{auth::input::AuthBuilder, auth::output::AuthResponse},
     utils::handle_response,
 };
 use anyhow::{Context, Result};
+use derive_builder::Builder;
 use futures::future::FutureExt;
 use reqwest::{
     header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION},
@@ -21,63 +23,31 @@ use reqwest::{
 };
 
 /// An `ArangoDB` connection builder
-#[derive(Clone, Debug, Default)]
+#[doc(hidden)]
+#[derive(Builder, Clone, Debug, Default)]
 #[allow(clippy::clippy::module_name_repetitions)]
-pub struct ConnectionBuilder {
+#[builder(build_fn(skip), pattern = "immutable")]
+pub struct Connection {
+    ///
+    #[builder(setter(into))]
     url: String,
+    ///
+    #[builder(setter(into, strip_option), default)]
     username: Option<String>,
+    ///
+    #[builder(setter(into, strip_option), default)]
     password: Option<String>,
+    ///
+    #[builder(setter(into, strip_option), default)]
     database: Option<String>,
 }
 
 impl ConnectionBuilder {
-    /// Create a new connection builder
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set the url to use for this connection
-    pub fn url<T>(mut self, url: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.url = url.into();
-        self
-    }
-
-    /// Set the username to use for this connection
-    pub fn username<T>(mut self, username: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.username = Some(username.into());
-        self
-    }
-
-    /// Set the password to use for this connection
-    pub fn password<T>(mut self, password: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.password = Some(password.into());
-        self
-    }
-
-    /// Set the database to use for this connection
-    pub fn database<T>(mut self, database: T) -> Self
-    where
-        T: Into<String>,
-    {
-        self.database = Some(database.into());
-        self
-    }
-
     /// Build the connection
     ///
     /// # Errors
     ///
-    pub async fn build(self) -> Result<Connection> {
+    pub async fn build(self) -> Result<Conn> {
         let mut headers = HeaderMap::new();
         let _old = headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
 
@@ -88,23 +58,32 @@ impl ConnectionBuilder {
             .with_context(|| "Unable to build the JWT client")?;
 
         // Generate the auth url
-        let base_url = Url::parse(&self.url).with_context(|| "Unable to parse the base url")?;
+        let url = self.url.ok_or(RuarangoError::InvalidConnectionUrl)?;
+        let base_url = Url::parse(&url).with_context(|| "Unable to parse the base url")?;
         let auth_url = base_url
             .join("_open/auth")
             .with_context(|| "Unable to parse the auth url")?;
 
         // Make the request with the given username/password
-        let username = self.username.unwrap_or_else(|| "root".to_string());
-        let password = self.password.unwrap_or_default();
+        let username = self
+            .username
+            .unwrap_or_else(|| Some("root".to_string()))
+            .unwrap_or_default();
+        let password = self.password.unwrap_or_default().unwrap_or_default();
         let auth_res: AuthResponse = tmp_client
             .post(auth_url)
-            .json(&AuthBody { username, password })
+            .json(
+                &AuthBuilder::default()
+                    .username(username)
+                    .password(password)
+                    .build()?,
+            )
             .send()
             .then(handle_response)
             .await?;
 
         // Setup the db prefix if necessary
-        let db_url = if let Some(db) = self.database {
+        let db_url = if let Some(Some(db)) = self.database {
             base_url.clone().join(&format!("_db/{}/", db))?
         } else {
             base_url.clone()
@@ -120,7 +99,7 @@ impl ConnectionBuilder {
             .build()
             .with_context(|| "Unable to build the client")?;
 
-        Ok(Connection::new(base_url, db_url, client))
+        Ok(Conn::new(base_url, db_url, client))
     }
 }
 

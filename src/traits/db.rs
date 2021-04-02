@@ -8,14 +8,14 @@
 
 //! `ruarango` database trait
 
-use crate::model::{
-    db::{Create, Current},
-    Response,
+use crate::{
+    common::output::Response,
+    db::{input::Create, output::Current},
 };
 use anyhow::Result;
 use async_trait::async_trait;
 
-/// Database related operations
+/// Database Operations
 #[async_trait]
 pub trait Database {
     /// Retrieves the properties of the current database
