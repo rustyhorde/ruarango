@@ -185,12 +185,14 @@
     while_true
 )]
 // nightly only lints
-#![cfg_attr(nightly_lints, deny(or_patterns_back_compat))]
+#![cfg_attr(
+    nightly_lints,
+    deny(disjoint_capture_drop_reorder, or_patterns_back_compat)
+)]
 // nightly or beta only lints
 #![cfg_attr(
     any(beta_lints, nightly_lints),
     deny(
-        disjoint_capture_drop_reorder,
         legacy_derive_helpers,
         noop_method_call,
         proc_macro_back_compat,
