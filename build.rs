@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
     nightly_lints();
     beta_lints();
     stable_lints();

@@ -124,7 +124,7 @@ macro_rules! mock_test {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! mock_x {
-    ($fn_name:ident, $resp:ty, $code:expr, $method:literal, $($matcher:expr),*) => {
+    ($fn_name:ident, $resp:ty, $code:expr => with_set, $method:literal, $($matcher:expr),*) => {
         pub(crate) async fn $fn_name(mock_server: &MockServer) {
             let mut body = <$resp>::default();
             let _ = body.set_code($code);
@@ -142,9 +142,18 @@ macro_rules! mock_x {
         }
     };
     ($fn_name:ident, $resp:ty, $method:literal, $($matcher:expr),*) => {
-        pub(crate) async fn $fn_name(mock_server: &MockServer) {
-            let body = <$resp>::default();
-            let mock_response = ResponseTemplate::new(200).set_body_json(body);
+        mock_x!($fn_name, $resp, 200 => with_set, $method, $($matcher),*);
+    };
+}
+
+#[cfg(test)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! mock_res {
+    ($fn_name:ident, $resp:expr, $code:expr, $method:literal, $($matcher:expr),*) => {
+        pub(crate) async fn $fn_name(mock_server: &MockServer) -> Result<()> {
+            let body = $resp;
+            let mock_response = ResponseTemplate::new($code).set_body_json(body);
 
             let mut mock_builder = Mock::given(method($method));
 
@@ -153,14 +162,30 @@ macro_rules! mock_x {
             )*
 
             mock_builder.respond_with(mock_response)
+                .up_to_n_times(1)
                 .mount(&mock_server)
                 .await;
+            Ok(())
         }
+    };
+    ($fn_name:ident, $resp:expr, $method:literal, $($matcher:expr),*) => {
+        mock_x!($fn_name, $resp, 200 => with_set, $method, $($matcher),*);
     };
 }
 
 #[cfg(test)]
 pub(crate) mod mocks {
+    use anyhow::Result;
+
+    pub(crate) trait Mock<T>
+    where
+        T: PartialEq,
+    {
+        fn try_mock(name: T) -> Result<Self>
+        where
+            Self: Sized;
+    }
+
     pub(crate) mod collection {
         use crate::{
             coll::output::{
@@ -323,7 +348,7 @@ pub(crate) mod mocks {
         mock_x!(
             mock_create,
             Response::<bool>,
-            201,
+            201 => with_set,
             "POST",
             path("_api/database"),
             body_string_contains("test_db")
@@ -334,6 +359,61 @@ pub(crate) mod mocks {
             Response::<bool>,
             "DELETE",
             path("_api/database/test_db")
+        );
+    }
+
+    pub(crate) mod doc {
+        use super::Mock as RuarangoMock;
+        use crate::doc::output::{Create, CreateMockKind, OutputDoc};
+        use anyhow::Result;
+        use wiremock::{
+            matchers::{body_string_contains, method, path, query_param},
+            Mock, MockServer, ResponseTemplate,
+        };
+
+        mock_res!(
+            mock_create,
+            Create::<(), ()>::default(),
+            201,
+            "POST",
+            path("_db/keti/_api/document/test_coll"),
+            body_string_contains("test")
+        );
+
+        mock_res!(
+            mock_create_1,
+            Create::<(), ()>::try_mock(CreateMockKind::FirstCreate)?,
+            201,
+            "POST",
+            path("_db/keti/_api/document/test_coll"),
+            body_string_contains("test_key")
+        );
+
+        mock_res!(
+            mock_create_2,
+            Create::<(), ()>::try_mock(CreateMockKind::SecondCreate)?,
+            201,
+            "POST",
+            path("_db/keti/_api/document/test_coll"),
+            body_string_contains("test_key")
+        );
+        mock_res!(
+            mock_return_new,
+            Create::<OutputDoc, ()>::try_mock(CreateMockKind::NewDoc)?,
+            201,
+            "POST",
+            path("_db/keti/_api/document/test_coll"),
+            query_param("returnNew", "true")
+        );
+        mock_res!(
+            mock_return_old,
+            Create::<OutputDoc, OutputDoc>::try_mock(CreateMockKind::NewOldDoc)?,
+            201,
+            "POST",
+            path("_db/keti/_api/document/test_coll"),
+            body_string_contains("test_key"),
+            query_param("returnNew", "true"),
+            query_param("returnOld", "true")
         );
     }
 }

@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! `ruarango` collection trait implementation
+//! Collection trait implementation
 
 use crate::{
     api_delete, api_get, api_post, api_put,

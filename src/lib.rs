@@ -79,7 +79,8 @@
 //! #     Ok(())
 //! # }
 //! ```
-// Common lints
+// rustc lints
+#![allow(box_pointers)]
 #![deny(
     absolute_paths_not_starting_with_crate,
     anonymous_parameters,
@@ -87,7 +88,6 @@
     asm_sub_register,
     bare_trait_objects,
     bindings_with_variant_name,
-    // box_pointers,
     cenum_impl_drop_cast,
     clashing_extern_declarations,
     coherence_leak_check,
@@ -97,7 +97,7 @@
     dead_code,
     deprecated,
     deprecated_in_future,
-    // disjoint_capture_drop_reorder,
+    disjoint_capture_drop_reorder,
     drop_bounds,
     elided_lifetimes_in_paths,
     ellipsis_inclusive_range_patterns,
@@ -186,7 +186,7 @@
     while_true
 )]
 // nightly only lints
-#![cfg_attr(nightly_lints, deny(unaligned_references))]
+#![cfg_attr(nightly_lints, deny(or_patterns_back_compat))]
 // nightly or beta only lints
 #![cfg_attr(
     any(beta_lints, nightly_lints),
@@ -195,6 +195,7 @@
         noop_method_call,
         proc_macro_back_compat,
         unsafe_op_in_unsafe_fn,
+        unaligned_references,
     )
 )]
 // beta or stable only lints
@@ -226,7 +227,7 @@
         rustdoc::missing_crate_level_docs,
         rustdoc::missing_doc_code_examples,
         rustdoc::non_autolinks,
-        // rustdoc::private_doc_tests,
+        rustdoc::private_doc_tests,
         rustdoc::private_intra_doc_links,
     )
 )]
@@ -248,5 +249,7 @@ pub use conn::Connection;
 pub use model::coll;
 pub use model::common;
 pub use model::db;
+pub use model::doc;
 pub use traits::Collection;
 pub use traits::Database;
+pub use traits::Document;

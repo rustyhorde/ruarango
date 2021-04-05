@@ -12,7 +12,7 @@ use super::{CollectionKind, Status};
 use getset::Getters;
 use serde_derive::Deserialize;
 #[cfg(test)]
-use serde_derive::Serialize;
+use {getset::Setters, serde_derive::Serialize};
 
 macro_rules! coll_output {
     ($(#[$sattr:meta])+ pub struct $name:ident {
@@ -23,7 +23,7 @@ macro_rules! coll_output {
     }) => {
         $(#[$sattr])+
         #[derive(Clone, Debug, Deserialize, Getters)]
-        #[cfg_attr(test, derive(Serialize))]
+        #[cfg_attr(test, derive(Serialize, Setters), getset(set = "pub(crate)"))]
         #[getset(get = "pub")]
         pub struct $name {
             /// Is this respone an error?

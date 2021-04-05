@@ -10,6 +10,8 @@
 
 mod coll;
 mod db;
+mod doc;
 
 pub use coll::Collection;
 pub use db::Database;
+pub use doc::Document;

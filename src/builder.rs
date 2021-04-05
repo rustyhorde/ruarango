@@ -28,16 +28,16 @@ use reqwest::{
 #[allow(clippy::clippy::module_name_repetitions)]
 #[builder(build_fn(skip), pattern = "immutable")]
 pub struct Connection {
-    ///
+    /// The url used to connect to `ArangoDB`
     #[builder(setter(into))]
     url: String,
-    ///
+    /// An optional username, defaults to 'root'
     #[builder(setter(into, strip_option), default)]
     username: Option<String>,
-    ///
+    /// An optional password, defaults to ''
     #[builder(setter(into, strip_option), default)]
     password: Option<String>,
-    ///
+    /// An optional database to use, defaults to '' which will target the '_system' database
     #[builder(setter(into, strip_option), default)]
     database: Option<String>,
 }
@@ -46,7 +46,7 @@ impl ConnectionBuilder {
     /// Build the connection
     ///
     /// # Errors
-    ///
+    /// An invalid url will cause the build to error.
     pub async fn build(self) -> Result<Conn> {
         let mut headers = HeaderMap::new();
         let _old = headers.insert(ACCEPT, HeaderValue::from_static("application/json"));

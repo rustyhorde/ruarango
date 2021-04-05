@@ -16,9 +16,8 @@ use {crate::coll::output::Collections, getset::Setters};
 
 /// A base response
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
-#[cfg_attr(test, derive(Setters))]
+#[cfg_attr(test, derive(Setters), getset(set = "pub(crate)"))]
 #[getset(get = "pub")]
-#[cfg_attr(test, getset(set = "pub(crate)"))]
 pub struct Response<T> {
     /// Is this respone an error?
     error: bool,

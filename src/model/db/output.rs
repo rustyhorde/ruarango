@@ -11,7 +11,7 @@
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 
-/// Response for the `_api/database/current` endpoint
+/// Output when [`current`](crate::Database::current) is called for a document
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct Current {

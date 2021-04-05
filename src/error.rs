@@ -16,6 +16,8 @@ use std::num::ParseIntError;
 #[derive(thiserror::Error, Debug)]
 #[allow(variant_size_differences)]
 pub(crate) enum RuarangoError {
+    #[error("Unreachable: {}", msg)]
+    Unreachable { msg: String },
     #[error("You have supplied an invalid connection url")]
     InvalidConnectionUrl,
     #[cfg(test)]
@@ -24,6 +26,9 @@ pub(crate) enum RuarangoError {
     #[cfg(test)]
     #[error("A test error has occurred: {}", val)]
     TestError { val: String },
+    #[cfg(test)]
+    #[error("You have requested an invalid mock")]
+    InvalidMock,
 }
 
 impl Serialize for RuarangoError {
