@@ -1,5 +1,7 @@
 use anyhow::Result;
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ruarango::{db::input::CreateBuilder, ConnectionBuilder, Database};
+use std::iter;
 
 #[tokio::test]
 async fn current() -> Result<()> {
@@ -70,14 +72,20 @@ async fn create_drop() -> Result<()> {
         .build()
         .await?;
 
-    let create = CreateBuilder::default().name("test_db").build()?;
+    let mut rng = thread_rng();
+    let db_name: String = iter::repeat(())
+        .map(|()| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(10)
+        .collect();
+    let create = CreateBuilder::default().name(db_name.clone()).build()?;
     let res = conn.create(&create).await?;
 
     assert!(!res.error());
     assert_eq!(*res.code(), 201);
     assert!(res.result());
 
-    let res = conn.drop("test_db").await?;
+    let res = conn.drop(&db_name).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(res.result());

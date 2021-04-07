@@ -234,6 +234,9 @@
     )
 )]
 
+#[cfg(test)]
+use rand as _;
+
 #[macro_use]
 mod impls;
 #[macro_use]
