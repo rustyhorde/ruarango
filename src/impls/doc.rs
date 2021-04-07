@@ -9,19 +9,20 @@
 //! Document trait implementation
 
 use crate::{
-    api_post, api_request,
+    api_post,
     doc::{
         input::{Config, OverwriteMode, ReadConfig},
         output::Create,
     },
     error::RuarangoError::Unreachable,
     traits::Document,
-    utils::handle_response,
+    utils::{handle_response, handle_response_300},
     Connection,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::FutureExt;
+use libeither::Either;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -49,36 +50,48 @@ impl Document for Connection {
         )
     }
 
-    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<T>
+    async fn read<T>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: ReadConfig,
+    ) -> Result<Either<(), T>>
     where
         T: DeserializeOwned + Send + Sync,
     {
+        let suffix = &format!("{}/{}/{}", BASE_SUFFIX, collection, key);
+        let current_url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
         if config.has_header() {
             let mut headers = HeaderMap::new();
-            if *config.if_match() {
+
+            if let Some(rev) = config.if_match() {
                 let _ = headers.append(
-                    HeaderName::from_static("If-Match"),
-                    HeaderValue::from_static("true"),
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_bytes(rev.as_bytes())?,
                 );
-                api_request!(
-                    self,
-                    db_url,
-                    &format!("{}/{}/{}", BASE_SUFFIX, collection, key),
-                    GET,
-                    headers
-                )
-            } else if *config.if_none_match() {
+
+                Ok(self
+                    .client()
+                    .get(current_url)
+                    .headers(headers)
+                    .send()
+                    .then(handle_response_300)
+                    .await?)
+            } else if let Some(rev) = config.if_none_match() {
                 let _ = headers.append(
-                    HeaderName::from_static("If-None-Match"),
-                    HeaderValue::from_static("true"),
+                    HeaderName::from_static("if-none-match"),
+                    HeaderValue::from_bytes(rev.as_bytes())?,
                 );
-                api_request!(
-                    self,
-                    db_url,
-                    &format!("{}/{}/{}", BASE_SUFFIX, collection, key),
-                    GET,
-                    headers
-                )
+                Ok(self
+                    .client()
+                    .get(current_url)
+                    .headers(headers)
+                    .send()
+                    .then(handle_response_300)
+                    .await?)
             } else {
                 Err(Unreachable {
                     msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
@@ -86,12 +99,12 @@ impl Document for Connection {
                 .into())
             }
         } else {
-            api_request!(
-                self,
-                db_url,
-                &format!("{}/{}/{}", BASE_SUFFIX, collection, key),
-                GET
-            )
+            Ok(self
+                .client()
+                .get(current_url)
+                .send()
+                .then(handle_response_300)
+                .await?)
         }
     }
 }
@@ -164,7 +177,7 @@ mod test {
     use super::{build_create_url, prepend_sep};
     use crate::{
         doc::{
-            input::{ConfigBuilder, OverwriteMode},
+            input::{ConfigBuilder, OverwriteMode, ReadConfigBuilder},
             output::{Create, OutputDoc},
         },
         error::RuarangoError,
@@ -172,14 +185,19 @@ mod test {
         utils::{
             default_conn, mock_auth,
             mocks::doc::{
-                mock_create, mock_create_1, mock_create_2, mock_return_new, mock_return_old,
+                mock_create, mock_create_1, mock_create_2, mock_read, mock_read_if_match,
+                mock_return_new, mock_return_old,
             },
         },
     };
     use anyhow::Result;
-    use getset::Setters;
+    use getset::{Getters, Setters};
+    use libeither::Either;
     use serde_derive::{Deserialize, Serialize};
-    use wiremock::MockServer;
+    use wiremock::{
+        matchers::{header_exists, method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     #[test]
     fn has_no_qp() {
@@ -314,11 +332,15 @@ mod test {
         Ok(())
     }
 
-    #[derive(Deserialize, Serialize, Setters)]
-    #[getset(set)]
+    #[derive(Deserialize, Getters, Serialize, Setters)]
+    #[getset(get, set)]
     struct TestDoc {
         #[serde(rename = "_key", skip_serializing_if = "Option::is_none")]
         key: Option<String>,
+        #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+        #[serde(rename = "_rev", skip_serializing_if = "Option::is_none")]
+        rev: Option<String>,
         test: String,
     }
 
@@ -326,6 +348,8 @@ mod test {
         fn default() -> Self {
             Self {
                 key: None,
+                id: None,
+                rev: None,
                 test: "test".to_string(),
             }
         }
@@ -469,6 +493,110 @@ mod test {
         assert!(res.old_rev().is_some());
         assert!(res.new_doc().is_some());
         assert!(res.old_doc().is_some());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_read(&mock_server).await?;
+
+        let conn = default_conn(mock_server.uri()).await?;
+        let config = ReadConfigBuilder::default().build()?;
+        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
+        assert!(res.is_right());
+        let doc = res.right_safe()?;
+        assert_eq!(doc.key(), "abc");
+        assert!(!doc.id().is_empty());
+        assert!(!doc.rev().is_empty());
+        assert_eq!(doc.test(), "test");
+
+        Ok(())
+    }
+
+    async fn mock_read_if_none_match(mock_server: &MockServer) -> Result<()> {
+        let mock_response = ResponseTemplate::new(304);
+
+        let mock_builder = Mock::given(method("GET"))
+            .and(path("_db/keti/_api/document/test_coll/test_doc"))
+            .and(header_exists("if-none-match"));
+
+        mock_builder
+            .respond_with(mock_response)
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_if_none_match() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_read_if_none_match(&mock_server).await?;
+
+        let conn = default_conn(mock_server.uri()).await?;
+        // let conn = default_conn("http://localhost:8529").await?;
+        let config = ReadConfigBuilder::default()
+            .if_none_match("_cIw-YT6---")
+            .build()?;
+        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
+        assert!(res.is_left());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_if_match() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_read_if_match(&mock_server).await?;
+
+        let conn = default_conn(mock_server.uri()).await?;
+        let config = ReadConfigBuilder::default()
+            .if_match("_cIw-YT6---")
+            .build()?;
+        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
+        assert!(res.is_right());
+        let doc = res.right_safe()?;
+        assert_eq!(doc.key(), "abc");
+        assert!(!doc.id().is_empty());
+        assert!(!doc.rev().is_empty());
+        assert_eq!(doc.test(), "test");
+
+        Ok(())
+    }
+
+    async fn mock_read_if_match_fail(mock_server: &MockServer) -> Result<()> {
+        let mock_response = ResponseTemplate::new(412);
+
+        let mock_builder = Mock::given(method("GET"))
+            .and(path("_db/keti/_api/document/test_coll/test_doc"))
+            .and(header_exists("if-match"));
+
+        mock_builder
+            .respond_with(mock_response)
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_if_match_fail() -> Result<()> {
+        let mock_server = MockServer::start().await;
+        mock_auth(&mock_server).await;
+        mock_read_if_match_fail(&mock_server).await?;
+
+        let conn = default_conn(mock_server.uri()).await?;
+        // let conn = default_conn("http://localhost:8529").await?;
+        let config = ReadConfigBuilder::default()
+            .if_match("this_wont_match")
+            .build()?;
+        let res: Result<Either<(), TestDoc>> = conn.read("test_coll", "test_doc", config).await;
+        assert!(res.is_err());
 
         Ok(())
     }

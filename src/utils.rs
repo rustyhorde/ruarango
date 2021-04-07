@@ -8,6 +8,7 @@
 
 //! `ruarango` utils
 
+use libeither::Either;
 use reqwest::Error;
 use serde::de::DeserializeOwned;
 
@@ -40,6 +41,30 @@ where
     T: DeserializeOwned,
 {
     res.map(to_json)?.await
+}
+
+async fn to_json_300<T>(res: reqwest::Response) -> Result<Either<(), T>, Error>
+where
+    T: DeserializeOwned,
+{
+    res.error_for_status()
+        .map(|res| async move {
+            if res.status().is_redirection() {
+                Ok(Either::new_left(()))
+            } else {
+                Ok(Either::new_right(res.json::<T>().await?))
+            }
+        })?
+        .await
+}
+
+pub(crate) async fn handle_response_300<T>(
+    res: Result<reqwest::Response, Error>,
+) -> Result<Either<(), T>, Error>
+where
+    T: DeserializeOwned,
+{
+    res.map(to_json_300)?.await
 }
 
 #[cfg(test)]
@@ -169,7 +194,7 @@ macro_rules! mock_res {
         }
     };
     ($fn_name:ident, $resp:expr, $method:literal, $($matcher:expr),*) => {
-        mock_x!($fn_name, $resp, 200 => with_set, $method, $($matcher),*);
+        mock_res!($fn_name, $resp, 200, $method, $($matcher),*);
     };
 }
 
@@ -364,10 +389,10 @@ pub(crate) mod mocks {
 
     pub(crate) mod doc {
         use super::Mock as RuarangoMock;
-        use crate::doc::output::{Create, CreateMockKind, OutputDoc};
+        use crate::doc::output::{Create, CreateMockKind, OutputDoc, ReadMockKind};
         use anyhow::Result;
         use wiremock::{
-            matchers::{body_string_contains, method, path, query_param},
+            matchers::{body_string_contains, header_exists, method, path, query_param},
             Mock, MockServer, ResponseTemplate,
         };
 
@@ -414,6 +439,19 @@ pub(crate) mod mocks {
             body_string_contains("test_key"),
             query_param("returnNew", "true"),
             query_param("returnOld", "true")
+        );
+        mock_res!(
+            mock_read,
+            OutputDoc::try_mock(ReadMockKind::Found)?,
+            "GET",
+            path("_db/keti/_api/document/test_coll/test_doc")
+        );
+        mock_res!(
+            mock_read_if_match,
+            OutputDoc::try_mock(ReadMockKind::Found)?,
+            "GET",
+            path("_db/keti/_api/document/test_coll/test_doc"),
+            header_exists("if-match")
         );
     }
 }

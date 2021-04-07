@@ -153,33 +153,25 @@ pub struct Config {
 }
 
 /// Read document configuration
-#[derive(Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct ReadConfig {
-    if_none_match: bool,
-    if_match: bool,
+    /// If the `if_none_match` option is given, then it must contain exactly one
+    /// revision. The document is returned if it has a different revision than the
+    /// given revision. Otherwise, an HTTP 304 is returned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    if_none_match: Option<String>,
+    /// If the `if_match` option is given, then it must contain exactly one
+    /// revision. The document is returned if it has the same revision as the
+    /// given revision. Otherwise a HTTP 412 is returned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(setter(into, strip_option), default)]
+    if_match: Option<String>,
 }
 
 impl ReadConfig {
-    /// Set the `if_none_match` flag
-    pub fn set_if_none_match(&mut self, if_none_match: bool) -> &mut Self {
-        if if_none_match {
-            self.if_match = false;
-        }
-        self.if_none_match = if_none_match;
-        self
-    }
-
-    /// Set the `if_match` flag
-    pub fn set_if_match(&mut self, if_match: bool) -> &mut Self {
-        if if_match {
-            self.if_none_match = false;
-        }
-        self.if_match = if_match;
-        self
-    }
-
-    pub(crate) fn has_header(self) -> bool {
-        self.if_match || self.if_none_match
+    pub(crate) fn has_header(&self) -> bool {
+        self.if_match.is_some() || self.if_none_match.is_some()
     }
 }

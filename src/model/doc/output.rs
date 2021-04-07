@@ -160,3 +160,21 @@ impl Mock<CreateMockKind> for Create<OutputDoc, OutputDoc> {
         }
     }
 }
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ReadMockKind {
+    Found,
+}
+
+#[cfg(test)]
+impl Mock<ReadMockKind> for OutputDoc {
+    fn try_mock(name: ReadMockKind) -> Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(match name {
+            ReadMockKind::Found => OutputDoc::default(),
+        })
+    }
+}

@@ -15,6 +15,7 @@ reqwest = { version = "0", features = [ "json" ] }
 serde = "1"
 serde_derive = "1"
 thiserror = "1"
+libeither = "0.4.0"
 
 [dev-dependencies]
 serde_json = "1"

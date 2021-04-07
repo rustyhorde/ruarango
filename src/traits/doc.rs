@@ -14,6 +14,7 @@ use crate::doc::{
 };
 use anyhow::Result;
 use async_trait::async_trait;
+use libeither::Either;
 use serde::{de::DeserializeOwned, Serialize};
 
 /// Document Operations
@@ -32,7 +33,12 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Read a document
-    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<T>
+    async fn read<T>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: ReadConfig,
+    ) -> Result<Either<(), T>>
     where
         T: DeserializeOwned + Send + Sync;
 }
