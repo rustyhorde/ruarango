@@ -41,6 +41,10 @@ jobs:
   test:
     name: vergen
     needs: lints
+    env:
+      ARANGODB_URL: ${{ secrets.ARANGODB_URL }}
+      ARANGODB_ROOT_PASSWORD: ${{ secrets.ARANGODB_ROOT_PASSWORD }}
+      ARANGODB_RUARANGO_PASSWORD: ${{ secrets.ARANGODB_RUARANGO_PASSWORD }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
