@@ -8,10 +8,34 @@
 
 //! Database operation traits
 
+use getset::Getters;
+use libeither::Either;
+
 mod coll;
 mod db;
 mod doc;
+mod job;
 
 pub use coll::Collection;
 pub use db::Database;
 pub use doc::Document;
+pub use job::Job;
+
+/// Job Information from an asynchronous invocation
+#[derive(Clone, Debug, Getters)]
+#[getset(get = "pub")]
+pub struct JobInfo {
+    /// The response code
+    code: u16,
+    /// The id if valid
+    id: Option<String>,
+}
+
+impl JobInfo {
+    pub(crate) fn new(code: u16, id: Option<String>) -> Self {
+        Self { code, id }
+    }
+}
+
+/// A result from an operation that supports asynchronous invocation
+pub type Res<T> = Either<JobInfo, T>;

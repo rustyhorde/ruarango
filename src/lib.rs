@@ -13,6 +13,7 @@
 //! // Use `ConnectionBuilder` to build a connection and pull in the
 //! // traits for operations you wish to use
 //! use ruarango::{ConnectionBuilder, Database};
+//! # use libeither::Either;
 //! # use ruarango::{common::output::Response, db::output::Current};
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
@@ -46,7 +47,7 @@
 //! #     .mount(&mock_server)
 //! #     .await;
 //! #
-//! # let body = Response::<Current>::default();
+//! # let body = Either::<(u16, String), Response<Current>>::new_right(Response::<Current>::default());
 //! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
 //! #
 //! # Mock::given(method("GET"))
@@ -57,7 +58,7 @@
 //! #
 //! # let url = mock_server.uri();
 //!
-//! // Setup a connection to the database
+//! // Setup a synchronous connection to the database
 //! let conn = ConnectionBuilder::default()
 //!     .url(url) // The normal url for ArangoDB running locally is http://localhost:8529
 //!     .username("root")
@@ -70,12 +71,13 @@
 //! // current database
 //! let res = conn.current().await?;
 //!
-//! // Assert on the results
-//! assert!(!res.error());
-//! assert_eq!(*res.code(), 200);
-//! assert_eq!(res.result().name(), "test");
-//! assert_eq!(res.result().id(), "123");
-//! assert!(!res.result().is_system());
+//! // Get the sync results out of the right
+//! assert!(!res.is_right());
+//! let contents = res.right_safe()?;
+//! assert_eq!(*contents.code(), 200);
+//! assert_eq!(contents.result().name(), "test");
+//! assert_eq!(contents.result().id(), "123");
+//! assert!(!contents.result().is_system());
 //! #     Ok(())
 //! # }
 //! ```
@@ -248,6 +250,7 @@ mod error;
 mod model;
 mod traits;
 
+pub use builder::AsyncKind;
 pub use builder::Connection as BaseConnection;
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
@@ -258,3 +261,6 @@ pub use model::doc;
 pub use traits::Collection;
 pub use traits::Database;
 pub use traits::Document;
+pub use traits::Job;
+pub use traits::JobInfo;
+pub use traits::Res;

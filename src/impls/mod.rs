@@ -11,6 +11,7 @@
 mod coll;
 mod db;
 mod doc;
+mod job;
 
 #[doc(hidden)]
 #[macro_export]

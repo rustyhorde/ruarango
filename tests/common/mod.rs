@@ -10,7 +10,7 @@
 
 use anyhow::Result;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use ruarango::{Connection, ConnectionBuilder};
+use ruarango::{AsyncKind, Connection, ConnectionBuilder};
 use std::iter;
 
 macro_rules! int_test {
@@ -45,6 +45,18 @@ pub(crate) async fn conn_ruarango() -> Result<Connection> {
         .username("ruarango")
         .password(env!("ARANGODB_RUARANGO_PASSWORD"))
         .database("ruarango")
+        .build()
+        .await
+}
+
+#[allow(dead_code)]
+pub(crate) async fn conn_ruarango_async() -> Result<Connection> {
+    ConnectionBuilder::default()
+        .url(env!("ARANGODB_URL"))
+        .username("ruarango")
+        .password(env!("ARANGODB_RUARANGO_PASSWORD"))
+        .database("ruarango")
+        .async_kind(AsyncKind::Store)
         .build()
         .await
 }

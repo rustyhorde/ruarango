@@ -360,18 +360,18 @@ pub(crate) mod mocks {
     }
 
     pub(crate) mod db {
-        use crate::{common::output::Response, db::output::Current};
+        use crate::common::output::Response;
         use wiremock::{
             matchers::{body_string_contains, method, path},
             Mock, MockServer, ResponseTemplate,
         };
 
-        mock_x!(
-            mock_current,
-            Response::<Current>,
-            "GET",
-            path("_db/keti/_api/database/current")
-        );
+        // mock_x!(
+        //     mock_current,
+        //     Response::<Current>,
+        //     "GET",
+        //     path("_db/keti/_api/database/current")
+        // );
 
         mock_x!(
             mock_user,

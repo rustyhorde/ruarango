@@ -8,6 +8,7 @@
 
 //! `ruarango` database trait
 
+use super::Res;
 use crate::{
     common::output::Response,
     db::{input::Create, output::Current},
@@ -19,7 +20,7 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait Database {
     /// Retrieves the properties of the current database
-    async fn current(&self) -> Result<Response<Current>>;
+    async fn current(&self) -> Result<Res<Response<Current>>>;
     /// Retrieves the list of all databases the current user can access without specifying a different username or password.
     async fn user(&self) -> Result<Response<Vec<String>>>;
     /// Retrieves the list of all existing databases

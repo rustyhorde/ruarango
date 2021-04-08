@@ -18,9 +18,29 @@ use anyhow::{Context, Result};
 use derive_builder::Builder;
 use futures::future::FutureExt;
 use reqwest::{
-    header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION},
+    header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, AUTHORIZATION},
     ClientBuilder, Url,
 };
+
+/// The kind of asynchronouse request you would like to make
+#[derive(Clone, Copy, Debug)]
+pub enum AsyncKind {
+    /// This will add the HTTP header `x-arango-async: true` to client requests
+    /// and ArangoDB will put the request into an in-memory task queue and return an
+    /// HTTP 202 (accepted) response to the client instantly.
+    FireAndForget,
+    /// This will add the HTTP header `x-arango-async: store` to a request.
+    /// Clients can instruct the ArangoDB server to execute the operation
+    /// asynchronously as with [`FireAndForget`](Self::FireAndForget), but also
+    /// store the operation result in memory for a later retrieval.
+    Store,
+}
+
+impl Default for AsyncKind {
+    fn default() -> Self {
+        Self::Store
+    }
+}
 
 /// An `ArangoDB` connection builder
 #[doc(hidden)]
@@ -40,6 +60,9 @@ pub struct Connection {
     /// An optional database to use, defaults to '' which will target the '_system' database
     #[builder(setter(into, strip_option), default)]
     database: Option<String>,
+    /// Make this request asynchronously
+    #[builder(setter(strip_option), default)]
+    async_kind: Option<AsyncKind>,
 }
 
 impl ConnectionBuilder {
@@ -89,9 +112,29 @@ impl ConnectionBuilder {
             base_url.clone()
         };
 
-        // Add the default Authorization header
+        // Add any default headers
         let bearer = format!("Bearer {}", auth_res.jwt());
         let _old = headers.insert(AUTHORIZATION, HeaderValue::from_bytes(bearer.as_bytes())?);
+
+        let mut is_async = false;
+        let mut async_headers = headers.clone();
+        if let Some(Some(async_kind)) = self.async_kind {
+            is_async = true;
+            match async_kind {
+                AsyncKind::FireAndForget => {
+                    let _old = async_headers.insert(
+                        HeaderName::from_static("x-arango-async"),
+                        HeaderValue::from_static("true"),
+                    );
+                }
+                AsyncKind::Store => {
+                    let _old = async_headers.insert(
+                        HeaderName::from_static("x-arango-async"),
+                        HeaderValue::from_static("store"),
+                    );
+                }
+            }
+        }
 
         // Setup the client
         let client = ClientBuilder::new()
@@ -99,7 +142,12 @@ impl ConnectionBuilder {
             .build()
             .with_context(|| "Unable to build the client")?;
 
-        Ok(Conn::new(base_url, db_url, client))
+        let async_client = ClientBuilder::new()
+            .default_headers(async_headers)
+            .build()
+            .with_context(|| "Unable to build the async_client")?;
+
+        Ok(Conn::new(base_url, db_url, client, async_client, is_async))
     }
 }
 

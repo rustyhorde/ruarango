@@ -21,14 +21,26 @@ pub struct Connection {
     db_url: Url,
     #[doc(hidden)]
     client: Client,
+    #[doc(hidden)]
+    async_client: Client,
+    #[doc(hidden)]
+    is_async: bool,
 }
 
 impl Connection {
-    pub(crate) fn new(base_url: Url, db_url: Url, client: Client) -> Self {
+    pub(crate) fn new(
+        base_url: Url,
+        db_url: Url,
+        client: Client,
+        async_client: Client,
+        is_async: bool,
+    ) -> Self {
         Self {
             base_url,
             db_url,
             client,
+            async_client,
+            is_async,
         }
     }
 }
