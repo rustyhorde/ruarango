@@ -16,6 +16,8 @@ use std::num::ParseIntError;
 #[derive(thiserror::Error, Debug)]
 #[allow(variant_size_differences)]
 pub(crate) enum RuarangoError {
+    #[error("{}\nInvalid Body: {}", err, body)]
+    InvalidBody { err: String, body: String },
     #[error("Unreachable: {}", msg)]
     Unreachable { msg: String },
     #[error("You have supplied an invalid connection url")]

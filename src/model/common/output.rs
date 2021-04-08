@@ -19,7 +19,7 @@ use {crate::coll::output::Collections, getset::Setters};
 #[cfg_attr(test, derive(Setters), getset(set = "pub(crate)"))]
 #[getset(get = "pub")]
 pub struct Response<T> {
-    /// Is this respone an error?
+    /// Is this response an error?
     error: bool,
     /// The response code, i.e. 200, 404
     code: usize,

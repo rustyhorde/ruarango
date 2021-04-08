@@ -8,6 +8,8 @@
 
 //! `ruarango` utils
 
+use crate::error::RuarangoError::InvalidBody;
+use anyhow::Result;
 use libeither::Either;
 use reqwest::Error;
 use serde::de::DeserializeOwned;
@@ -20,30 +22,45 @@ use {
         error::RuarangoError::{self, TestError},
         model::auth::output::AuthResponse,
     },
-    anyhow::Result,
     wiremock::{
         matchers::{body_string_contains, method, path},
         Mock, MockServer, ResponseTemplate,
     },
 };
 
-async fn to_json<T>(res: reqwest::Response) -> Result<T, Error>
+async fn handle_text<T>(res: reqwest::Response) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    match res.text().await {
+        Ok(text) => serde_json::from_str::<T>(&text).map_err(|e| {
+            InvalidBody {
+                err: format!("{}", e),
+                body: text,
+            }
+            .into()
+        }),
+        Err(e) => Err(e.into()),
+    }
+}
+
+async fn to_json<T>(res: reqwest::Response) -> Result<T>
 where
     T: DeserializeOwned,
 {
     res.error_for_status()
-        .map(|res| async move { res.json::<T>().await })?
+        .map(|res| async move { handle_text(res).await })?
         .await
 }
 
-pub(crate) async fn handle_response<T>(res: Result<reqwest::Response, Error>) -> Result<T, Error>
+pub(crate) async fn handle_response<T>(res: Result<reqwest::Response, Error>) -> Result<T>
 where
     T: DeserializeOwned,
 {
     res.map(to_json)?.await
 }
 
-async fn to_json_300<T>(res: reqwest::Response) -> Result<Either<(), T>, Error>
+async fn to_json_300<T>(res: reqwest::Response) -> Result<Either<(), T>>
 where
     T: DeserializeOwned,
 {
@@ -52,15 +69,15 @@ where
             if res.status().is_redirection() {
                 Ok(Either::new_left(()))
             } else {
-                Ok(Either::new_right(res.json::<T>().await?))
+                Ok(Either::new_right(handle_text(res).await?))
             }
         })?
         .await
 }
 
 pub(crate) async fn handle_response_300<T>(
-    res: Result<reqwest::Response, Error>,
-) -> Result<Either<(), T>, Error>
+    res: std::result::Result<reqwest::Response, Error>,
+) -> Result<Either<(), T>>
 where
     T: DeserializeOwned,
 {

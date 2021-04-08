@@ -15,11 +15,12 @@ libeither = "0"
 reqwest = { version = "0", features = [ "json" ] }
 serde = "1"
 serde_derive = "1"
+serde_json = "1"
 thiserror = "1"
 
 [dev-dependencies]
+lazy_static = "1"
 rand = "0"
-serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 wiremock = "0"
 

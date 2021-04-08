@@ -56,7 +56,8 @@ coll_output!(
         /// The number of documents inside the collection. This is only
         /// returned if `include_count` is set to true when [`load`](crate::Collection::load) is
         /// called
-        count: usize => 10,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        count: Option<usize> => Some(10),
     }
 );
 
@@ -273,26 +274,40 @@ coll_output!(
     }
 );
 
-coll_output!(
-    /// Output when [`collections`](crate::Collection::collections) is called for a collection
-    pub struct Collections {
-        /// The id of the current collection
-        id: String => "16042".to_string(),
-        /// The name of the current collection
-        name: String => "edges".to_string(),
-        /// The collection status
-        status: Status => Status::Loaded,
-        /// The collection kind
-        #[serde(rename = "type")]
-        kind: CollectionKind => CollectionKind::Edges,
-        /// Is the current collection a `_system` collection
-        #[serde(rename = "isSystem")]
-        is_system: bool => false,
-        /// The globally unique id
-        #[serde(rename = "globallyUniqueId")]
-        globally_unique_id: String => "hD4537D142F4C/16042".to_string(),
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[cfg_attr(test, derive(Serialize, Setters), getset(set = "pub(crate)"))]
+#[getset(get = "pub")]
+/// Output when [`collections`](crate::Collection::collections) is called for a collection
+pub struct Collections {
+    /// The id of the current collection
+    id: String,
+    /// The name of the current collection
+    name: String,
+    /// The collection status
+    status: Status,
+    /// The collection kind
+    #[serde(rename = "type")]
+    kind: CollectionKind,
+    /// Is the current collection a `_system` collection
+    #[serde(rename = "isSystem")]
+    is_system: bool,
+    /// The globally unique id
+    #[serde(rename = "globallyUniqueId")]
+    globally_unique_id: String,
+}
+
+impl Default for Collections {
+    fn default() -> Self {
+        Self {
+            id: "16042".to_string(),
+            name: "edges".to_string(),
+            status: Status::Loaded,
+            kind: CollectionKind::Edges,
+            is_system: false,
+            globally_unique_id: "hD4537D142F4C/16042".to_string(),
+        }
     }
-);
+}
 
 /// Figure details that are part of the [`Figures`](Figures) output
 #[derive(Clone, Copy, Debug, Deserialize, Getters)]

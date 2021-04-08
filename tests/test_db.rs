@@ -1,96 +1,53 @@
+// Copyright (c) 2021 ruarango developers
+//
+// Licensed under the Apache License, Version 2.0
+// <LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0> or the MIT
+// license <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. All files in the project carrying such notice may not be copied,
+// modified, or distributed except according to those terms.
+
+//! `ruarango` database operation integration tests
+
+#[macro_use]
+mod common;
+
 use anyhow::Result;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use ruarango::{db::input::CreateBuilder, ConnectionBuilder, Database};
-use std::iter;
+use common::{conn_root_system, conn_ruarango, rand_name};
+use lazy_static::lazy_static;
+use ruarango::{
+    db::input::{Create, CreateBuilder},
+    Database,
+};
 
-#[tokio::test]
-async fn current() -> Result<()> {
-    let conn = ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("ruarango")
-        .password(env!("ARANGODB_RUARANGO_PASSWORD"))
-        .database("ruarango")
-        .build()
-        .await?;
-
-    let res = conn.current().await?;
-
-    assert!(!res.error());
-    assert_eq!(*res.code(), 200);
+int_test!(res; database_current, conn_ruarango, current() => {
     let current = res.result();
     assert_eq!(current.name(), "ruarango");
     assert!(!current.is_system());
+});
 
-    Ok(())
-}
-
-#[tokio::test]
-async fn user() -> Result<()> {
-    let conn = ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("ruarango")
-        .password(env!("ARANGODB_RUARANGO_PASSWORD"))
-        .database("ruarango")
-        .build()
-        .await?;
-
-    let res = conn.user().await?;
-
-    assert!(!res.error());
-    assert_eq!(*res.code(), 200);
+int_test!(res; database_user, conn_ruarango, user() => {
     assert_eq!(res.result().len(), 1);
     assert_eq!(res.result()[0], "ruarango");
+});
 
-    Ok(())
-}
-
-#[tokio::test]
-async fn list() -> Result<()> {
-    let conn = ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("root")
-        .password(env!("ARANGODB_ROOT_PASSWORD"))
-        .build()
-        .await?;
-
-    let res = conn.list().await?;
-
-    assert!(!res.error());
-    assert_eq!(*res.code(), 200);
+int_test!(res; database_list, conn_root_system, list() => {
     assert!(res.result().len() > 0);
     assert!(res.result().contains(&"ruarango".to_string()));
+});
 
-    Ok(())
+lazy_static! {
+    static ref DB_NAME: String = rand_name();
 }
 
-#[tokio::test]
-async fn create_drop() -> Result<()> {
-    let conn = ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("root")
-        .password(env!("ARANGODB_ROOT_PASSWORD"))
-        .build()
-        .await?;
+fn create_config() -> Result<Create> {
+    Ok(CreateBuilder::default().name(&*DB_NAME).build()?)
+}
 
-    let mut rng = thread_rng();
-    let mut db_name = String::from("abc");
-    let db_name_ext: String = iter::repeat(())
-        .map(|()| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(10)
-        .collect();
-    db_name.push_str(&db_name_ext);
-    let create = CreateBuilder::default().name(db_name.clone()).build()?;
-    let res = conn.create(&create).await?;
-
-    assert!(!res.error());
-    assert_eq!(*res.code(), 201);
+int_test!(res; conn; 201; database_create_drop, conn_root_system, create(&create_config()?) => {
     assert!(res.result());
 
-    let res = conn.drop(&db_name).await?;
+    let res = conn.drop(&*DB_NAME).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(res.result());
-
-    Ok(())
-}
+});

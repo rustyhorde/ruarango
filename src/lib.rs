@@ -235,7 +235,7 @@
 )]
 
 #[cfg(test)]
-use rand as _;
+use {lazy_static as _, rand as _};
 
 #[macro_use]
 mod impls;

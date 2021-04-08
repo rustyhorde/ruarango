@@ -225,7 +225,8 @@ mod test {
     mock_test!(get_revision, res; revision("test_coll"); mock_revision => {});
 
     mock_test!(put_load, res; load("test_coll", true); mock_load => {
-        assert_eq!(*res.count(), 10);
+        assert!(res.count().is_some());
+        assert_eq!(res.count().unwrap(), 10);
     });
 
     mock_test!(put_load_indexes, res; load_indexes("test_coll"); mock_load_indexes => {
