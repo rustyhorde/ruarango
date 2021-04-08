@@ -73,11 +73,13 @@ async fn create_drop() -> Result<()> {
         .await?;
 
     let mut rng = thread_rng();
-    let db_name: String = iter::repeat(())
+    let mut db_name = String::from("abc");
+    let db_name_ext: String = iter::repeat(())
         .map(|()| rng.sample(Alphanumeric))
         .map(char::from)
         .take(10)
         .collect();
+    db_name.push_str(&db_name_ext);
     let create = CreateBuilder::default().name(db_name.clone()).build()?;
     let res = conn.create(&create).await?;
 
