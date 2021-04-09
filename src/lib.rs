@@ -234,8 +234,8 @@
         rustdoc::private_intra_doc_links,
     )
 )]
-#[cfg_attr(beta_lints, deny(rustdoc::non_autolinks))]
-#[cfg_attr(nightly_lints, deny(rustdoc::bare_urls))]
+#![cfg_attr(beta_lints, deny(rustdoc::non_autolinks))]
+#![cfg_attr(nightly_lints, deny(rustdoc::bare_urls))]
 
 #[cfg(test)]
 use {lazy_static as _, rand as _};
