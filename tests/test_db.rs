@@ -79,10 +79,10 @@ async fn database_current() -> Result<()> {
     Ok(())
 }
 
-int_test!(res; database_user, conn_ruarango, user() => {
-    assert_eq!(res.result().len(), 1);
-    assert_eq!(res.result()[0], "ruarango");
-});
+// int_test!(res; database_user, conn_ruarango, user() => {
+//     assert_eq!(res.result().len(), 1);
+//     assert_eq!(res.result()[0], "ruarango");
+// });
 
 int_test!(res; database_list, conn_root_system, list() => {
     assert!(res.result().len() > 0);

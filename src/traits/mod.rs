@@ -9,8 +9,6 @@
 //! Database operation traits
 
 use getset::Getters;
-use libeither::Either;
-use serde_derive::Serialize;
 
 mod coll;
 mod db;
@@ -23,7 +21,7 @@ pub use doc::Document;
 pub use job::Job;
 
 /// Job Information from an asynchronous invocation
-#[derive(Clone, Debug, Getters, Serialize)]
+#[derive(Clone, Debug, Getters)]
 #[getset(get = "pub")]
 pub struct JobInfo {
     /// The response code
@@ -34,10 +32,11 @@ pub struct JobInfo {
 
 impl JobInfo {
     #[doc(hidden)]
+    #[must_use]
     pub fn new(code: u16, id: Option<String>) -> Self {
         Self { code, id }
     }
 }
 
 /// A result from an operation that supports asynchronous invocation
-pub type Res<T> = Either<JobInfo, T>;
+pub type Either<T> = libeither::Either<JobInfo, T>;

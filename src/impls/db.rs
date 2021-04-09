@@ -9,18 +9,17 @@
 //! `ruarango` database trait implementation
 
 use crate::{
-    api_delete, api_get, api_post,
+    api_delete, api_get, api_get_async, api_get_right, api_post,
     common::output::Response,
     conn::Connection,
     db::{input::Create, output::Current},
-    traits::{Database, JobInfo, Res},
+    traits::{Database, Either, JobInfo},
     utils::handle_response,
 };
-use anyhow::{Context, Error, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use const_format::concatcp;
 use futures::FutureExt;
-use libeither::Either;
 
 const BASE_SUFFIX: &str = "_api/database";
 const USER_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/user");
@@ -28,27 +27,20 @@ const CURRENT_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/current");
 
 #[async_trait]
 impl Database for Connection {
-    async fn current(&self) -> Result<Res<Response<Current>>> {
+    async fn current(&self) -> Result<Either<Response<Current>>> {
         if *self.is_async() {
-            let current_url = self
-                .db_url()
-                .join(CURRENT_SUFFIX)
-                .with_context(|| format!("Unable to build '{}' url", CURRENT_SUFFIX))?;
-            let res = self.async_client().get(current_url).send().await?;
-            let status = res.status().as_u16();
-            let job_id = res
-                .headers()
-                .get("x-arango-async-id")
-                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-            Ok(Either::new_left(JobInfo::new(status, job_id)))
+            api_get_async!(self, db_url, CURRENT_SUFFIX)
         } else {
-            let res: Result<Response<Current>, Error> = api_get!(self, db_url, CURRENT_SUFFIX);
-            Ok(Either::new_right(res?))
+            api_get_right!(self, db_url, CURRENT_SUFFIX, Response<Current>)
         }
     }
 
-    async fn user(&self) -> Result<Response<Vec<String>>> {
-        api_get!(self, db_url, USER_SUFFIX)
+    async fn user(&self) -> Result<Either<Response<Vec<String>>>> {
+        if *self.is_async() {
+            api_get_async!(self, db_url, USER_SUFFIX)
+        } else {
+            api_get_right!(self, db_url, USER_SUFFIX, Response<Vec<String>>)
+        }
     }
 
     async fn list(&self) -> Result<Response<Vec<String>>> {
@@ -69,27 +61,46 @@ mod test {
     use super::Database;
     use crate::{
         db::input::{CreateBuilder, OptionsBuilder, UserBuilder},
-        mock_test,
+        mock_test, mock_test_async, mock_test_right,
         utils::{
-            default_conn, mock_auth,
-            mocks::db::{mock_create, mock_drop, mock_list, mock_user},
+            default_conn, default_conn_async, mock_auth,
+            mocks::db::{
+                mock_create, mock_current, mock_current_async, mock_drop, mock_list, mock_user,
+                mock_user_async,
+            },
             no_db_conn,
         },
     };
-    use anyhow::Result;
+    use anyhow::{anyhow, Result};
     use wiremock::MockServer;
 
-    // mock_test!(test_current, res; current(); mock_current => {
-    //     assert_eq!(res.result().name(), "test");
-    //     assert_eq!(res.result().id(), "123");
-    //     assert!(!res.result().is_system());
-    //     assert_eq!(res.result().path(), "abcdef");
-    //     assert!(res.result().sharding().is_none());
-    //     assert!(res.result().replication_factor().is_none());
-    //     assert!(res.result().write_concern().is_none());
-    // });
+    mock_test_async!(test_current_async, res; current(); mock_current_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
 
-    mock_test!(test_user, res; user(); mock_user => {
+    mock_test_right!(test_current, res; current(); mock_current => {
+        assert_eq!(res.result().name(), "test");
+        assert_eq!(res.result().id(), "123");
+        assert!(!res.result().is_system());
+        assert_eq!(res.result().path(), "abcdef");
+        assert!(res.result().sharding().is_none());
+        assert!(res.result().replication_factor().is_none());
+        assert!(res.result().write_concern().is_none());
+    });
+
+    mock_test_async!(test_user_async, res; user(); mock_user_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
+
+    mock_test_right!(test_user, res; user(); mock_user => {
         assert!(res.result().len() > 0);
     });
 

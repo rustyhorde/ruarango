@@ -17,7 +17,7 @@ use serde::de::DeserializeOwned;
 #[cfg(test)]
 use {
     crate::{
-        builder::ConnectionBuilder,
+        builder::{AsyncKind, ConnectionBuilder},
         conn::Connection,
         error::RuarangoError::{self, TestError},
         model::auth::output::AuthResponse,
@@ -113,6 +113,21 @@ where
 }
 
 #[cfg(test)]
+pub(crate) async fn default_conn_async<T>(uri: T) -> Result<Connection>
+where
+    T: Into<String>,
+{
+    ConnectionBuilder::default()
+        .url(uri)
+        .username("root")
+        .password("")
+        .database("keti")
+        .async_kind(AsyncKind::Store)
+        .build()
+        .await
+}
+
+#[cfg(test)]
 pub(crate) async fn no_db_conn<T>(uri: T) -> Result<Connection>
 where
     T: Into<String>,
@@ -159,6 +174,90 @@ macro_rules! mock_test {
     };
     ($($tail:tt)*) => {
         mock_test!(200, $($tail)*);
+    };
+}
+
+#[cfg(test)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! mock_test_async {
+    ($conn_ty:ident, $name:ident, $res:ident; $api:ident($($args:expr),*); $($mock:ident),+ => $asserts: block) => {
+        #[tokio::test]
+        async fn $name() -> Result<()> {
+            let mock_server = MockServer::start().await;
+            mock_auth(&mock_server).await;
+            $(
+                $mock(&mock_server).await;
+            )+
+
+            let conn = $conn_ty(mock_server.uri()).await?;
+            let $res = conn.$api($($args),*).await?;
+
+            assert!($res.is_left());
+            $asserts
+
+            Ok(())
+        }
+    };
+    ($($tail:tt)*) => {
+        mock_test_async!(default_conn_async, $($tail)*);
+    };
+}
+
+#[cfg(test)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! mock_test_right {
+    ($conn_ty:ident, $code:literal, $name:ident, $res:ident; $api:ident($($args:expr),*); $($mock:ident),+ => $asserts: block) => {
+        #[tokio::test]
+        async fn $name() -> Result<()> {
+            let mock_server = MockServer::start().await;
+            mock_auth(&mock_server).await;
+            $(
+                $mock(&mock_server).await;
+            )+
+
+            let conn = $conn_ty(mock_server.uri()).await?;
+            let res = conn.$api($($args),*).await?;
+
+            assert!(res.is_right());
+            let $res = res.right_safe()?;
+            assert!(!$res.error());
+            assert_eq!(*$res.code(), $code);
+            $asserts
+
+            Ok(())
+        }
+    };
+    ($code:literal, $($tail:tt)*) => {
+        mock_test_right!(default_conn, $code, $($tail)*);
+    };
+    ($($tail:tt)*) => {
+        mock_test_right!(200, $($tail)*);
+    };
+}
+
+#[cfg(test)]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! mock_async {
+    ($fn_name:ident, $code:expr, $method:literal, $($matcher:expr),*) => {
+        pub(crate) async fn $fn_name(mock_server: &MockServer) {
+            let mock_response = ResponseTemplate::new($code).insert_header("x-arango-async-id", "123456");
+
+            let mut mock_builder = Mock::given(method($method));
+
+            $(
+                mock_builder = mock_builder.and($matcher);
+            )*
+
+            mock_builder.respond_with(mock_response)
+                .mount(&mock_server)
+                .await;
+        }
+    };
+    ($fn_name:ident, $method:literal, $($matcher:expr),*) => {
+        mock_async!($fn_name, 202, $method, $($matcher),*);
     };
 }
 
@@ -360,18 +459,26 @@ pub(crate) mod mocks {
     }
 
     pub(crate) mod db {
-        use crate::common::output::Response;
+        use crate::{common::output::Response, db::output::Current};
         use wiremock::{
             matchers::{body_string_contains, method, path},
             Mock, MockServer, ResponseTemplate,
         };
 
-        // mock_x!(
-        //     mock_current,
-        //     Response::<Current>,
-        //     "GET",
-        //     path("_db/keti/_api/database/current")
-        // );
+        mock_async!(
+            mock_current_async,
+            "GET",
+            path("_db/keti/_api/database/current")
+        );
+
+        mock_x!(
+            mock_current,
+            Response::<Current>,
+            "GET",
+            path("_db/keti/_api/database/current")
+        );
+
+        mock_async!(mock_user_async, "GET", path("_db/keti/_api/database/user"));
 
         mock_x!(
             mock_user,

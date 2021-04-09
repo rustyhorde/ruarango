@@ -171,6 +171,8 @@
 //!     .await?;
 //!
 //! // Use the connection to spawn a job for information about the current database
+//! // This will return immediately with a 202 code and job information if the job
+//! // was accepted into the queue.
 //! let res = conn.current().await?;
 //!
 //! // Get the async job info results out of the left side of the `Either`
@@ -190,7 +192,7 @@
 //!     status = conn.status(job_id).await?;
 //! }
 //!
-//! // Fetch the results
+//! // Fetch the results (this has the side effect of removing the job off of the server)
 //! let res: Response<Current> = conn.fetch(job_id).await?;
 //! assert!(!res.error());
 //! assert_eq!(*res.code(), 200);
@@ -458,6 +460,6 @@ pub use model::doc;
 pub use traits::Collection;
 pub use traits::Database;
 pub use traits::Document;
+pub use traits::Either;
 pub use traits::Job;
 pub use traits::JobInfo;
-pub use traits::Res;
