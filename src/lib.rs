@@ -230,7 +230,7 @@
         rustdoc::invalid_html_tags,
         rustdoc::missing_crate_level_docs,
         rustdoc::missing_doc_code_examples,
-        rustdoc::non_autolinks,
+        rustdoc::bare_urls,
         // rustdoc::private_doc_tests,
         rustdoc::private_intra_doc_links,
     )
