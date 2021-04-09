@@ -8,13 +8,22 @@
 
 //! `ruarango`
 //!
+//! A database driver written in Rust for the [`ArangoDB`](https://www.arangodb.com) database.
+//!
+//! This driver supports the 3 modes of operation that `ArangoDB` exposes.  They are
+//! blocking, fire & forget, and store.  The latter two modes are asynchronus, while the
+//! first is synchronous.  More details can be found [here](https://www.arangodb.com/docs/stable/http/async-results-management.html)
+//!
+//! # Synchronous Blocking Connection
+//! Use the driver in [`Blocking`](https://www.arangodb.com/docs/stable/http/async-results-management.html#blocking-execution) mode
+//!
 //! ```
 //! # use anyhow::Result;
 //! // Use `ConnectionBuilder` to build a connection and pull in the
 //! // traits for operations you wish to use
 //! use ruarango::{ConnectionBuilder, Database};
 //! # use libeither::Either;
-//! # use ruarango::{common::output::Response, db::output::Current};
+//! # use ruarango::{JobInfo, common::output::Response, db::output::Current};
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #    matchers::{method, path, body_string_contains},
@@ -34,7 +43,7 @@
 //! # }
 //! #
 //! # #[tokio::main]
-//! # async fn blah() -> Result<()> {
+//! # async fn main() -> Result<()> {
 //! # let mock_server = MockServer::start().await;
 //! # let body: AuthResponse = "not a real jwt".into();
 //! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
@@ -47,7 +56,7 @@
 //! #     .mount(&mock_server)
 //! #     .await;
 //! #
-//! # let body = Either::<(u16, String), Response<Current>>::new_right(Response::<Current>::default());
+//! # let body = Response::<Current>::default();
 //! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
 //! #
 //! # Mock::given(method("GET"))
@@ -67,13 +76,13 @@
 //!     .build()
 //!     .await?;
 //!
-//! // Use the connection to query information about the
-//! // current database
+//! // Use the connection to query information about the current database
 //! let res = conn.current().await?;
 //!
-//! // Get the sync results out of the right
-//! assert!(!res.is_right());
+//! // Get the sync results out of the right side of the `Either`
+//! assert!(res.is_right());
 //! let contents = res.right_safe()?;
+//! assert!(!contents.error());
 //! assert_eq!(*contents.code(), 200);
 //! assert_eq!(contents.result().name(), "test");
 //! assert_eq!(contents.result().id(), "123");
@@ -81,6 +90,193 @@
 //! #     Ok(())
 //! # }
 //! ```
+//!
+//! # Asynchronous Store Connection
+//! Use the driver in [`Store`](https://www.arangodb.com/docs/stable/http/async-results-management.html#async-execution-and-later-result-retrieval) mode
+//!
+//! ```
+//! # use anyhow::{anyhow, Result};
+//! // Use `ConnectionBuilder` to build a connection and pull in the
+//! // traits for operations you wish to use
+//! use ruarango::{ConnectionBuilder, Database, Job};
+//! # use libeither::Either;
+//! # use ruarango::{AsyncKind, JobInfo, common::output::Response, db::output::Current};
+//! # use serde_derive::{Deserialize, Serialize};
+//! # use wiremock::{
+//! #    matchers::{method, path, body_string_contains},
+//! #    Mock, MockServer, ResponseTemplate,
+//! # };
+//! # #[derive(Deserialize, Serialize)]
+//! # pub(crate) struct AuthResponse {
+//! #     jwt: String,
+//! # }
+//! #
+//! # impl From<&str> for AuthResponse {
+//! #     fn from(val: &str) -> AuthResponse {
+//! #         Self {
+//! #             jwt: val.to_string(),
+//! #         }
+//! #     }
+//! # }
+//! #
+//! # #[tokio::main]
+//! # async fn main() -> Result<()> {
+//! # let mock_server = MockServer::start().await;
+//! # let body: AuthResponse = "not a real jwt".into();
+//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
+//! #
+//! # Mock::given(method("POST"))
+//! #     .and(path("/_open/auth"))
+//! #     .and(body_string_contains("username"))
+//! #     .and(body_string_contains("password"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let mock_response = ResponseTemplate::new(202).insert_header("x-arango-async-id", "123456");
+//! #
+//! # Mock::given(method("GET"))
+//! #     .and(path("/_db/test_db/_api/database/current"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let mock_response = ResponseTemplate::new(200);
+//! #
+//! # Mock::given(method("GET"))
+//! #     .and(path("/_db/test_db/_api/job/123456"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let body = Response::<Current>::default();
+//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
+//! #
+//! # Mock::given(method("PUT"))
+//! #     .and(path("/_db/test_db/_api/job/123456"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let url = mock_server.uri();
+//!
+//! // Setup a asynchronous store connection to the database
+//! let conn = ConnectionBuilder::default()
+//!     .url(url) // The normal url for ArangoDB running locally is http://localhost:8529
+//!     .username("root")
+//!     .password("")
+//!     .database("test_db")
+//!     .async_kind(AsyncKind::Store)
+//!     .build()
+//!     .await?;
+//!
+//! // Use the connection to spawn a job for information about the current database
+//! let res = conn.current().await?;
+//!
+//! // Get the async job info results out of the left side of the `Either`
+//! assert!(res.is_left());
+//! let contents = res.left_safe()?;
+//! assert_eq!(*contents.code(), 202);
+//! assert!(contents.id().is_some());
+//! let job_id = contents.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+//! assert_eq!(job_id, "123456");
+//!
+//! // Check status until we get 200 (or error out on 404)
+//! let mut status = conn.status(job_id).await?;
+//! assert!(status == 200 || status == 204);
+//!
+//! while status != 200 {
+//!     std::thread::sleep(std::time::Duration::from_millis(500));
+//!     status = conn.status(job_id).await?;
+//! }
+//!
+//! // Fetch the results
+//! let res: Response<Current> = conn.fetch(job_id).await?;
+//! assert!(!res.error());
+//! assert_eq!(*res.code(), 200);
+//! assert_eq!(res.result().name(), "test");
+//! assert_eq!(res.result().id(), "123");
+//! assert!(!res.result().is_system());
+//! #     Ok(())
+//! # }
+//! ```
+//!
+//! # Asynchronous Fire & Forget Connection
+//! Use the driver in [`Fire & Forget`](https://www.arangodb.com/docs/stable/http/async-results-management.html#fire-and-forget) mode
+//!
+//! ```
+//! # use anyhow::{anyhow, Result};
+//! // Use `ConnectionBuilder` to build a connection and pull in the
+//! // traits for operations you wish to use
+//! use ruarango::{ConnectionBuilder, Database, Job};
+//! # use libeither::Either;
+//! # use ruarango::{AsyncKind, JobInfo, common::output::Response, db::output::Current};
+//! # use serde_derive::{Deserialize, Serialize};
+//! # use wiremock::{
+//! #    matchers::{method, path, body_string_contains},
+//! #    Mock, MockServer, ResponseTemplate,
+//! # };
+//! # #[derive(Deserialize, Serialize)]
+//! # pub(crate) struct AuthResponse {
+//! #     jwt: String,
+//! # }
+//! #
+//! # impl From<&str> for AuthResponse {
+//! #     fn from(val: &str) -> AuthResponse {
+//! #         Self {
+//! #             jwt: val.to_string(),
+//! #         }
+//! #     }
+//! # }
+//! #
+//! # #[tokio::main]
+//! # async fn main() -> Result<()> {
+//! # let mock_server = MockServer::start().await;
+//! # let body: AuthResponse = "not a real jwt".into();
+//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
+//! #
+//! # Mock::given(method("POST"))
+//! #     .and(path("/_open/auth"))
+//! #     .and(body_string_contains("username"))
+//! #     .and(body_string_contains("password"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let mock_response = ResponseTemplate::new(202);
+//! #
+//! # Mock::given(method("GET"))
+//! #     .and(path("/_db/test_db/_api/database/current"))
+//! #     .respond_with(mock_response)
+//! #     .mount(&mock_server)
+//! #     .await;
+//! #
+//! # let url = mock_server.uri();
+//!
+//! // Setup a asynchronous store connection to the database
+//! let conn = ConnectionBuilder::default()
+//!     .url(url) // The normal url for ArangoDB running locally is http://localhost:8529
+//!     .username("root")
+//!     .password("")
+//!     .database("test_db")
+//!     .async_kind(AsyncKind::FireAndForget)
+//!     .build()
+//!     .await?;
+//!
+//! // Use the connection to spawn a job for information about the current database
+//! // In this case, fire and forget isn't useful, but for other operations it
+//! // may be.  Fire and Forget jobs run on the server and do not store results.
+//! let res = conn.current().await?;
+//!
+//! // Check that the job was accepted into the queue.
+//! assert!(res.is_left());
+//! let contents = res.left_safe()?;
+//! assert_eq!(*contents.code(), 202);
+//! assert!(contents.id().is_none());
+//! #     Ok(())
+//! # }
+//! ```
+//!
 // rustc lints
 #![allow(box_pointers)]
 #![deny(

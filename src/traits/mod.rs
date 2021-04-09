@@ -10,6 +10,7 @@
 
 use getset::Getters;
 use libeither::Either;
+use serde_derive::Serialize;
 
 mod coll;
 mod db;
@@ -22,7 +23,7 @@ pub use doc::Document;
 pub use job::Job;
 
 /// Job Information from an asynchronous invocation
-#[derive(Clone, Debug, Getters)]
+#[derive(Clone, Debug, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct JobInfo {
     /// The response code
@@ -32,7 +33,8 @@ pub struct JobInfo {
 }
 
 impl JobInfo {
-    pub(crate) fn new(code: u16, id: Option<String>) -> Self {
+    #[doc(hidden)]
+    pub fn new(code: u16, id: Option<String>) -> Self {
         Self { code, id }
     }
 }
