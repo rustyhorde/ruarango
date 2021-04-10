@@ -23,29 +23,7 @@ use ruarango::{
     Database, Job,
 };
 
-#[tokio::test]
-async fn database_current_async() -> Result<()> {
-    // Request async
-    let conn = conn_ruarango_async().await?;
-    let res = conn.current().await?;
-
-    // Should get a 202 immediately with a 'job-id'
-    assert!(res.is_left());
-    let job_info = res.left_safe()?;
-    assert_eq!(*job_info.code(), 202);
-    let id = job_info.id().as_ref().ok_or_else(|| anyhow!("blah"))?;
-
-    // Check status until we get 200
-    let mut status = conn.status(id).await?;
-    assert!(status == 200 || status == 204);
-
-    while status != 200 {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        status = conn.status(id).await?;
-    }
-
-    // Fetch the results
-    let res: Response<Current> = conn.fetch(id).await?;
+int_test_async!(res; Response<Current>; database_current_async, conn_ruarango_async, current() => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.result().name(), "ruarango");
@@ -55,34 +33,29 @@ async fn database_current_async() -> Result<()> {
     assert!(res.result().sharding().is_none());
     assert!(res.result().replication_factor().is_none());
     assert!(res.result().write_concern().is_none());
+});
 
-    Ok(())
-}
+int_test_sync!(res; database_current, conn_ruarango, current() => {
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert_eq!(res.result().name(), "ruarango");
+    assert_eq!(res.result().id(), "415");
+    assert!(!res.result().is_system());
+    assert_eq!(res.result().path(), "none");
+    assert!(res.result().sharding().is_none());
+    assert!(res.result().replication_factor().is_none());
+    assert!(res.result().write_concern().is_none());
+});
 
-#[tokio::test]
-async fn database_current() -> Result<()> {
-    let conn = conn_ruarango().await?;
-    let res = conn.current().await?;
+int_test_async!(res; Response<Vec<String>>; database_user_async, conn_ruarango_async, user() => {
+    assert_eq!(res.result().len(), 1);
+    assert_eq!(res.result()[0], "ruarango");
+});
 
-    assert!(res.is_right());
-    let stuff = res.right_safe()?;
-    assert!(!stuff.error());
-    assert_eq!(*stuff.code(), 200);
-    assert_eq!(stuff.result().name(), "ruarango");
-    assert_eq!(stuff.result().id(), "415");
-    assert!(!stuff.result().is_system());
-    assert_eq!(stuff.result().path(), "none");
-    assert!(stuff.result().sharding().is_none());
-    assert!(stuff.result().replication_factor().is_none());
-    assert!(stuff.result().write_concern().is_none());
-
-    Ok(())
-}
-
-// int_test!(res; database_user, conn_ruarango, user() => {
-//     assert_eq!(res.result().len(), 1);
-//     assert_eq!(res.result()[0], "ruarango");
-// });
+int_test_sync!(res; database_user, conn_ruarango, user() => {
+    assert_eq!(res.result().len(), 1);
+    assert_eq!(res.result()[0], "ruarango");
+});
 
 int_test!(res; database_list, conn_root_system, list() => {
     assert!(res.result().len() > 0);
