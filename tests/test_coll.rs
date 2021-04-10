@@ -46,12 +46,14 @@ lazy_static! {
     static ref RENAME_NAME: String = rand_name();
     static ref RENAME_NEW_NAME: String = rand_name();
     static ref TRUNCATE_NAME: String = rand_name();
+    static ref UNLOAD_NAME: String = rand_name();
 }
 
 enum CreateKind {
     Coll,
     Rename,
     Truncate,
+    Unload,
 }
 
 fn create_config(kind: CreateKind) -> Result<Config> {
@@ -59,6 +61,7 @@ fn create_config(kind: CreateKind) -> Result<Config> {
         CreateKind::Coll => ConfigBuilder::default().name(&*COLL_NAME).build()?,
         CreateKind::Rename => ConfigBuilder::default().name(&*RENAME_NAME).build()?,
         CreateKind::Truncate => ConfigBuilder::default().name(&*TRUNCATE_NAME).build()?,
+        CreateKind::Unload => ConfigBuilder::default().name(&*UNLOAD_NAME).build()?,
     })
 }
 
@@ -160,4 +163,12 @@ int_test!(res; conn; collection_truncate, conn_ruarango, create(&create_config(C
     assert_eq!(*res.code(), 200);
 });
 
-int_test!(res; collection_unload, conn_ruarango, unload(TEST_COLL) => {});
+int_test!(res; conn; collection_unload, conn_ruarango, create(&create_config(CreateKind::Unload)?) => {
+    assert_eq!(res.name(), &*UNLOAD_NAME);
+
+    let _res = conn.unload(&*UNLOAD_NAME).await?;
+
+    let res = conn.drop(&*UNLOAD_NAME, false).await?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+});
