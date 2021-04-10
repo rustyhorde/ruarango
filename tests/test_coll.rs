@@ -9,6 +9,7 @@
 //! `ruarango` collection operation integration tests
 
 #[macro_use]
+mod common_coll;
 mod common;
 
 use anyhow::Result;

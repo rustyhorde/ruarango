@@ -140,6 +140,22 @@ macro_rules! api_get_async {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! api_post_async {
+    ($self:ident, $url:ident, $suffix:expr, $json:expr) => {
+        $crate::api_request_async!($self, $url, $suffix, POST, $json)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! api_delete_async {
+    ($self:ident, $url:ident, $suffix:expr) => {
+        $crate::api_request_async!($self, $url, $suffix, DELETE)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! api_request_right {
     () => {};
     ($self:ident, $url:ident, GET, $headers:expr) => {
@@ -156,9 +172,6 @@ macro_rules! api_request_right {
     };
     ($self:ident, $url:ident, PUT, $json:expr) => {
         $self.client().put($url).json($json).send().then(handle_response).await
-    };
-    ($self:ident, $url:ident, DELETE) => {
-        $self.client().delete($url).send().then(handle_response).await
     };
     ($self:ident, $url:ident, POST, $json:expr) => {
         $self.client().post($url).json($json).send().then(handle_response).await
@@ -181,5 +194,21 @@ macro_rules! api_request_right {
 macro_rules! api_get_right {
     ($self:ident, $url:ident, $suffix:expr, $kind:ty) => {
         $crate::api_request_right!($self, $url, $suffix, $kind, GET)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! api_post_right {
+    ($self:ident, $url:ident, $suffix:expr, $kind:ty, $json:expr) => {
+        $crate::api_request_right!($self, $url, $suffix, $kind, POST, $json)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! api_delete_right {
+    ($self:ident, $url:ident, $suffix:expr, $kind:ty) => {
+        $crate::api_request_right!($self, $url, $suffix, $kind, DELETE)
     };
 }

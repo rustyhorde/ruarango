@@ -9,7 +9,8 @@
 //! `ruarango` database trait implementation
 
 use crate::{
-    api_delete, api_get_async, api_get_right, api_post,
+    api_delete_async, api_delete_right, api_get_async, api_get_right, api_post_async,
+    api_post_right,
     common::output::Response,
     conn::Connection,
     db::{input::Create, output::Current},
@@ -51,12 +52,25 @@ impl Database for Connection {
         }
     }
 
-    async fn create(&self, create: &Create) -> Result<Response<bool>> {
-        api_post!(self, base_url, BASE_SUFFIX, create)
+    async fn create(&self, create: &Create) -> Result<Either<Response<bool>>> {
+        if *self.is_async() {
+            api_post_async!(self, base_url, BASE_SUFFIX, create)
+        } else {
+            api_post_right!(self, base_url, BASE_SUFFIX, Response<bool>, create)
+        }
     }
 
-    async fn drop(&self, name: &str) -> Result<Response<bool>> {
-        api_delete!(self, base_url, &format!("{}/{}", BASE_SUFFIX, name))
+    async fn drop(&self, name: &str) -> Result<Either<Response<bool>>> {
+        if *self.is_async() {
+            api_delete_async!(self, base_url, &format!("{}/{}", BASE_SUFFIX, name))
+        } else {
+            api_delete_right!(
+                self,
+                base_url,
+                &format!("{}/{}", BASE_SUFFIX, name),
+                Response<bool>
+            )
+        }
     }
 }
 
@@ -141,12 +155,16 @@ mod test {
             .users(vec![users])
             .build()?;
 
-        let res = conn.create(&create).await?;
+        let either = conn.create(&create).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(*res.code(), 201);
         assert!(!res.error());
         assert!(res.result());
 
-        let res = conn.drop("test_db").await?;
+        let either = conn.drop("test_db").await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(*res.code(), 200);
         assert!(!res.error());
         assert!(res.result());

@@ -29,9 +29,9 @@ pub trait Database {
     async fn list(&self) -> Result<Either<Response<Vec<String>>>>;
     /// Creates a new database
     /// *Note*: creating a new database is only possible from within the _system database.
-    async fn create(&self, db: &Create) -> Result<Response<bool>>;
+    async fn create(&self, db: &Create) -> Result<Either<Response<bool>>>;
     /// Drops the database along with all data stored in it.
     /// *Note*: dropping a database is only possible from within the _system database.
     /// The _system database itself cannot be dropped.
-    async fn drop(&self, name: &str) -> Result<Response<bool>>;
+    async fn drop(&self, name: &str) -> Result<Either<Response<bool>>>;
 }

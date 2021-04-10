@@ -9,10 +9,14 @@
 //! `ruarango` database operation integration tests
 
 #[macro_use]
+mod common_db;
 mod common;
 
-use anyhow::{anyhow, Result};
-use common::{conn_root_system, conn_ruarango, conn_ruarango_async, rand_name};
+use anyhow::Result;
+use common::{conn_root_system, conn_ruarango, rand_name};
+use common_db::{
+    conn_root_system_async, conn_ruarango_async, process_async_result, process_sync_result,
+};
 use lazy_static::lazy_static;
 use ruarango::{
     common::output::Response,
@@ -20,7 +24,7 @@ use ruarango::{
         input::{Create, CreateBuilder},
         output::Current,
     },
-    Database, Job,
+    Database,
 };
 
 int_test_async!(res; Response<Current>; database_current_async, conn_ruarango_async, current() => {
@@ -57,6 +61,11 @@ int_test_sync!(res; database_user, conn_ruarango, user() => {
     assert_eq!(res.result()[0], "ruarango");
 });
 
+int_test_async!(res; Response<Vec<String>>; database_list_async, conn_root_system_async, list() => {
+    assert!(res.result().len() > 0);
+    assert!(res.result().contains(&"ruarango".to_string()));
+});
+
 int_test_sync!(res; database_list, conn_root_system, list() => {
     assert!(res.result().len() > 0);
     assert!(res.result().contains(&"ruarango".to_string()));
@@ -64,16 +73,36 @@ int_test_sync!(res; database_list, conn_root_system, list() => {
 
 lazy_static! {
     static ref DB_NAME: String = rand_name();
+    static ref DB_NAME_ASYNC: String = rand_name();
 }
 
-fn create_config() -> Result<Create> {
-    Ok(CreateBuilder::default().name(&*DB_NAME).build()?)
+enum CreateKind {
+    Sync,
+    Async,
 }
 
-int_test!(res; conn; 201; database_create_drop, conn_root_system, create(&create_config()?) => {
+fn create_config(kind: CreateKind) -> Result<Create> {
+    match kind {
+        CreateKind::Async => Ok(CreateBuilder::default().name(&*DB_NAME_ASYNC).build()?),
+        CreateKind::Sync => Ok(CreateBuilder::default().name(&*DB_NAME).build()?),
+    }
+}
+
+int_test_sync!(res; conn; 201; database_create_drop, conn_root_system, create(&create_config(CreateKind::Sync)?) => {
     assert!(res.result());
 
-    let res = conn.drop(&*DB_NAME).await?;
+    let either = conn.drop(&*DB_NAME).await?;
+    let res = process_sync_result(either)?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert!(res.result());
+});
+
+int_test_async!(res; conn; Response<bool>; database_create_drop_async, conn_root_system_async, create(&create_config(CreateKind::Async)?) => {
+    assert!(res.result());
+
+    let res = conn.drop(&*DB_NAME_ASYNC).await?;
+    let res: Response<bool> = process_async_result(res, &conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(res.result());
