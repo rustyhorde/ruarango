@@ -140,6 +140,20 @@ where
         .await
 }
 
+#[cfg(test)]
+pub(crate) async fn no_db_conn_async<T>(uri: T) -> Result<Connection>
+where
+    T: Into<String>,
+{
+    ConnectionBuilder::default()
+        .url(uri)
+        .username("root")
+        .password("")
+        .async_kind(AsyncKind::Store)
+        .build()
+        .await
+}
+
 #[allow(dead_code)]
 #[cfg(test)]
 pub(crate) fn to_test_error(val: String) -> RuarangoError {
@@ -486,6 +500,8 @@ pub(crate) mod mocks {
             "GET",
             path("_db/keti/_api/database/user")
         );
+
+        mock_async!(mock_list_async, "GET", path("_api/database"));
 
         mock_x!(
             mock_list,

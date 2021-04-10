@@ -9,7 +9,7 @@
 //! `ruarango` database trait implementation
 
 use crate::{
-    api_delete, api_get, api_get_async, api_get_right, api_post,
+    api_delete, api_get_async, api_get_right, api_post,
     common::output::Response,
     conn::Connection,
     db::{input::Create, output::Current},
@@ -43,8 +43,12 @@ impl Database for Connection {
         }
     }
 
-    async fn list(&self) -> Result<Response<Vec<String>>> {
-        api_get!(self, base_url, BASE_SUFFIX)
+    async fn list(&self) -> Result<Either<Response<Vec<String>>>> {
+        if *self.is_async() {
+            api_get_async!(self, base_url, BASE_SUFFIX)
+        } else {
+            api_get_right!(self, base_url, BASE_SUFFIX, Response<Vec<String>>)
+        }
     }
 
     async fn create(&self, create: &Create) -> Result<Response<bool>> {
@@ -61,14 +65,14 @@ mod test {
     use super::Database;
     use crate::{
         db::input::{CreateBuilder, OptionsBuilder, UserBuilder},
-        mock_test, mock_test_async, mock_test_right,
+        mock_test_async, mock_test_right,
         utils::{
             default_conn, default_conn_async, mock_auth,
             mocks::db::{
-                mock_create, mock_current, mock_current_async, mock_drop, mock_list, mock_user,
-                mock_user_async,
+                mock_create, mock_current, mock_current_async, mock_drop, mock_list,
+                mock_list_async, mock_user, mock_user_async,
             },
-            no_db_conn,
+            no_db_conn, no_db_conn_async,
         },
     };
     use anyhow::{anyhow, Result};
@@ -104,7 +108,15 @@ mod test {
         assert!(res.result().len() > 0);
     });
 
-    mock_test!(no_db_conn, 200, test_list, res; list(); mock_list => {
+    mock_test_async!(no_db_conn_async, test_list_async, res; list(); mock_list_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
+
+    mock_test_right!(no_db_conn, 200, test_list, res; list(); mock_list => {
         assert!(res.result().len() > 0);
         assert!(res.result().contains(&"_system".to_string()));
     });

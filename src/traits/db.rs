@@ -26,7 +26,7 @@ pub trait Database {
     /// Retrieves the list of all existing databases
     /// *Note*: retrieving the list of databases is only possible from within the _system database.
     /// *Note*: You should use the `GET user API` to fetch the list of the available databases now.
-    async fn list(&self) -> Result<Response<Vec<String>>>;
+    async fn list(&self) -> Result<Either<Response<Vec<String>>>>;
     /// Creates a new database
     /// *Note*: creating a new database is only possible from within the _system database.
     async fn create(&self, db: &Create) -> Result<Response<bool>>;

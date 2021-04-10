@@ -57,7 +57,7 @@ int_test_sync!(res; database_user, conn_ruarango, user() => {
     assert_eq!(res.result()[0], "ruarango");
 });
 
-int_test!(res; database_list, conn_root_system, list() => {
+int_test_sync!(res; database_list, conn_root_system, list() => {
     assert!(res.result().len() > 0);
     assert!(res.result().contains(&"ruarango".to_string()));
 });
