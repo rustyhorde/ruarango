@@ -39,7 +39,7 @@ jobs:
           components: clippy
       - run: cargo clippy --all -- -D warnings
   test:
-    name: vergen
+    name: ruarango
     needs: lints
     env:
       ARANGODB_URL: ${{ secrets.ARANGODB_URL }}
