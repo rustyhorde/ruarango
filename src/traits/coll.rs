@@ -17,6 +17,7 @@ use crate::{
         },
     },
     common::output::Response,
+    traits::Either,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -28,7 +29,8 @@ pub trait Collection {
     ///
     /// Setting `exclude_system` to true will exclude all system collections
     /// from the output.
-    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<Collections>>>;
+    async fn collections(&self, exclude_system: bool)
+        -> Result<Either<Response<Vec<Collections>>>>;
 
     /// Return information about a single collection
     async fn collection(&self, name: &str) -> Result<Coll>;

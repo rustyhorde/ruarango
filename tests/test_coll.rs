@@ -10,27 +10,64 @@
 
 #[macro_use]
 mod common_coll;
+#[macro_use]
 mod common;
 
 use anyhow::Result;
-use common::{conn_root_system, conn_ruarango, rand_name};
+use common::{
+    conn_root_system, conn_root_system_async, conn_ruarango, conn_ruarango_async, rand_name,
+};
 use lazy_static::lazy_static;
 use ruarango::{
     coll::{
         input::{Config, ConfigBuilder, Props, PropsBuilder},
+        output::Collections,
         CollectionKind, Status,
     },
+    common::output::Response,
     Collection,
 };
 
 const TEST_COLL: &str = "test_coll";
 
-int_test!(res; collection_collections_no_system, conn_root_system, collections(true) => {
+int_test_async!(res; Response<Vec<Collections>>; collection_collections_ruarango_no_system_async, conn_ruarango_async, collections(true) => {
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert_eq!(res.result().len(), 1);
+});
+
+int_test_sync!(res; collection_collections_ruarango_no_system, conn_ruarango, collections(true) => {
+    assert_eq!(res.result().len(), 1);
+});
+
+int_test_async!(res; Response<Vec<Collections>>; collection_collections_root_no_system_async, conn_root_system_async, collections(true) => {
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
     assert_eq!(res.result().len(), 0);
 });
 
-int_test!(res; collection_collections, conn_root_system, collections(false) => {
-    assert!(res.result().len() > 0);
+int_test_sync!(res; collection_collections_root_no_system, conn_root_system, collections(true) => {
+    assert_eq!(res.result().len(), 0);
+});
+
+int_test_async!(res; Response<Vec<Collections>>; collection_collections_ruarango_async, conn_ruarango_async, collections(false) => {
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert_eq!(res.result().len(), 11);
+});
+
+int_test_sync!(res; collection_collections_ruarango, conn_ruarango, collections(false) => {
+    assert_eq!(res.result().len(), 11);
+});
+
+int_test_async!(res; Response<Vec<Collections>>; collection_collections_root_async, conn_root_system_async, collections(false) => {
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert_eq!(res.result().len(), 13);
+});
+
+int_test_sync!(res; collection_collections, conn_root_system, collections(false) => {
+    assert_eq!(res.result().len(), 13);
 });
 
 int_test!(res; collection_collection, conn_ruarango, collection(TEST_COLL) => {

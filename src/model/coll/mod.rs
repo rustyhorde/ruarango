@@ -8,9 +8,10 @@
 
 //! [`Input`](crate::coll::input)/[`Output`](crate::coll::output) for [`Collection`](crate::Collection) operations
 
-use serde::de::{self, Deserialize as Deser, Deserializer, Visitor};
-#[cfg(test)]
-use serde::ser::{Serialize as Ser, Serializer};
+use serde::{
+    de::{self, Deserialize as Deser, Deserializer, Visitor},
+    ser::{Serialize as Ser, Serializer},
+};
 use std::fmt;
 
 pub mod input;
@@ -25,7 +26,6 @@ pub enum CollectionKind {
     Edges,
 }
 
-#[cfg(test)]
 impl Ser for CollectionKind {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -85,7 +85,6 @@ pub enum Status {
     Loading,
 }
 
-#[cfg(test)]
 impl Ser for Status {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

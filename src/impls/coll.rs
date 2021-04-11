@@ -9,7 +9,7 @@
 //! Collection trait implementation
 
 use crate::{
-    api_delete, api_get, api_post, api_put,
+    api_delete, api_get, api_get_async, api_get_right, api_post, api_put,
     coll::{
         input::{Config, NewNameBuilder, Props, ShouldCountBuilder},
         output::{
@@ -19,7 +19,7 @@ use crate::{
     },
     common::output::Response,
     conn::Connection,
-    traits::Collection,
+    traits::{Collection, Either, JobInfo},
     utils::handle_response,
 };
 use anyhow::{Context, Result};
@@ -32,11 +32,20 @@ const EXCLUDE_SUFFIX: &str = concatcp!(BASE_SUFFIX, "?excludeSystem=true");
 
 #[async_trait]
 impl Collection for Connection {
-    async fn collections(&self, exclude_system: bool) -> Result<Response<Vec<Collections>>> {
-        if exclude_system {
-            api_get!(self, db_url, EXCLUDE_SUFFIX)
+    async fn collections(
+        &self,
+        exclude_system: bool,
+    ) -> Result<Either<Response<Vec<Collections>>>> {
+        if *self.is_async() {
+            if exclude_system {
+                api_get_async!(self, db_url, EXCLUDE_SUFFIX)
+            } else {
+                api_get_async!(self, db_url, BASE_SUFFIX)
+            }
+        } else if exclude_system {
+            api_get_right!(self, db_url, EXCLUDE_SUFFIX, Response<Vec<Collections>>)
         } else {
-            api_get!(self, db_url, BASE_SUFFIX)
+            api_get_right!(self, db_url, BASE_SUFFIX, Response<Vec<Collections>>)
         }
     }
 
@@ -152,26 +161,42 @@ mod test {
     use super::Collection;
     use crate::{
         coll::{CollectionKind, Status},
-        mock_test,
+        mock_test, mock_test_async, mock_test_right,
         model::coll::input::{ConfigBuilder, PropsBuilder},
         utils::{
-            default_conn, mock_auth,
+            default_conn, default_conn_async, mock_auth,
             mocks::collection::{
-                mock_checksum, mock_collection, mock_collections, mock_collections_exclude,
-                mock_count, mock_create, mock_drop, mock_figures, mock_load, mock_load_indexes,
-                mock_modify_props, mock_recalculate, mock_rename, mock_revision, mock_truncate,
-                mock_unload,
+                mock_checksum, mock_collection, mock_collections, mock_collections_async,
+                mock_collections_exclude, mock_collections_exclude_async, mock_count, mock_create,
+                mock_drop, mock_figures, mock_load, mock_load_indexes, mock_modify_props,
+                mock_recalculate, mock_rename, mock_revision, mock_truncate, mock_unload,
             },
         },
     };
-    use anyhow::Result;
+    use anyhow::{anyhow, Result};
     use wiremock::MockServer;
 
-    mock_test!(get_collections, res; collections(true); mock_collections_exclude => {
+    mock_test_async!(get_collections_async, res; collections(true); mock_collections_exclude_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
+
+    mock_test_right!(get_collections, res; collections(true); mock_collections_exclude => {
         assert!(res.result().len() > 0);
     });
 
-    mock_test!(get_collections_with_sys_works, res; collections(false); mock_collections => {
+    mock_test_async!(get_collections_with_sys_async, res; collections(true); mock_collections_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
+
+    mock_test_right!(get_collections_with_sys_works, res; collections(false); mock_collections => {
         assert!(res.result().len() > 0);
     });
 

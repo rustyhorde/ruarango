@@ -9,13 +9,12 @@
 //! `ruarango` database operation integration tests
 
 #[macro_use]
-mod common_db;
 mod common;
 
 use anyhow::Result;
-use common::{conn_root_system, conn_ruarango, rand_name};
-use common_db::{
-    conn_root_system_async, conn_ruarango_async, process_async_result, process_sync_result,
+use common::{
+    conn_root_system, conn_root_system_async, conn_ruarango, conn_ruarango_async,
+    process_async_result, process_sync_result, rand_name,
 };
 use lazy_static::lazy_static;
 use ruarango::{

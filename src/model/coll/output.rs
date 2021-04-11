@@ -10,9 +10,9 @@
 
 use super::{CollectionKind, Status};
 use getset::Getters;
-use serde_derive::Deserialize;
 #[cfg(test)]
-use {getset::Setters, serde_derive::Serialize};
+use getset::Setters;
+use serde_derive::{Deserialize, Serialize};
 
 macro_rules! coll_output {
     ($(#[$sattr:meta])+ pub struct $name:ident {
@@ -274,8 +274,8 @@ coll_output!(
     }
 );
 
-#[derive(Clone, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize, Setters), getset(set = "pub(crate)"))]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[cfg_attr(test, derive(Setters), getset(set = "pub(crate)"))]
 #[getset(get = "pub")]
 /// Output when [`collections`](crate::Collection::collections) is called for a collection
 pub struct Collections {

@@ -456,11 +456,24 @@ pub(crate) mod mocks {
             path("_db/keti/_api/collection/test_coll/truncate")
         );
 
+        mock_async!(
+            mock_collections_async,
+            "GET",
+            path("_db/keti/_api/collection")
+        );
+
         mock_x!(
             mock_collections,
             Response<Vec<Collections>>,
             "GET",
             path("_db/keti/_api/collection")
+        );
+
+        mock_async!(
+            mock_collections_exclude_async,
+            "GET",
+            path("_db/keti/_api/collection"),
+            query_param("excludeSystem", "true")
         );
 
         mock_x!(
