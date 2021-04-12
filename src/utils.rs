@@ -361,6 +361,12 @@ pub(crate) mod mocks {
             path("_db/keti/_api/collection/test_coll/unload")
         );
 
+        mock_async!(
+            mock_collection_async,
+            "GET",
+            path("_db/keti/_api/collection/keti")
+        );
+
         mock_x!(
             mock_collection,
             Collection,

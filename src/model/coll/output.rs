@@ -22,8 +22,8 @@ macro_rules! coll_output {
         )*
     }) => {
         $(#[$sattr])+
-        #[derive(Clone, Debug, Deserialize, Getters)]
-        #[cfg_attr(test, derive(Serialize, Setters), getset(set = "pub(crate)"))]
+        #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+        #[cfg_attr(test, derive(Setters), getset(set = "pub(crate)"))]
         #[getset(get = "pub")]
         pub struct $name {
             /// Is this respone an error?
@@ -310,8 +310,7 @@ impl Default for Collections {
 }
 
 /// Figure details that are part of the [`Figures`](Figures) output
-#[derive(Clone, Copy, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize))]
+#[derive(Clone, Copy, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct FiguresDetails {
     /// Index details
@@ -344,8 +343,7 @@ impl Default for FiguresDetails {
 }
 
 /// Index details that are part of the [`Figures`](Figures) output
-#[derive(Clone, Copy, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize))]
+#[derive(Clone, Copy, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct FiguresIndexes {
     /// The total number of indexes defined for the collection, including the pre-defined
@@ -363,8 +361,7 @@ impl Default for FiguresIndexes {
 }
 
 /// Key options that are part of the [`Create`](Create) output
-#[derive(Clone, Debug, Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize))]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct CreateKeyOptions {
     /// If set to true, then it is allowed to supply own key values in the

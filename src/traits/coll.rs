@@ -33,13 +33,13 @@ pub trait Collection {
         -> Result<Either<Response<Vec<Collections>>>>;
 
     /// Return information about a single collection
-    async fn collection(&self, name: &str) -> Result<Coll>;
+    async fn collection(&self, name: &str) -> Result<Either<Coll>>;
 
     /// Create a collection
-    async fn create(&self, config: &Config) -> Result<Create>;
+    async fn create(&self, config: &Config) -> Result<Either<Create>>;
 
     /// Drop a collection
-    async fn drop(&self, name: &str, is_system: bool) -> Result<Drop>;
+    async fn drop(&self, name: &str, is_system: bool) -> Result<Either<Drop>>;
 
     /// Will calculate a checksum of the meta-data (keys and optionally revision ids and
     /// optionally the document data) in the collection.
@@ -61,23 +61,27 @@ pub trait Collection {
     ///
     /// **Note**: Including user-defined attributes will make the checksumming slower.
     /// **Note**: this method is not available in a cluster.
-    async fn checksum(&self, name: &str, with_revisions: bool, with_data: bool)
-        -> Result<Checksum>;
+    async fn checksum(
+        &self,
+        name: &str,
+        with_revisions: bool,
+        with_data: bool,
+    ) -> Result<Either<Checksum>>;
 
     /// The number of documents in the collection.
     /// **Note** - this will always load the collection into memory.
-    async fn count(&self, name: &str) -> Result<Count>;
+    async fn count(&self, name: &str) -> Result<Either<Count>>;
 
     /// Some figures and additional statistical information about the collection.
-    async fn figures(&self, name: &str) -> Result<Figures>;
+    async fn figures(&self, name: &str) -> Result<Either<Figures>>;
 
     /// Get the revision id for a collection
     /// The revision id is a server-generated string that clients can use to
     /// check whether data in a collection has changed since the last revision check.
-    async fn revision(&self, name: &str) -> Result<Revision>;
+    async fn revision(&self, name: &str) -> Result<Either<Revision>>;
 
     /// Loads a collection into memory.
-    async fn load(&self, name: &str, include_count: bool) -> Result<Load>;
+    async fn load(&self, name: &str, include_count: bool) -> Result<Either<Load>>;
 
     /// `load_indexes` tries to cache all index entries of this collection into memory.
     ///
@@ -98,14 +102,14 @@ pub trait Collection {
     /// If the index is larger than your memory limit this function will fill up values
     /// up to this limit and for the time being there is no way to control which indexes
     /// of the collection should have priority over others.
-    async fn load_indexes(&self, name: &str) -> Result<LoadIndexes>;
+    async fn load_indexes(&self, name: &str) -> Result<Either<LoadIndexes>>;
 
     /// Change the properties of a collection
     ///
     /// **Note**: except for `wait_for_sync`, `journal_size` and `schema`, collection
     /// properties cannot be changed once a collection is created. To rename
     /// a collection, the [`rename`](crate::traits::Collection::rename) endpoint must be used.
-    async fn modify_props(&self, name: &str, props: Props) -> Result<ModifyProps>;
+    async fn modify_props(&self, name: &str, props: Props) -> Result<Either<ModifyProps>>;
 
     /// Recalculates the document count of a collection, if it ever becomes inconsistent.
     ///

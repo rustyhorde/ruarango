@@ -9,7 +9,8 @@
 //! Collection trait implementation
 
 use crate::{
-    api_delete, api_get, api_get_async, api_get_right, api_post, api_put,
+    api_delete_async, api_delete_right, api_get_async, api_get_right, api_post_async,
+    api_post_right, api_put, api_put_async, api_put_right,
     coll::{
         input::{Config, NewNameBuilder, Props, ShouldCountBuilder},
         output::{
@@ -49,23 +50,43 @@ impl Collection for Connection {
         }
     }
 
-    async fn collection(&self, name: &str) -> Result<Coll> {
-        api_get!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
+    async fn collection(&self, name: &str) -> Result<Either<Coll>> {
+        let url = &format!("{}/{}", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_get_async!(self, db_url, url)
+        } else {
+            api_get_right!(self, db_url, url, Coll)
+        }
     }
 
-    async fn create(&self, config: &Config) -> Result<Create> {
-        api_post!(self, db_url, BASE_SUFFIX, config)
+    async fn create(&self, config: &Config) -> Result<Either<Create>> {
+        if *self.is_async() {
+            api_post_async!(self, db_url, BASE_SUFFIX, config)
+        } else {
+            api_post_right!(self, db_url, BASE_SUFFIX, Create, config)
+        }
     }
 
-    async fn drop(&self, name: &str, is_system: bool) -> Result<Drop> {
-        if is_system {
-            api_delete!(
+    async fn drop(&self, name: &str, is_system: bool) -> Result<Either<Drop>> {
+        if *self.is_async() {
+            if is_system {
+                api_delete_async!(
+                    self,
+                    db_url,
+                    &format!("{}/{}?isSystem=true", BASE_SUFFIX, name)
+                )
+            } else {
+                api_delete_async!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
+            }
+        } else if is_system {
+            api_delete_right!(
                 self,
                 db_url,
-                &format!("{}/{}?isSystem=true", BASE_SUFFIX, name)
+                &format!("{}/{}?isSystem=true", BASE_SUFFIX, name),
+                Drop
             )
         } else {
-            api_delete!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
+            api_delete_right!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name), Drop)
         }
     }
 
@@ -74,7 +95,7 @@ impl Collection for Connection {
         name: &str,
         with_revisions: bool,
         with_data: bool,
-    ) -> Result<Checksum> {
+    ) -> Result<Either<Checksum>> {
         let mut url = format!("{}/{}/checksum", BASE_SUFFIX, name);
         let mut has_qp = false;
         if with_revisions {
@@ -89,45 +110,67 @@ impl Collection for Connection {
             }
             url += "withData=true";
         }
-        api_get!(self, db_url, &url)
+
+        if *self.is_async() {
+            api_get_async!(self, db_url, &url)
+        } else {
+            api_get_right!(self, db_url, &url, Checksum)
+        }
     }
 
-    async fn count(&self, name: &str) -> Result<Count> {
-        api_get!(self, db_url, &format!("{}/{}/count", BASE_SUFFIX, name))
+    async fn count(&self, name: &str) -> Result<Either<Count>> {
+        let url = &format!("{}/{}/count", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_get_async!(self, db_url, url)
+        } else {
+            api_get_right!(self, db_url, url, Count)
+        }
     }
 
-    async fn figures(&self, name: &str) -> Result<Figures> {
-        api_get!(self, db_url, &format!("{}/{}/figures", BASE_SUFFIX, name))
+    async fn figures(&self, name: &str) -> Result<Either<Figures>> {
+        let url = &format!("{}/{}/figures", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_get_async!(self, db_url, url)
+        } else {
+            api_get_right!(self, db_url, url, Figures)
+        }
     }
 
-    async fn revision(&self, name: &str) -> Result<Revision> {
-        api_get!(self, db_url, &format!("{}/{}/revision", BASE_SUFFIX, name))
+    async fn revision(&self, name: &str) -> Result<Either<Revision>> {
+        let url = &format!("{}/{}/revision", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_get_async!(self, db_url, url)
+        } else {
+            api_get_right!(self, db_url, url, Revision)
+        }
     }
 
-    async fn load(&self, name: &str, include_count: bool) -> Result<Load> {
-        api_put!(
-            self,
-            db_url,
-            &format!("{}/{}/load", BASE_SUFFIX, name),
-            &ShouldCountBuilder::default().count(include_count).build()?
-        )
+    async fn load(&self, name: &str, include_count: bool) -> Result<Either<Load>> {
+        let url = &format!("{}/{}/load", BASE_SUFFIX, name);
+        let should_count = &ShouldCountBuilder::default().count(include_count).build()?;
+        if *self.is_async() {
+            api_put_async!(self, db_url, url, should_count)
+        } else {
+            api_put_right!(self, db_url, url, Load, should_count)
+        }
     }
 
-    async fn load_indexes(&self, name: &str) -> Result<LoadIndexes> {
-        api_put!(
-            self,
-            db_url,
-            &format!("{}/{}/loadIndexesIntoMemory", BASE_SUFFIX, name)
-        )
+    async fn load_indexes(&self, name: &str) -> Result<Either<LoadIndexes>> {
+        let url = &format!("{}/{}/loadIndexesIntoMemory", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_put_async!(self, db_url, url)
+        } else {
+            api_put_right!(self, db_url, url, LoadIndexes)
+        }
     }
 
-    async fn modify_props(&self, name: &str, props: Props) -> Result<ModifyProps> {
-        api_put!(
-            self,
-            db_url,
-            &format!("{}/{}/properties", BASE_SUFFIX, name),
-            &props
-        )
+    async fn modify_props(&self, name: &str, props: Props) -> Result<Either<ModifyProps>> {
+        let url = &format!("{}/{}/properties", BASE_SUFFIX, name);
+        if *self.is_async() {
+            api_put_async!(self, db_url, url, &props)
+        } else {
+            api_put_right!(self, db_url, url, ModifyProps, &props)
+        }
     }
 
     async fn recalculate_count(&self, name: &str) -> Result<RecalculateCount> {
@@ -166,10 +209,11 @@ mod test {
         utils::{
             default_conn, default_conn_async, mock_auth,
             mocks::collection::{
-                mock_checksum, mock_collection, mock_collections, mock_collections_async,
-                mock_collections_exclude, mock_collections_exclude_async, mock_count, mock_create,
-                mock_drop, mock_figures, mock_load, mock_load_indexes, mock_modify_props,
-                mock_recalculate, mock_rename, mock_revision, mock_truncate, mock_unload,
+                mock_checksum, mock_collection, mock_collection_async, mock_collections,
+                mock_collections_async, mock_collections_exclude, mock_collections_exclude_async,
+                mock_count, mock_create, mock_drop, mock_figures, mock_load, mock_load_indexes,
+                mock_modify_props, mock_recalculate, mock_rename, mock_revision, mock_truncate,
+                mock_unload,
             },
         },
     };
@@ -200,7 +244,15 @@ mod test {
         assert!(res.result().len() > 0);
     });
 
-    mock_test!(get_collection, res; collection("keti"); mock_collection => {
+    mock_test_async!(get_collection_async, res; collection("keti"); mock_collection_async => {
+        let left = res.left_safe()?;
+        assert_eq!(*left.code(), 202);
+        assert!(left.id().is_some());
+        let job_id = left.id().as_ref().ok_or_else(|| anyhow!("invalid job_id"))?;
+        assert_eq!(job_id, "123456");
+    });
+
+    mock_test_right!(get_collection, res; collection("keti"); mock_collection => {
         assert_eq!(*res.kind(), CollectionKind::Document);
         assert_eq!(*res.status(), Status::Loaded);
         assert!(!res.is_system());
@@ -219,26 +271,30 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let create = ConfigBuilder::default().name("test_coll").build()?;
 
-        let res = conn.create(&create).await?;
+        let either = conn.create(&create).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(*res.code(), 200);
         assert!(!res.error());
         assert_eq!(res.name(), "test_coll");
 
-        let res = conn.drop("test_coll", false).await?;
+        let either = conn.drop("test_coll", false).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(*res.code(), 200);
         assert!(!res.error());
         Ok(())
     }
 
-    mock_test!(get_checksum, res; checksum("test_coll", false, false); mock_checksum => {
+    mock_test_right!(get_checksum, res; checksum("test_coll", false, false); mock_checksum => {
         assert_eq!(res.checksum(), "0");
     });
 
-    mock_test!(get_count, res; count("test_coll"); mock_count => {
+    mock_test_right!(get_count, res; count("test_coll"); mock_count => {
         assert_eq!(*res.count(), 10);
     });
 
-    mock_test!(get_figures, res; figures("test_coll"); mock_figures => {
+    mock_test_right!(get_figures, res; figures("test_coll"); mock_figures => {
         assert_eq!(*res.figures().indexes().count(), 1);
         assert_eq!(*res.figures().indexes().size(), 0);
         assert_eq!(*res.figures().documents_size(), 0);
@@ -247,14 +303,14 @@ mod test {
         assert_eq!(*res.figures().cache_usage(), 0);
     });
 
-    mock_test!(get_revision, res; revision("test_coll"); mock_revision => {});
+    mock_test_right!(get_revision, res; revision("test_coll"); mock_revision => {});
 
-    mock_test!(put_load, res; load("test_coll", true); mock_load => {
+    mock_test_right!(put_load, res; load("test_coll", true); mock_load => {
         assert!(res.count().is_some());
         assert_eq!(res.count().unwrap(), 10);
     });
 
-    mock_test!(put_load_indexes, res; load_indexes("test_coll"); mock_load_indexes => {
+    mock_test_right!(put_load_indexes, res; load_indexes("test_coll"); mock_load_indexes => {
         assert!(res.result());
     });
 
@@ -266,7 +322,9 @@ mod test {
 
         let props = PropsBuilder::default().wait_for_sync(true).build()?;
         let conn = default_conn(mock_server.uri()).await?;
-        let res = conn.modify_props("test_coll", props).await?;
+        let either = conn.modify_props("test_coll", props).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(*res.code(), 200);
         assert!(!res.error());
         assert!(res.wait_for_sync());
