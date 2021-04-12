@@ -37,11 +37,11 @@ const TEST_COLL: &str = "test_coll";
 int_test_async!(res; Response<Vec<Collections>>; collection_collections_ruarango_no_system_async, conn_ruarango_async, collections(true) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert_eq!(res.result().len(), 1);
+    assert!(res.result().len() > 0);
 });
 
 int_test_sync!(res; collection_collections_ruarango_no_system, conn_ruarango, collections(true) => {
-    assert_eq!(res.result().len(), 1);
+    assert!(res.result().len() > 0);
 });
 
 int_test_async!(res; Response<Vec<Collections>>; collection_collections_root_no_system_async, conn_root_system_async, collections(true) => {
@@ -57,21 +57,21 @@ int_test_sync!(res; collection_collections_root_no_system, conn_root_system, col
 int_test_async!(res; Response<Vec<Collections>>; collection_collections_ruarango_async, conn_ruarango_async, collections(false) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert_eq!(res.result().len(), 11);
+    assert!(res.result().len() > 0);
 });
 
 int_test_sync!(res; collection_collections_ruarango, conn_ruarango, collections(false) => {
-    assert_eq!(res.result().len(), 11);
+    assert!(res.result().len() > 0);
 });
 
 int_test_async!(res; Response<Vec<Collections>>; collection_collections_root_async, conn_root_system_async, collections(false) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert_eq!(res.result().len(), 13);
+    assert!(res.result().len() > 0);
 });
 
 int_test_sync!(res; collection_collections, conn_root_system, collections(false) => {
-    assert_eq!(res.result().len(), 13);
+    assert!(res.result().len() > 0);
 });
 
 int_test_async!(res; Coll; collection_collection_async, conn_ruarango_async, collection(TEST_COLL) => {
