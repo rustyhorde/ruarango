@@ -68,25 +68,18 @@ impl Collection for Connection {
     }
 
     async fn drop(&self, name: &str, is_system: bool) -> Result<Either<Drop>> {
+        let url = &format!("{}/{}", BASE_SUFFIX, name);
+        let is_system_url = &format!("{}/{}?isSystem=true", BASE_SUFFIX, name);
         if *self.is_async() {
             if is_system {
-                api_delete_async!(
-                    self,
-                    db_url,
-                    &format!("{}/{}?isSystem=true", BASE_SUFFIX, name)
-                )
+                api_delete_async!(self, db_url, is_system_url)
             } else {
-                api_delete_async!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name))
+                api_delete_async!(self, db_url, url)
             }
         } else if is_system {
-            api_delete_right!(
-                self,
-                db_url,
-                &format!("{}/{}?isSystem=true", BASE_SUFFIX, name),
-                Drop
-            )
+            api_delete_right!(self, db_url, is_system_url, Drop)
         } else {
-            api_delete_right!(self, db_url, &format!("{}/{}", BASE_SUFFIX, name), Drop)
+            api_delete_right!(self, db_url, url, Drop)
         }
     }
 

@@ -9,6 +9,7 @@
 //! Database operation traits
 
 use getset::Getters;
+use serde_derive::{Deserialize, Serialize};
 
 mod coll;
 mod db;
@@ -21,7 +22,7 @@ pub use doc::Document;
 pub use job::Job;
 
 /// Job Information from an asynchronous invocation
-#[derive(Clone, Debug, Getters)]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct JobInfo {
     /// The response code

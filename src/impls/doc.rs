@@ -9,20 +9,19 @@
 //! Document trait implementation
 
 use crate::{
-    api_post,
+    api_post_async, api_post_right,
     doc::{
         input::{Config, OverwriteMode, ReadConfig},
         output::Create,
     },
     error::RuarangoError::Unreachable,
-    traits::Document,
+    traits::{Document, Either, JobInfo},
     utils::{handle_response, handle_response_300},
     Connection,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::FutureExt;
-use libeither::Either;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -36,18 +35,22 @@ impl Document for Connection {
         collection: &str,
         config: Config,
         document: &T,
-    ) -> Result<Create<U, V>>
+    ) -> Result<Either<Create<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        api_post!(
-            self,
-            db_url,
-            &build_create_url(collection, config),
-            document
-        )
+        if *self.is_async() {
+            api_post_async!(
+                self,
+                db_url,
+                &build_create_url(collection, config),
+                document
+            )
+        } else {
+            api_post_right!(self, db_url, &build_create_url(collection, config), Create<U, V>, document)
+        }
     }
 
     async fn read<T>(
@@ -55,7 +58,7 @@ impl Document for Connection {
         collection: &str,
         key: &str,
         config: ReadConfig,
-    ) -> Result<Either<(), T>>
+    ) -> Result<libeither::Either<(), Either<T>>>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -73,40 +76,112 @@ impl Document for Connection {
                     HeaderValue::from_bytes(rev.as_bytes())?,
                 );
 
-                Ok(self
-                    .client()
-                    .get(current_url)
-                    .headers(headers)
-                    .send()
-                    .then(handle_response_300)
-                    .await?)
+                if *self.is_async() {
+                    Ok(self
+                        .async_client()
+                        .get(current_url)
+                        .headers(headers)
+                        .send()
+                        .then(handle_response_async)
+                        .await?
+                        .map_right(|res| {
+                            let status = res.status().as_u16();
+                            let job_id = res
+                                .headers()
+                                .get("x-arango-async-id")
+                                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+                            libeither::Either::new_left(JobInfo::new(status, job_id))
+                        })?)
+                } else {
+                    Ok(self
+                        .client()
+                        .get(current_url)
+                        .headers(headers)
+                        .send()
+                        .then(handle_response_300)
+                        .await?
+                        .map_right(Either::new_right)?)
+                }
             } else if let Some(rev) = config.if_none_match() {
                 let _ = headers.append(
                     HeaderName::from_static("if-none-match"),
                     HeaderValue::from_bytes(rev.as_bytes())?,
                 );
-                Ok(self
-                    .client()
-                    .get(current_url)
-                    .headers(headers)
-                    .send()
-                    .then(handle_response_300)
-                    .await?)
+                if *self.is_async() {
+                    Ok(self
+                        .async_client()
+                        .get(current_url)
+                        .headers(headers)
+                        .send()
+                        .then(handle_response_async)
+                        .await?
+                        .map_right(|res| {
+                            let status = res.status().as_u16();
+                            let job_id = res
+                                .headers()
+                                .get("x-arango-async-id")
+                                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+                            libeither::Either::new_left(JobInfo::new(status, job_id))
+                        })?)
+                } else {
+                    Ok(self
+                        .client()
+                        .get(current_url)
+                        .headers(headers)
+                        .send()
+                        .then(handle_response_300)
+                        .await?
+                        .map_right(Either::new_right)?)
+                }
             } else {
                 Err(Unreachable {
                     msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
                 }
                 .into())
             }
+        } else if *self.is_async() {
+            Ok(self
+                .async_client()
+                .get(current_url)
+                .send()
+                .then(handle_response_async)
+                .await?
+                .map_right(|res| {
+                    let status = res.status().as_u16();
+                    let job_id = res
+                        .headers()
+                        .get("x-arango-async-id")
+                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+                    libeither::Either::new_left(JobInfo::new(status, job_id))
+                })?)
         } else {
             Ok(self
                 .client()
                 .get(current_url)
                 .send()
                 .then(handle_response_300)
-                .await?)
+                .await?
+                .map_right(Either::new_right)?)
         }
     }
+}
+
+async fn to_either(res: reqwest::Response) -> Result<libeither::Either<(), reqwest::Response>> {
+    res.error_for_status()
+        .map(|res| async move {
+            if res.status().is_redirection() {
+                Ok(libeither::Either::new_left(()))
+            } else {
+                Ok(libeither::Either::new_right(res))
+            }
+        })?
+        .await
+}
+
+async fn handle_response_async(
+    res: std::result::Result<reqwest::Response, reqwest::Error>,
+) -> Result<libeither::Either<(), reqwest::Response>> {
+    res.map(to_either)?.await
 }
 
 macro_rules! add_qp {
@@ -181,7 +256,7 @@ mod test {
             output::{Create, OutputDoc},
         },
         error::RuarangoError,
-        traits::Document,
+        traits::{Document, Either},
         utils::{
             default_conn, mock_auth,
             mocks::doc::{
@@ -192,7 +267,6 @@ mod test {
     };
     use anyhow::Result;
     use getset::{Getters, Setters};
-    use libeither::Either;
     use serde_derive::{Deserialize, Serialize};
     use wiremock::{
         matchers::{header_exists, method, path},
@@ -364,8 +438,9 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let config = ConfigBuilder::default().build()?;
         let doc = TestDoc::default();
-        let res: Create<(), ()> = conn.create("test_coll", config, &doc).await?;
-
+        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
         assert_eq!(res.id(), "def");
         assert_eq!(res.rev(), "ghi");
@@ -387,8 +462,9 @@ mod test {
         let config = ConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let res: Create<(), ()> = conn.create("test_coll", config, &doc).await?;
-
+        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
         assert!(!res.id().is_empty());
         assert!(!res.rev().is_empty());
@@ -397,8 +473,10 @@ mod test {
         assert!(res.old_doc().is_none());
 
         let overwrite_config = ConfigBuilder::default().overwrite(true).build()?;
-        let res: Create<(), ()> = conn.create("test_coll", overwrite_config, &doc).await?;
-
+        let either: Either<Create<(), ()>> =
+            conn.create("test_coll", overwrite_config, &doc).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
         assert!(!res.id().is_empty());
         assert!(!res.rev().is_empty());
@@ -418,8 +496,9 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let config = ConfigBuilder::default().return_new(true).build()?;
         let doc = TestDoc::default();
-        let res: Create<OutputDoc, ()> = conn.create("test_coll", config, &doc).await?;
-
+        let either: Either<Create<OutputDoc, ()>> = conn.create("test_coll", config, &doc).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
         assert_eq!(res.id(), "def");
         assert_eq!(res.rev(), "ghi");
@@ -470,8 +549,9 @@ mod test {
         let config = ConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let res: Create<(), ()> = conn.create("test_coll", config, &doc).await?;
-
+        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
         assert!(!res.id().is_empty());
         assert!(!res.rev().is_empty());
@@ -484,9 +564,10 @@ mod test {
             .return_new(true)
             .return_old(true)
             .build()?;
-        let res: Create<OutputDoc, OutputDoc> =
+        let either: Either<Create<OutputDoc, OutputDoc>> =
             conn.create("test_coll", overwrite_config, &doc).await?;
-
+        assert!(either.is_right());
+        let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
         assert!(!res.id().is_empty());
         assert!(!res.rev().is_empty());
@@ -505,9 +586,12 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         let config = ReadConfigBuilder::default().build()?;
-        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
-        assert!(res.is_right());
-        let doc = res.right_safe()?;
+        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+            conn.read("test_coll", "test_doc", config).await?;
+        assert!(outer_either.is_right());
+        let either = outer_either.right_safe()?;
+        assert!(either.is_right());
+        let doc = either.right_safe()?;
         assert_eq!(doc.key(), "abc");
         assert!(!doc.id().is_empty());
         assert!(!doc.rev().is_empty());
@@ -542,8 +626,9 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_none_match("_cIw-YT6---")
             .build()?;
-        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
-        assert!(res.is_left());
+        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+            conn.read("test_coll", "test_doc", config).await?;
+        assert!(outer_either.is_left());
 
         Ok(())
     }
@@ -558,9 +643,12 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("_cIw-YT6---")
             .build()?;
-        let res: Either<(), OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
-        assert!(res.is_right());
-        let doc = res.right_safe()?;
+        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+            conn.read("test_coll", "test_doc", config).await?;
+        assert!(outer_either.is_right());
+        let either = outer_either.right_safe()?;
+        assert!(either.is_right());
+        let doc = either.right_safe()?;
         assert_eq!(doc.key(), "abc");
         assert!(!doc.id().is_empty());
         assert!(!doc.rev().is_empty());
@@ -595,8 +683,9 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("this_wont_match")
             .build()?;
-        let res: Result<Either<(), TestDoc>> = conn.read("test_coll", "test_doc", config).await;
-        assert!(res.is_err());
+        let outer_either: Result<libeither::Either<(), Either<TestDoc>>> =
+            conn.read("test_coll", "test_doc", config).await;
+        assert!(outer_either.is_err());
 
         Ok(())
     }

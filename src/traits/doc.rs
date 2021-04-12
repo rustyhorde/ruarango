@@ -8,13 +8,13 @@
 
 //! Document operations trait
 
+use super::Either;
 use crate::doc::{
     input::{Config, ReadConfig},
     output::Create,
 };
 use anyhow::Result;
 use async_trait::async_trait;
-use libeither::Either;
 use serde::{de::DeserializeOwned, Serialize};
 
 /// Document Operations
@@ -26,7 +26,7 @@ pub trait Document {
         collection: &str,
         config: Config,
         document: &T,
-    ) -> Result<Create<U, V>>
+    ) -> Result<Either<Create<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -38,7 +38,7 @@ pub trait Document {
         collection: &str,
         key: &str,
         config: ReadConfig,
-    ) -> Result<Either<(), T>>
+    ) -> Result<libeither::Either<(), Either<T>>>
     where
         T: DeserializeOwned + Send + Sync;
 }
