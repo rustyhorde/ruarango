@@ -9,14 +9,12 @@
 //! `ruarango` collection operation integration tests
 
 #[macro_use]
-mod common_coll;
-#[macro_use]
 mod common;
 
 use anyhow::Result;
 use common::{
     conn_root_system, conn_root_system_async, conn_ruarango, conn_ruarango_async,
-    process_async_result, rand_name,
+    process_async_result, process_sync_result, rand_name,
 };
 use lazy_static::lazy_static;
 use ruarango::{
@@ -24,7 +22,7 @@ use ruarango::{
         input::{Config, ConfigBuilder, Props, PropsBuilder},
         output::{
             Checksum, Collection as Coll, Collections, Count, Create, Figures, Load, LoadIndexes,
-            Revision,
+            ModifyProps, RecalculateCount, Revision,
         },
         CollectionKind, Status,
     },
@@ -96,17 +94,24 @@ lazy_static! {
     static ref COLL_NAME: String = rand_name();
     static ref COLL_NAME_ASYNC: String = rand_name();
     static ref RENAME_NAME: String = rand_name();
+    static ref RENAME_NAME_ASYNC: String = rand_name();
     static ref RENAME_NEW_NAME: String = rand_name();
+    static ref RENAME_NEW_NAME_ASYNC: String = rand_name();
     static ref TRUNCATE_NAME: String = rand_name();
+    static ref TRUNCATE_NAME_ASYNC: String = rand_name();
     static ref UNLOAD_NAME: String = rand_name();
+    static ref UNLOAD_NAME_ASYNC: String = rand_name();
 }
 
 enum CreateKind {
     Coll,
     CollAsync,
     Rename,
+    RenameAsync,
     Truncate,
+    TruncateAsync,
     Unload,
+    UnloadAsync,
 }
 
 fn create_config(kind: CreateKind) -> Result<Config> {
@@ -114,8 +119,13 @@ fn create_config(kind: CreateKind) -> Result<Config> {
         CreateKind::Coll => ConfigBuilder::default().name(&*COLL_NAME).build()?,
         CreateKind::CollAsync => ConfigBuilder::default().name(&*COLL_NAME_ASYNC).build()?,
         CreateKind::Rename => ConfigBuilder::default().name(&*RENAME_NAME).build()?,
+        CreateKind::RenameAsync => ConfigBuilder::default().name(&*RENAME_NAME_ASYNC).build()?,
         CreateKind::Truncate => ConfigBuilder::default().name(&*TRUNCATE_NAME).build()?,
+        CreateKind::TruncateAsync => ConfigBuilder::default()
+            .name(&*TRUNCATE_NAME_ASYNC)
+            .build()?,
         CreateKind::Unload => ConfigBuilder::default().name(&*UNLOAD_NAME).build()?,
+        CreateKind::UnloadAsync => ConfigBuilder::default().name(&*UNLOAD_NAME_ASYNC).build()?,
     })
 }
 
@@ -236,6 +246,15 @@ fn props_config(wait_for_sync: bool) -> Result<Props> {
         .build()?)
 }
 
+int_test_async!(res; conn; ModifyProps; collection_modify_props_async, conn_ruarango_async, modify_props(TEST_COLL, props_config(true)?) => {
+    assert!(res.wait_for_sync());
+    let either = conn.modify_props(TEST_COLL, props_config(false)?).await?;
+    let res = process_async_result(either, &conn).await?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert!(!res.wait_for_sync());
+});
+
 int_test_sync!(res; conn; collection_modify_props, conn_ruarango, modify_props(TEST_COLL, props_config(true)?) => {
     assert!(res.wait_for_sync());
     let either = conn.modify_props(TEST_COLL, props_config(false)?).await?;
@@ -246,22 +265,56 @@ int_test_sync!(res; conn; collection_modify_props, conn_ruarango, modify_props(T
     assert!(!res.wait_for_sync());
 });
 
-int_test!(res; collection_recalculate_count, conn_ruarango, recalculate_count(TEST_COLL) => {
+int_test_async!(res; RecalculateCount; collection_recalculate_count_async, conn_ruarango_async, recalculate_count(TEST_COLL) => {
     assert!(res.result());
     assert_eq!(*res.count(), 1);
+});
+
+int_test_sync!(res; collection_recalculate_count, conn_ruarango, recalculate_count(TEST_COLL) => {
+    assert!(res.result());
+    assert_eq!(*res.count(), 1);
+});
+
+int_test_async!(res; conn; Create; collection_rename_async, conn_ruarango_async, create(&create_config(CreateKind::RenameAsync)?) => {
+    assert_eq!(res.name(), &*RENAME_NAME_ASYNC);
+
+    let either = conn.rename(&*RENAME_NAME_ASYNC, &RENAME_NEW_NAME_ASYNC).await?;
+    let res = process_async_result(either, &conn).await?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+    assert_eq!(res.name(), &*RENAME_NEW_NAME_ASYNC);
+
+    let either = conn.drop(&*RENAME_NEW_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, &conn).await?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
 });
 
 int_test_sync!(res; conn; collection_rename, conn_ruarango, create(&create_config(CreateKind::Rename)?) => {
     assert_eq!(res.name(), &*RENAME_NAME);
 
-    let res = conn.rename(&*RENAME_NAME, &RENAME_NEW_NAME).await?;
+    let either = conn.rename(&*RENAME_NAME, &RENAME_NEW_NAME).await?;
+    let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.name(), &*RENAME_NEW_NAME);
 
     let either = conn.drop(&*RENAME_NEW_NAME, false).await?;
-    assert!(either.is_right());
-    let res = either.right_safe()?;
+    let res = process_sync_result(either)?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+});
+
+int_test_async!(res; conn; Create; collection_truncate_async, conn_ruarango_async, create(&create_config(CreateKind::TruncateAsync)?) => {
+    assert_eq!(res.name(), &*TRUNCATE_NAME_ASYNC);
+
+    let either = conn.truncate(&*TRUNCATE_NAME_ASYNC).await?;
+    let res = process_async_result(either, &conn).await?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+
+    let either = conn.drop(&*TRUNCATE_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, &conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -269,13 +322,25 @@ int_test_sync!(res; conn; collection_rename, conn_ruarango, create(&create_confi
 int_test_sync!(res; conn; collection_truncate, conn_ruarango, create(&create_config(CreateKind::Truncate)?) => {
     assert_eq!(res.name(), &*TRUNCATE_NAME);
 
-    let res = conn.truncate(&*TRUNCATE_NAME).await?;
+    let either = conn.truncate(&*TRUNCATE_NAME).await?;
+    let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 
     let either = conn.drop(&*TRUNCATE_NAME, false).await?;
-    assert!(either.is_right());
-    let res = either.right_safe()?;
+    let res = process_sync_result(either)?;
+    assert!(!res.error());
+    assert_eq!(*res.code(), 200);
+});
+
+int_test_async!(res; conn; Create; collection_unload_async, conn_ruarango_async, create(&create_config(CreateKind::UnloadAsync)?) => {
+    assert_eq!(res.name(), &*UNLOAD_NAME_ASYNC);
+
+    let either = conn.unload(&*UNLOAD_NAME_ASYNC).await?;
+    let _res = process_async_result(either, &conn).await?;
+
+    let either = conn.drop(&*UNLOAD_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, &conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -283,11 +348,11 @@ int_test_sync!(res; conn; collection_truncate, conn_ruarango, create(&create_con
 int_test_sync!(res; conn; collection_unload, conn_ruarango, create(&create_config(CreateKind::Unload)?) => {
     assert_eq!(res.name(), &*UNLOAD_NAME);
 
-    let _res = conn.unload(&*UNLOAD_NAME).await?;
+    let either = conn.unload(&*UNLOAD_NAME).await?;
+    let _res = process_sync_result(either)?;
 
     let either = conn.drop(&*UNLOAD_NAME, false).await?;
-    assert!(either.is_right());
-    let res = either.right_safe()?;
+    let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });

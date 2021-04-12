@@ -114,16 +114,16 @@ pub trait Collection {
     /// Recalculates the document count of a collection, if it ever becomes inconsistent.
     ///
     /// **Note**: this method is specific for the RocksDB storage engine
-    async fn recalculate_count(&self, name: &str) -> Result<RecalculateCount>;
+    async fn recalculate_count(&self, name: &str) -> Result<Either<RecalculateCount>>;
 
     /// Renames a collection
-    async fn rename(&self, name: &str, new_name: &str) -> Result<Rename>;
+    async fn rename(&self, name: &str, new_name: &str) -> Result<Either<Rename>>;
 
     /// Removes all documents from the collection, but leaves the indexes intact.
-    async fn truncate(&self, name: &str) -> Result<Truncate>;
+    async fn truncate(&self, name: &str) -> Result<Either<Truncate>>;
 
     /// Removes a collection from memory. This call does not delete any documents.
     /// You can use the collection afterwards, in which case it will be loaded into
     /// memory.
-    async fn unload(&self, name: &str) -> Result<Unload>;
+    async fn unload(&self, name: &str) -> Result<Either<Unload>>;
 }

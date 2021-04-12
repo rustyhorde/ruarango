@@ -10,7 +10,7 @@
 
 use crate::{
     api_delete_async, api_delete_right, api_get_async, api_get_right, api_post_async,
-    api_post_right, api_put, api_put_async, api_put_right,
+    api_post_right, api_put_async, api_put_right,
     coll::{
         input::{Config, NewNameBuilder, Props, ShouldCountBuilder},
         output::{
@@ -173,29 +173,45 @@ impl Collection for Connection {
         }
     }
 
-    async fn recalculate_count(&self, name: &str) -> Result<RecalculateCount> {
-        api_put!(
-            self,
-            db_url,
-            &format!("{}/{}/recalculateCount", BASE_SUFFIX, name)
-        )
+    async fn recalculate_count(&self, name: &str) -> Result<Either<RecalculateCount>> {
+        let url = &format!("{}/{}/recalculateCount", BASE_SUFFIX, name);
+
+        if *self.is_async() {
+            api_put_async!(self, db_url, url)
+        } else {
+            api_put_right!(self, db_url, url, RecalculateCount)
+        }
     }
 
-    async fn rename(&self, name: &str, new_name: &str) -> Result<Rename> {
-        api_put!(
-            self,
-            db_url,
-            &format!("{}/{}/rename", BASE_SUFFIX, name),
-            &NewNameBuilder::default().name(new_name).build()?
-        )
+    async fn rename(&self, name: &str, new_name: &str) -> Result<Either<Rename>> {
+        let url = &format!("{}/{}/rename", BASE_SUFFIX, name);
+        let body = &NewNameBuilder::default().name(new_name).build()?;
+
+        if *self.is_async() {
+            api_put_async!(self, db_url, url, body)
+        } else {
+            api_put_right!(self, db_url, url, Rename, body)
+        }
     }
 
-    async fn truncate(&self, name: &str) -> Result<Truncate> {
-        api_put!(self, db_url, &format!("{}/{}/truncate", BASE_SUFFIX, name))
+    async fn truncate(&self, name: &str) -> Result<Either<Truncate>> {
+        let url = &format!("{}/{}/truncate", BASE_SUFFIX, name);
+
+        if *self.is_async() {
+            api_put_async!(self, db_url, url)
+        } else {
+            api_put_right!(self, db_url, url, Truncate)
+        }
     }
 
-    async fn unload(&self, name: &str) -> Result<Unload> {
-        api_put!(self, db_url, &format!("{}/{}/unload", BASE_SUFFIX, name))
+    async fn unload(&self, name: &str) -> Result<Either<Unload>> {
+        let url = &format!("{}/{}/unload", BASE_SUFFIX, name);
+
+        if *self.is_async() {
+            api_put_async!(self, db_url, url)
+        } else {
+            api_put_right!(self, db_url, url, Unload)
+        }
     }
 }
 
@@ -204,7 +220,7 @@ mod test {
     use super::Collection;
     use crate::{
         coll::{CollectionKind, Status},
-        mock_test, mock_test_async, mock_test_right,
+        mock_test_async, mock_test_right,
         model::coll::input::{ConfigBuilder, PropsBuilder},
         utils::{
             default_conn, default_conn_async, mock_auth,
@@ -332,16 +348,16 @@ mod test {
         Ok(())
     }
 
-    mock_test!(put_recalculate, res; recalculate_count("test_coll"); mock_recalculate => {
+    mock_test_right!(put_recalculate, res; recalculate_count("test_coll"); mock_recalculate => {
         assert!(res.result());
         assert_eq!(*res.count(), 10);
     });
 
-    mock_test!(put_rename, res; rename("test_coll", "test_boll"); mock_rename => {
+    mock_test_right!(put_rename, res; rename("test_coll", "test_boll"); mock_rename => {
         assert_eq!(res.name(), "test_boll");
     });
 
-    mock_test!(put_truncate, res; truncate("test_coll"); mock_truncate => {});
+    mock_test_right!(put_truncate, res; truncate("test_coll"); mock_truncate => {});
 
-    mock_test!(put_unload, res; unload("test_coll"); mock_unload => {});
+    mock_test_right!(put_unload, res; unload("test_coll"); mock_unload => {});
 }
