@@ -8,11 +8,17 @@
 
 //! Job trait implementation
 
-use crate::{api_get, api_put, conn::Connection, traits::Job, utils::handle_response};
+use crate::{
+    api_get, api_put,
+    conn::Connection,
+    traits::Job,
+    utils::{handle_response, handle_response_300},
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use const_format::concatcp;
 use futures::FutureExt;
+use libeither::Either;
 use serde::{de::DeserializeOwned, Serialize};
 
 const BASE_SUFFIX: &str = "_api/job";
@@ -35,6 +41,13 @@ impl Job for Connection {
         T: Serialize + DeserializeOwned + Send + Sync,
     {
         api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id))
+    }
+
+    async fn fetch_300<T>(&self, id: &str) -> Result<Either<(), T>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync,
+    {
+        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => handle_response_300)
     }
 
     async fn jobs(&self, _kind: &str) -> Result<Vec<String>> {

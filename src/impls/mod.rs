@@ -29,6 +29,9 @@ macro_rules! api_request {
     ($self:ident, $url:ident, PUT) => {
         Ok($self.client().put($url).send().then(handle_response).await?)
     };
+    ($self:ident, $url:ident, PUT => $handler:ident) => {
+        Ok($self.client().put($url).send().then($handler).await?)
+    };
     ($self:ident, $url:ident, PUT, $json:expr) => {
         Ok($self.client().put($url).json($json).send().then(handle_response).await?)
     };
@@ -79,6 +82,9 @@ macro_rules! api_delete {
 macro_rules! api_put {
     ($self:ident, $url:ident, $suffix:expr, $json:expr) => {
         $crate::api_request!($self, $url, $suffix, PUT, $json)
+    };
+    ($self:ident, $url:ident, $suffix:expr => $handler:ident) => {
+        $crate::api_request!($self, $url, $suffix, PUT => $handler)
     };
     ($self:ident, $url:ident, $suffix:expr) => {
         $crate::api_request!($self, $url, $suffix, PUT)

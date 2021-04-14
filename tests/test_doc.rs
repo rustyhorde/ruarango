@@ -11,14 +11,16 @@
 mod common;
 
 use anyhow::Result;
-use common::{conn_ruarango, conn_ruarango_async};
+use common::{conn_ruarango, conn_ruarango_async, process_async_result_300};
+use getset::Getters;
 use ruarango::{
     doc::input::{ReadConfig, ReadConfigBuilder},
     Document, Either,
 };
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get)]
 struct OutputDoc {
     #[serde(rename = "_key")]
     key: String,
@@ -29,28 +31,67 @@ struct OutputDoc {
     test: String,
 }
 
-fn if_none_match_config() -> Result<ReadConfig> {
-    Ok(ReadConfigBuilder::default()
-        .if_none_match("\"_cJG9TzO---\"")
-        .build()?)
+enum IfNoneMatchKind {
+    Match,
+    NoneMatch,
+}
+
+fn if_none_match_config(kind: IfNoneMatchKind) -> Result<ReadConfig> {
+    Ok(match kind {
+        IfNoneMatchKind::Match => ReadConfigBuilder::default()
+            .if_none_match("\"_cJG9TzO---\"")
+            .build()?,
+        IfNoneMatchKind::NoneMatch => ReadConfigBuilder::default()
+            .if_none_match("\"blah\"")
+            .build()?,
+    })
 }
 
 #[tokio::test]
 async fn doc_read_async() -> Result<()> {
     let conn = conn_ruarango_async().await?;
-    let res: libeither::Either<(), Either<OutputDoc>> = conn
-        .read("test_coll", "51210", if_none_match_config()?)
+    let res: Either<libeither::Either<(), OutputDoc>> = conn
+        .read(
+            "test_coll",
+            "51210",
+            if_none_match_config(IfNoneMatchKind::Match)?,
+        )
         .await?;
-    assert!(res.is_left());
+    let none_match: libeither::Either<(), OutputDoc> = process_async_result_300(res, &conn).await?;
+    assert!(none_match.is_left());
     Ok(())
 }
 
 #[tokio::test]
 async fn doc_read() -> Result<()> {
     let conn = conn_ruarango().await?;
-    let res: libeither::Either<(), Either<OutputDoc>> = conn
-        .read("test_coll", "51210", if_none_match_config()?)
+    let outer_either: Either<libeither::Either<(), OutputDoc>> = conn
+        .read(
+            "test_coll",
+            "51210",
+            if_none_match_config(IfNoneMatchKind::Match)?,
+        )
         .await?;
-    assert!(res.is_left());
+    assert!(outer_either.is_right());
+    let none_match = outer_either.right_safe()?;
+    assert!(none_match.is_left());
+    Ok(())
+}
+
+#[tokio::test]
+async fn doc_read_if_match() -> Result<()> {
+    let conn = conn_ruarango().await?;
+    let outer_either: Either<libeither::Either<(), OutputDoc>> = conn
+        .read(
+            "test_coll",
+            "51210",
+            if_none_match_config(IfNoneMatchKind::NoneMatch)?,
+        )
+        .await?;
+    assert!(outer_either.is_right());
+    let none_match = outer_either.right_safe()?;
+    assert!(none_match.is_right());
+    let doc = none_match.right_safe()?;
+    assert_eq!(doc.test(), "test");
     Ok(())
 }

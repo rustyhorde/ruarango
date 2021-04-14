@@ -38,7 +38,7 @@ pub trait Document {
         collection: &str,
         key: &str,
         config: ReadConfig,
-    ) -> Result<libeither::Either<(), Either<T>>>
+    ) -> Result<Either<libeither::Either<(), T>>>
     where
         T: DeserializeOwned + Send + Sync;
 }

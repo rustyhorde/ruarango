@@ -58,7 +58,7 @@ impl Document for Connection {
         collection: &str,
         key: &str,
         config: ReadConfig,
-    ) -> Result<libeither::Either<(), Either<T>>>
+    ) -> Result<Either<libeither::Either<(), T>>>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -77,30 +77,29 @@ impl Document for Connection {
                 );
 
                 if *self.is_async() {
-                    Ok(self
+                    let res = self
                         .async_client()
                         .get(current_url)
                         .headers(headers)
                         .send()
-                        .then(handle_response_async)
-                        .await?
-                        .map_right(|res| {
-                            let status = res.status().as_u16();
-                            let job_id = res
-                                .headers()
-                                .get("x-arango-async-id")
-                                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-                            libeither::Either::new_left(JobInfo::new(status, job_id))
-                        })?)
+                        .await?;
+
+                    let status = res.status().as_u16();
+                    let job_id = res
+                        .headers()
+                        .get("x-arango-async-id")
+                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+
+                    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
                 } else {
-                    Ok(self
-                        .client()
-                        .get(current_url)
-                        .headers(headers)
-                        .send()
-                        .then(handle_response_300)
-                        .await?
-                        .map_right(Either::new_right)?)
+                    Ok(libeither::Either::new_right(
+                        self.client()
+                            .get(current_url)
+                            .headers(headers)
+                            .send()
+                            .then(handle_response_300)
+                            .await?,
+                    ))
                 }
             } else if let Some(rev) = config.if_none_match() {
                 let _ = headers.append(
@@ -108,30 +107,29 @@ impl Document for Connection {
                     HeaderValue::from_bytes(rev.as_bytes())?,
                 );
                 if *self.is_async() {
-                    Ok(self
+                    let res = self
                         .async_client()
                         .get(current_url)
                         .headers(headers)
                         .send()
-                        .then(handle_response_async)
-                        .await?
-                        .map_right(|res| {
-                            let status = res.status().as_u16();
-                            let job_id = res
-                                .headers()
-                                .get("x-arango-async-id")
-                                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-                            libeither::Either::new_left(JobInfo::new(status, job_id))
-                        })?)
+                        .await?;
+
+                    let status = res.status().as_u16();
+                    let job_id = res
+                        .headers()
+                        .get("x-arango-async-id")
+                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+
+                    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
                 } else {
-                    Ok(self
-                        .client()
-                        .get(current_url)
-                        .headers(headers)
-                        .send()
-                        .then(handle_response_300)
-                        .await?
-                        .map_right(Either::new_right)?)
+                    Ok(libeither::Either::new_right(
+                        self.client()
+                            .get(current_url)
+                            .headers(headers)
+                            .send()
+                            .then(handle_response_300)
+                            .await?,
+                    ))
                 }
             } else {
                 Err(Unreachable {
@@ -140,32 +138,28 @@ impl Document for Connection {
                 .into())
             }
         } else if *self.is_async() {
-            Ok(self
-                .async_client()
-                .get(current_url)
-                .send()
-                .then(handle_response_async)
-                .await?
-                .map_right(|res| {
-                    let status = res.status().as_u16();
-                    let job_id = res
-                        .headers()
-                        .get("x-arango-async-id")
-                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-                    libeither::Either::new_left(JobInfo::new(status, job_id))
-                })?)
+            let res = self.async_client().get(current_url).send().await?;
+
+            let status = res.status().as_u16();
+            let job_id = res
+                .headers()
+                .get("x-arango-async-id")
+                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
+
+            Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
         } else {
-            Ok(self
-                .client()
-                .get(current_url)
-                .send()
-                .then(handle_response_300)
-                .await?
-                .map_right(Either::new_right)?)
+            Ok(libeither::Either::new_right(
+                self.client()
+                    .get(current_url)
+                    .send()
+                    .then(handle_response_300)
+                    .await?,
+            ))
         }
     }
 }
 
+#[allow(dead_code)]
 async fn to_either(res: reqwest::Response) -> Result<libeither::Either<(), reqwest::Response>> {
     res.error_for_status()
         .map(|res| async move {
@@ -178,6 +172,7 @@ async fn to_either(res: reqwest::Response) -> Result<libeither::Either<(), reqwe
         .await
 }
 
+#[allow(dead_code)]
 async fn handle_response_async(
     res: std::result::Result<reqwest::Response, reqwest::Error>,
 ) -> Result<libeither::Either<(), reqwest::Response>> {
@@ -586,7 +581,7 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         let config = ReadConfigBuilder::default().build()?;
-        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+        let outer_either: Either<libeither::Either<(), OutputDoc>> =
             conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
         let either = outer_either.right_safe()?;
@@ -626,9 +621,11 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_none_match("_cIw-YT6---")
             .build()?;
-        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+        let outer_either: Either<libeither::Either<(), OutputDoc>> =
             conn.read("test_coll", "test_doc", config).await?;
-        assert!(outer_either.is_left());
+        assert!(outer_either.is_right());
+        let either = outer_either.right_safe()?;
+        assert!(either.is_left());
 
         Ok(())
     }
@@ -643,7 +640,7 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("_cIw-YT6---")
             .build()?;
-        let outer_either: libeither::Either<(), Either<OutputDoc>> =
+        let outer_either: Either<libeither::Either<(), OutputDoc>> =
             conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
         let either = outer_either.right_safe()?;
@@ -683,7 +680,7 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("this_wont_match")
             .build()?;
-        let outer_either: Result<libeither::Either<(), Either<TestDoc>>> =
+        let outer_either: Result<Either<libeither::Either<(), TestDoc>>> =
             conn.read("test_coll", "test_doc", config).await;
         assert!(outer_either.is_err());
 

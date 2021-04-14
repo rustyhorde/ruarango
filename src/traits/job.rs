@@ -10,6 +10,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use libeither::Either;
 use serde::{de::DeserializeOwned, Serialize};
 
 /// Collection Operations
@@ -28,6 +29,11 @@ pub trait Job {
 
     /// Docs
     async fn fetch<T>(&self, id: &str) -> Result<T>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Docs
+    async fn fetch_300<T>(&self, id: &str) -> Result<Either<(), T>>
     where
         T: Serialize + DeserializeOwned + Send + Sync;
 

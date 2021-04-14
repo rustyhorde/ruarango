@@ -142,3 +142,30 @@ where
 
     Ok(conn.fetch(id).await?)
 }
+
+pub(crate) async fn process_async_result_300<T>(
+    res: Either<libeither::Either<(), T>>,
+    conn: &Connection,
+) -> Result<libeither::Either<(), T>>
+where
+    T: DeserializeOwned + Serialize + Send + Sync,
+{
+    assert!(res.is_left());
+    let job_info = res.left_safe()?;
+    assert_eq!(*job_info.code(), 202);
+    let id = job_info
+        .id()
+        .as_ref()
+        .ok_or_else(|| anyhow!("invalid job id"))?;
+
+    let mut status = conn.status(id).await?;
+    assert!(status == 200 || status == 204);
+
+    while status != 200 {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        status = conn.status(id).await?;
+    }
+
+    let res: libeither::Either<(), T> = conn.fetch_300(id).await?;
+    Ok(res)
+}
