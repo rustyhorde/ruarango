@@ -166,6 +166,6 @@ where
         status = conn.status(id).await?;
     }
 
-    let res: libeither::Either<(), T> = conn.fetch_300(id).await?;
+    let res: libeither::Either<(), T> = conn.fetch_either(id).await?;
     Ok(res)
 }

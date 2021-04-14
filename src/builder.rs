@@ -113,7 +113,7 @@ impl ConnectionBuilder {
         };
 
         // Add any default headers
-        let bearer = format!("Bearer {}", auth_res.jwt());
+        let bearer = format!("bearer {}", auth_res.jwt());
         let _old = headers.insert(AUTHORIZATION, HeaderValue::from_bytes(bearer.as_bytes())?);
 
         let mut is_async = false;

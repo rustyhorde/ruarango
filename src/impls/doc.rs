@@ -21,8 +21,11 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::FutureExt;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use futures::{Future, FutureExt};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client, Response, Url,
+};
 use serde::{de::DeserializeOwned, Serialize};
 
 #[allow(dead_code)]
@@ -67,116 +70,82 @@ impl Document for Connection {
             .db_url()
             .join(suffix)
             .with_context(|| format!("Unable to build '{}' url", suffix))?;
+        let mut headers = None;
+
         if config.has_header() {
-            let mut headers = HeaderMap::new();
+            let mut headers_map = HeaderMap::new();
 
             if let Some(rev) = config.if_match() {
-                let _ = headers.append(
+                let _ = headers_map.append(
                     HeaderName::from_static("if-match"),
-                    HeaderValue::from_bytes(rev.as_bytes())?,
+                    HeaderValue::from_str(rev)?,
                 );
-
-                if *self.is_async() {
-                    let res = self
-                        .async_client()
-                        .get(current_url)
-                        .headers(headers)
-                        .send()
-                        .await?;
-
-                    let status = res.status().as_u16();
-                    let job_id = res
-                        .headers()
-                        .get("x-arango-async-id")
-                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-
-                    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
-                } else {
-                    Ok(libeither::Either::new_right(
-                        self.client()
-                            .get(current_url)
-                            .headers(headers)
-                            .send()
-                            .then(handle_response_300)
-                            .await?,
-                    ))
-                }
+                headers = Some(headers_map);
             } else if let Some(rev) = config.if_none_match() {
-                let _ = headers.append(
+                let _ = headers_map.append(
                     HeaderName::from_static("if-none-match"),
-                    HeaderValue::from_bytes(rev.as_bytes())?,
+                    HeaderValue::from_str(rev)?,
                 );
-                if *self.is_async() {
-                    let res = self
-                        .async_client()
-                        .get(current_url)
-                        .headers(headers)
-                        .send()
-                        .await?;
-
-                    let status = res.status().as_u16();
-                    let job_id = res
-                        .headers()
-                        .get("x-arango-async-id")
-                        .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-
-                    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
-                } else {
-                    Ok(libeither::Either::new_right(
-                        self.client()
-                            .get(current_url)
-                            .headers(headers)
-                            .send()
-                            .then(handle_response_300)
-                            .await?,
-                    ))
-                }
+                headers = Some(headers_map);
             } else {
-                Err(Unreachable {
+                return Err(Unreachable {
                     msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
                 }
-                .into())
+                .into());
             }
-        } else if *self.is_async() {
-            let res = self.async_client().get(current_url).send().await?;
+        }
 
-            let status = res.status().as_u16();
-            let job_id = res
-                .headers()
-                .get("x-arango-async-id")
-                .map(|x| String::from_utf8_lossy(x.as_bytes()).to_string());
-
-            Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
+        if *self.is_async() {
+            async_req(self.async_client(), current_url, headers).await
         } else {
-            Ok(libeither::Either::new_right(
-                self.client()
-                    .get(current_url)
-                    .send()
-                    .then(handle_response_300)
-                    .await?,
-            ))
+            sync_req(self.client(), current_url, headers).await
         }
     }
 }
 
-#[allow(dead_code)]
-async fn to_either(res: reqwest::Response) -> Result<libeither::Either<(), reqwest::Response>> {
-    res.error_for_status()
-        .map(|res| async move {
-            if res.status().is_redirection() {
-                Ok(libeither::Either::new_left(()))
-            } else {
-                Ok(libeither::Either::new_right(res))
-            }
-        })?
-        .await
+fn req(
+    client: &Client,
+    url: Url,
+    headers: Option<HeaderMap>,
+) -> impl Future<Output = std::result::Result<Response, reqwest::Error>> {
+    let mut rb = client.get(url);
+
+    if let Some(headers) = headers {
+        rb = rb.headers(headers);
+    }
+
+    rb.send()
 }
 
-#[allow(dead_code)]
-async fn handle_response_async(
-    res: std::result::Result<reqwest::Response, reqwest::Error>,
-) -> Result<libeither::Either<(), reqwest::Response>> {
-    res.map(to_either)?.await
+async fn async_req<T>(
+    client: &Client,
+    url: Url,
+    headers: Option<HeaderMap>,
+) -> Result<Either<libeither::Either<(), T>>>
+where
+    T: DeserializeOwned + Send + Sync,
+{
+    let res = req(client, url, headers).await?;
+
+    let status = res.status().as_u16();
+    let job_id = res
+        .headers()
+        .get("x-arango-async-id")
+        .map(|x| x.to_str().unwrap_or_default().to_string());
+
+    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
+}
+
+async fn sync_req<T>(
+    client: &Client,
+    url: Url,
+    headers: Option<HeaderMap>,
+) -> Result<Either<libeither::Either<(), T>>>
+where
+    T: DeserializeOwned + Send + Sync,
+{
+    let res = req(client, url, headers).then(handle_response_300).await?;
+    Ok(libeither::Either::new_right(res))
 }
 
 macro_rules! add_qp {

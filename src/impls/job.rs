@@ -43,7 +43,7 @@ impl Job for Connection {
         api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id))
     }
 
-    async fn fetch_300<T>(&self, id: &str) -> Result<Either<(), T>>
+    async fn fetch_either<T>(&self, id: &str) -> Result<Either<(), T>>
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {

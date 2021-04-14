@@ -33,7 +33,7 @@ pub trait Job {
         T: Serialize + DeserializeOwned + Send + Sync;
 
     /// Docs
-    async fn fetch_300<T>(&self, id: &str) -> Result<Either<(), T>>
+    async fn fetch_either<T>(&self, id: &str) -> Result<Either<(), T>>
     where
         T: Serialize + DeserializeOwned + Send + Sync;
 
