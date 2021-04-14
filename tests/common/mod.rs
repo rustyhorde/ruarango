@@ -21,7 +21,7 @@ macro_rules! int_test_sync {
         async fn $name() -> Result<()> {
             let $conn = $conn_ty().await?;
             let res = $conn.$api($($args),*).await?;
-            let $res = common::process_sync_result(res)?;
+            let $res = super::common::process_sync_result(res)?;
             $asserts
 
             Ok(())
@@ -45,7 +45,7 @@ macro_rules! int_test_async {
         async fn $name() -> Result<()> {
             let $conn = $conn_ty().await?;
             let res = $conn.$api($($args),*).await?;
-            let $res: $kind = common::process_async_result(res, &$conn).await?;
+            let $res: $kind = super::common::process_async_result(res, &$conn).await?;
             $asserts
 
             Ok(())
