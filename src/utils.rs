@@ -548,7 +548,7 @@ pub(crate) mod mocks {
 
     pub(crate) mod doc {
         use super::Mock as RuarangoMock;
-        use crate::doc::output::{Create, CreateMockKind, OutputDoc, ReadMockKind};
+        use crate::doc::output::{CreateMockKind, DocMeta, OutputDoc, ReadMockKind};
         use anyhow::Result;
         use wiremock::{
             matchers::{body_string_contains, header_exists, method, path, query_param},
@@ -557,7 +557,7 @@ pub(crate) mod mocks {
 
         mock_res!(
             mock_create,
-            Create::<(), ()>::default(),
+            DocMeta::<(), ()>::default(),
             201,
             "POST",
             path("_db/keti/_api/document/test_coll"),
@@ -566,7 +566,7 @@ pub(crate) mod mocks {
 
         mock_res!(
             mock_create_1,
-            Create::<(), ()>::try_mock(CreateMockKind::FirstCreate)?,
+            DocMeta::<(), ()>::try_mock(CreateMockKind::FirstCreate)?,
             201,
             "POST",
             path("_db/keti/_api/document/test_coll"),
@@ -575,7 +575,7 @@ pub(crate) mod mocks {
 
         mock_res!(
             mock_create_2,
-            Create::<(), ()>::try_mock(CreateMockKind::SecondCreate)?,
+            DocMeta::<(), ()>::try_mock(CreateMockKind::SecondCreate)?,
             201,
             "POST",
             path("_db/keti/_api/document/test_coll"),
@@ -583,7 +583,7 @@ pub(crate) mod mocks {
         );
         mock_res!(
             mock_return_new,
-            Create::<OutputDoc, ()>::try_mock(CreateMockKind::NewDoc)?,
+            DocMeta::<OutputDoc, ()>::try_mock(CreateMockKind::NewDoc)?,
             201,
             "POST",
             path("_db/keti/_api/document/test_coll"),
@@ -591,7 +591,7 @@ pub(crate) mod mocks {
         );
         mock_res!(
             mock_return_old,
-            Create::<OutputDoc, OutputDoc>::try_mock(CreateMockKind::NewOldDoc)?,
+            DocMeta::<OutputDoc, OutputDoc>::try_mock(CreateMockKind::NewOldDoc)?,
             201,
             "POST",
             path("_db/keti/_api/document/test_coll"),

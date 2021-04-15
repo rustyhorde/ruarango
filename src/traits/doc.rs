@@ -11,7 +11,7 @@
 use super::Either;
 use crate::doc::{
     input::{Config, ReadConfig},
-    output::Create,
+    output::DocMeta,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -26,7 +26,7 @@ pub trait Document {
         collection: &str,
         config: Config,
         document: &T,
-    ) -> Result<Either<Create<U, V>>>
+    ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -41,4 +41,7 @@ pub trait Document {
     ) -> Result<Either<libeither::Either<(), T>>>
     where
         T: DeserializeOwned + Send + Sync;
+
+    /// Update the given docment with the given data
+    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>;
 }

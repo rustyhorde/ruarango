@@ -12,14 +12,14 @@ use crate::{
     api_post_async, api_post_right,
     doc::{
         input::{Config, OverwriteMode, ReadConfig},
-        output::Create,
+        output::DocMeta,
     },
     error::RuarangoError::Unreachable,
     traits::{Document, Either, JobInfo},
     utils::{handle_response, handle_response_300},
     Connection,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use futures::{Future, FutureExt};
 use reqwest::{
@@ -38,7 +38,7 @@ impl Document for Connection {
         collection: &str,
         config: Config,
         document: &T,
-    ) -> Result<Either<Create<U, V>>>
+    ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -52,7 +52,7 @@ impl Document for Connection {
                 document
             )
         } else {
-            api_post_right!(self, db_url, &build_create_url(collection, config), Create<U, V>, document)
+            api_post_right!(self, db_url, &build_create_url(collection, config), DocMeta<U, V>, document)
         }
     }
 
@@ -100,6 +100,10 @@ impl Document for Connection {
         } else {
             sync_req(self.client(), current_url, headers).await
         }
+    }
+
+    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>> {
+        Err(anyhow!("not implemented"))
     }
 }
 
@@ -217,7 +221,7 @@ mod test {
     use crate::{
         doc::{
             input::{ConfigBuilder, OverwriteMode, ReadConfigBuilder},
-            output::{Create, OutputDoc},
+            output::{DocMeta, OutputDoc},
         },
         error::RuarangoError,
         traits::{Document, Either},
@@ -402,7 +406,7 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let config = ConfigBuilder::default().build()?;
         let doc = TestDoc::default();
-        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
@@ -426,7 +430,7 @@ mod test {
         let config = ConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
@@ -437,7 +441,7 @@ mod test {
         assert!(res.old_doc().is_none());
 
         let overwrite_config = ConfigBuilder::default().overwrite(true).build()?;
-        let either: Either<Create<(), ()>> =
+        let either: Either<DocMeta<(), ()>> =
             conn.create("test_coll", overwrite_config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
@@ -460,7 +464,7 @@ mod test {
         let conn = default_conn(mock_server.uri()).await?;
         let config = ConfigBuilder::default().return_new(true).build()?;
         let doc = TestDoc::default();
-        let either: Either<Create<OutputDoc, ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: Either<DocMeta<OutputDoc, ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
@@ -513,7 +517,7 @@ mod test {
         let config = ConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let either: Either<Create<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
@@ -528,7 +532,7 @@ mod test {
             .return_new(true)
             .return_old(true)
             .build()?;
-        let either: Either<Create<OutputDoc, OutputDoc>> =
+        let either: Either<DocMeta<OutputDoc, OutputDoc>> =
             conn.create("test_coll", overwrite_config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;

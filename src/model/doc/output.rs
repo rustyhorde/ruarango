@@ -19,7 +19,7 @@ use {
 /// Output when [`create`](crate::Document::create) is called for a document
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
-pub struct Create<T, U> {
+pub struct DocMeta<T, U> {
     /// Contains the document key
     #[serde(rename = "_key")]
     key: String,
@@ -42,7 +42,7 @@ pub struct Create<T, U> {
 }
 
 #[cfg(test)]
-impl Default for Create<(), ()> {
+impl Default for DocMeta<(), ()> {
     fn default() -> Self {
         Self {
             key: "abc".to_string(),
@@ -56,7 +56,7 @@ impl Default for Create<(), ()> {
 }
 
 #[cfg(test)]
-impl Default for Create<OutputDoc, ()> {
+impl Default for DocMeta<OutputDoc, ()> {
     fn default() -> Self {
         Self {
             key: "abc".to_string(),
@@ -70,7 +70,7 @@ impl Default for Create<OutputDoc, ()> {
 }
 
 #[cfg(test)]
-impl Default for Create<OutputDoc, OutputDoc> {
+impl Default for DocMeta<OutputDoc, OutputDoc> {
     fn default() -> Self {
         Self {
             key: "abc".to_string(),
@@ -118,7 +118,7 @@ pub(crate) enum CreateMockKind {
 }
 
 #[cfg(test)]
-impl Mock<CreateMockKind> for Create<(), ()> {
+impl Mock<CreateMockKind> for DocMeta<(), ()> {
     fn try_mock(name: CreateMockKind) -> Result<Self> {
         match name {
             CreateMockKind::FirstCreate => {
@@ -138,7 +138,7 @@ impl Mock<CreateMockKind> for Create<(), ()> {
 }
 
 #[cfg(test)]
-impl Mock<CreateMockKind> for Create<OutputDoc, ()> {
+impl Mock<CreateMockKind> for DocMeta<OutputDoc, ()> {
     fn try_mock(name: CreateMockKind) -> Result<Self> {
         match name {
             CreateMockKind::NewDoc => Ok(Self::default()),
@@ -148,7 +148,7 @@ impl Mock<CreateMockKind> for Create<OutputDoc, ()> {
 }
 
 #[cfg(test)]
-impl Mock<CreateMockKind> for Create<OutputDoc, OutputDoc> {
+impl Mock<CreateMockKind> for DocMeta<OutputDoc, OutputDoc> {
     fn try_mock(name: CreateMockKind) -> Result<Self> {
         match name {
             CreateMockKind::NewOldDoc => {
