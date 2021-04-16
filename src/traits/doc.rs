@@ -37,7 +37,7 @@ pub trait Document {
         &self,
         collection: &str,
         config: Config,
-        documents: &Vec<T>,
+        documents: &[T],
     ) -> Result<Either<Vec<DocMeta<U, V>>>>
     where
         T: Serialize + Send + Sync,

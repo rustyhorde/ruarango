@@ -60,7 +60,7 @@ impl Document for Connection {
         &self,
         _collection: &str,
         _config: Config,
-        _documents: &Vec<T>,
+        _documents: &[T],
     ) -> Result<Either<Vec<DocMeta<U, V>>>>
     where
         T: Serialize + Send + Sync,
