@@ -8,10 +8,15 @@
 
 //! `ruarango` utils
 
-use crate::error::RuarangoError::InvalidBody;
+use crate::{
+    error::RuarangoErr::{
+        Conflict, DocumentNotFound, InvalidBody, InvalidDocResponse, NotModified,
+        PreconditionFailed,
+    },
+    model::doc::output::DocErr,
+};
 use anyhow::Result;
-use libeither::Either;
-use reqwest::Error;
+use reqwest::{Error, StatusCode};
 use serde::de::DeserializeOwned;
 
 #[cfg(test)]
@@ -19,7 +24,6 @@ use {
     crate::{
         builder::{AsyncKind, ConnectionBuilder},
         conn::Connection,
-        error::RuarangoError::{self, TestError},
         model::auth::output::AuthResponse,
     },
     wiremock::{
@@ -60,28 +64,36 @@ where
     res.map(to_json)?.await
 }
 
-async fn to_json_300<T>(res: reqwest::Response) -> Result<Either<(), T>>
+async fn to_docmeta_json<T>(res: reqwest::Response) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    res.error_for_status()
-        .map(|res| async move {
-            if res.status().is_redirection() {
-                Ok(Either::new_left(()))
-            } else {
-                Ok(Either::new_right(handle_text(res).await?))
-            }
-        })?
-        .await
+    match res.status() {
+        StatusCode::OK | StatusCode::CREATED | StatusCode::ACCEPTED => Ok(handle_text(res).await?),
+        StatusCode::NOT_FOUND => Err(DocumentNotFound.into()),
+        StatusCode::NOT_MODIFIED => Err(NotModified.into()),
+        StatusCode::CONFLICT => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(Conflict { err }.into())
+        }
+        StatusCode::PRECONDITION_FAILED => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(PreconditionFailed { err }.into())
+        }
+        _ => {
+            let status = res.status().as_u16();
+            Err(InvalidDocResponse { status }.into())
+        }
+    }
 }
 
-pub(crate) async fn handle_response_300<T>(
+pub(crate) async fn handle_doc_response<T>(
     res: std::result::Result<reqwest::Response, Error>,
-) -> Result<Either<(), T>>
+) -> Result<T>
 where
     T: DeserializeOwned,
 {
-    res.map(to_json_300)?.await
+    res.map(to_docmeta_json)?.await
 }
 
 #[cfg(test)]
@@ -152,12 +164,6 @@ where
         .async_kind(AsyncKind::Store)
         .build()
         .await
-}
-
-#[allow(dead_code)]
-#[cfg(test)]
-pub(crate) fn to_test_error(val: String) -> RuarangoError {
-    TestError { val }
 }
 
 #[cfg(test)]

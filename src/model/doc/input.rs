@@ -175,3 +175,31 @@ impl ReadConfig {
         self.if_match.is_some() || self.if_none_match.is_some()
     }
 }
+
+/// Document delete configuration
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub(crate)")]
+pub struct DeleteConfig {
+    /// Wait until the delete operation has been synced to disk.
+    #[builder(setter(strip_option), default)]
+    wait_for_sync: Option<bool>,
+    /// Additionally return the complete old document under the attribute `old`
+    /// in the result.
+    #[builder(setter(strip_option), default)]
+    return_old: Option<bool>,
+    /// If set to true, an empty object will be returned as response. No meta-data
+    /// will be returned for the deleted document. This option can be used to
+    /// save some network traffic.
+    #[builder(setter(strip_option), default)]
+    silent: Option<bool>,
+    /// You can conditionally remove a document based on a target `rev` by
+    /// using the `if_match` option
+    #[builder(setter(into, strip_option), default)]
+    if_match: Option<String>,
+}
+
+impl DeleteConfig {
+    pub(crate) fn has_header(&self) -> bool {
+        self.if_match.is_some()
+    }
+}

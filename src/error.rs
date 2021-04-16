@@ -8,20 +8,57 @@
 
 //! `ruarango` error
 
+use crate::model::doc::output::DocErr;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 #[cfg(test)]
 use std::num::ParseIntError;
 
-#[derive(thiserror::Error, Debug)]
+/// When bad things happen
+#[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
 #[allow(variant_size_differences)]
-pub(crate) enum RuarangoError {
+pub enum RuarangoErr {
+    ///
     #[error("{}\nInvalid Body: {}", err, body)]
-    InvalidBody { err: String, body: String },
+    InvalidBody {
+        ///
+        err: String,
+        ///
+        body: String,
+    },
+    ///
     #[error("Unreachable: {}", msg)]
-    Unreachable { msg: String },
+    Unreachable {
+        ///
+        msg: String,
+    },
+    ///
     #[error("You have supplied an invalid connection url")]
     InvalidConnectionUrl,
+    ///
+    #[error("Invalid document response: {}", status)]
+    InvalidDocResponse {
+        ///
+        status: u16,
+    },
+    ///
+    #[error("The document you requested was not found")]
+    DocumentNotFound,
+    ///
+    #[error("The document you requested has not been modified")]
+    NotModified,
+    ///
+    #[error("A precondition has failed: '{}'", doc_err(err))]
+    PreconditionFailed {
+        ///
+        err: Option<DocErr>,
+    },
+    ///
+    #[error("A precondition has failed: '{}'", doc_err(err))]
+    Conflict {
+        ///
+        err: Option<DocErr>,
+    },
     #[cfg(test)]
     #[error("Unable to parse the given value")]
     ParseInt(#[from] ParseIntError),
@@ -33,12 +70,12 @@ pub(crate) enum RuarangoError {
     InvalidMock,
 }
 
-impl Serialize for RuarangoError {
+impl Serialize for RuarangoErr {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("RuarangoError", 2)?;
+        let mut state = serializer.serialize_struct("RuarangoErr", 2)?;
         state.serialize_field("reason", &format!("{}", self))?;
         if let Some(source) = self.source() {
             state.serialize_field("source", &format!("{}", source))?;
@@ -47,8 +84,15 @@ impl Serialize for RuarangoError {
     }
 }
 
+fn doc_err(err: &Option<DocErr>) -> String {
+    err.as_ref().map_or_else(
+        || "No matching document found".to_string(),
+        ToString::to_string,
+    )
+}
+
 #[cfg(test)]
-impl From<&str> for RuarangoError {
+impl From<&str> for RuarangoErr {
     fn from(val: &str) -> Self {
         Self::TestError {
             val: val.to_string(),
@@ -57,7 +101,7 @@ impl From<&str> for RuarangoError {
 }
 
 #[cfg(test)]
-impl From<String> for RuarangoError {
+impl From<String> for RuarangoErr {
     fn from(val: String) -> Self {
         Self::TestError { val }
     }
@@ -65,7 +109,7 @@ impl From<String> for RuarangoError {
 
 #[cfg(test)]
 mod test {
-    use super::RuarangoError::{self, TestError};
+    use super::RuarangoErr::{self, TestError};
     use anyhow::Result;
 
     #[test]
@@ -73,7 +117,7 @@ mod test {
         match str::parse::<usize>("test") {
             Ok(_) => panic!("this shouldn't happen"),
             Err(e) => {
-                let err: RuarangoError = e.into();
+                let err: RuarangoErr = e.into();
                 let result = serde_json::to_string(&err)?;
                 assert_eq!("{\"reason\":\"Unable to parse the given value\",\"source\":\"invalid digit found in string\"}", result);
             }
@@ -84,7 +128,7 @@ mod test {
 
     #[test]
     fn serialize_no_source_works() -> Result<()> {
-        let err: RuarangoError = TestError {
+        let err: RuarangoErr = TestError {
             val: "test".to_string(),
         };
         let result = serde_json::to_string(&err)?;
@@ -94,7 +138,7 @@ mod test {
 
     #[test]
     fn from_str_works() -> Result<()> {
-        let err: RuarangoError = "test".into();
+        let err: RuarangoErr = "test".into();
         let result = serde_json::to_string(&err)?;
         assert_eq!("{\"reason\":\"A test error has occurred: test\"}", result);
         Ok(())
@@ -102,7 +146,7 @@ mod test {
 
     #[test]
     fn from_string_works() -> Result<()> {
-        let err: RuarangoError = String::from("test").into();
+        let err: RuarangoErr = String::from("test").into();
         let result = serde_json::to_string(&err)?;
         assert_eq!("{\"reason\":\"A test error has occurred: test\"}", result);
         Ok(())

@@ -453,6 +453,7 @@ pub use builder::AsyncKind;
 pub use builder::Connection as BaseConnection;
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
+pub use error::RuarangoErr as Error;
 pub use model::coll;
 pub use model::common;
 pub use model::db;

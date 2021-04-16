@@ -10,7 +10,7 @@
 
 use crate::{
     conn::Connection as Conn,
-    error::RuarangoError,
+    error::RuarangoErr::InvalidConnectionUrl,
     model::{auth::input::AuthBuilder, auth::output::AuthResponse},
     utils::handle_response,
 };
@@ -81,7 +81,7 @@ impl ConnectionBuilder {
             .with_context(|| "Unable to build the JWT client")?;
 
         // Generate the auth url
-        let url = self.url.ok_or(RuarangoError::InvalidConnectionUrl)?;
+        let url = self.url.ok_or(InvalidConnectionUrl)?;
         let base_url = Url::parse(&url).with_context(|| "Unable to parse the base url")?;
         let auth_url = base_url
             .join("_open/auth")

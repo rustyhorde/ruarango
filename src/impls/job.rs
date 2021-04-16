@@ -12,13 +12,12 @@ use crate::{
     api_get, api_put,
     conn::Connection,
     traits::Job,
-    utils::{handle_response, handle_response_300},
+    utils::{handle_doc_response, handle_response},
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use const_format::concatcp;
 use futures::FutureExt;
-use libeither::Either;
 use serde::{de::DeserializeOwned, Serialize};
 
 const BASE_SUFFIX: &str = "_api/job";
@@ -43,11 +42,11 @@ impl Job for Connection {
         api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id))
     }
 
-    async fn fetch_either<T>(&self, id: &str) -> Result<Either<(), T>>
+    async fn fetch_doc_job<T>(&self, id: &str) -> Result<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {
-        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => handle_response_300)
+        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => handle_doc_response)
     }
 
     async fn jobs(&self, _kind: &str) -> Result<Vec<String>> {

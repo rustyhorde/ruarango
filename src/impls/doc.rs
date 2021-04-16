@@ -11,12 +11,12 @@
 use crate::{
     api_post_async, api_post_right,
     doc::{
-        input::{Config, OverwriteMode, ReadConfig},
+        input::{Config, DeleteConfig, OverwriteMode, ReadConfig},
         output::DocMeta,
     },
-    error::RuarangoError::Unreachable,
+    error::RuarangoErr::Unreachable,
     traits::{Document, Either, JobInfo},
-    utils::{handle_response, handle_response_300},
+    utils::{handle_doc_response, handle_response},
     Connection,
 };
 use anyhow::{anyhow, Context, Result};
@@ -44,15 +44,11 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
+        let url = &build_create_url(collection, config);
         if *self.is_async() {
-            api_post_async!(
-                self,
-                db_url,
-                &build_create_url(collection, config),
-                document
-            )
+            api_post_async!(self, db_url, url, document)
         } else {
-            api_post_right!(self, db_url, &build_create_url(collection, config), DocMeta<U, V>, document)
+            api_post_right!(self, db_url, url, DocMeta<U, V>, document)
         }
     }
 
@@ -70,12 +66,7 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn read<T>(
-        &self,
-        collection: &str,
-        key: &str,
-        config: ReadConfig,
-    ) -> Result<Either<libeither::Either<(), T>>>
+    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<Either<T>>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -110,9 +101,9 @@ impl Document for Connection {
         }
 
         if *self.is_async() {
-            async_req(self.async_client(), current_url, headers).await
+            async_req(self.async_client(), &HttpVerb::Get, current_url, headers).await
         } else {
-            sync_req(self.client(), current_url, headers).await
+            sync_req(self.client(), &HttpVerb::Get, current_url, headers).await
         }
     }
 
@@ -150,22 +141,62 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn delete<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn delete<U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: DeleteConfig,
+    ) -> Result<Either<DocMeta<U, V>>>
     where
-        T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        Err(anyhow!("not implemented"))
+        let suffix = &build_delete_url(collection, key, &config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+        let mut headers = None;
+
+        if config.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = config.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+
+        if *self.is_async() {
+            async_req(self.async_client(), &HttpVerb::Delete, url, headers).await
+        } else {
+            sync_req(self.client(), &HttpVerb::Delete, url, headers).await
+        }
     }
+}
+
+enum HttpVerb {
+    Get,
+    Delete,
 }
 
 fn req(
     client: &Client,
+    verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
 ) -> impl Future<Output = std::result::Result<Response, reqwest::Error>> {
-    let mut rb = client.get(url);
+    let mut rb = match verb {
+        HttpVerb::Get => client.get(url),
+        HttpVerb::Delete => client.delete(url),
+    };
 
     if let Some(headers) = headers {
         rb = rb.headers(headers);
@@ -176,13 +207,14 @@ fn req(
 
 async fn async_req<T>(
     client: &Client,
+    verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-) -> Result<Either<libeither::Either<(), T>>>
+) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
 {
-    let res = req(client, url, headers).await?;
+    let res = req(client, verb, url, headers).await?;
 
     let status = res.status().as_u16();
     let job_id = res
@@ -195,13 +227,16 @@ where
 
 async fn sync_req<T>(
     client: &Client,
+    verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-) -> Result<Either<libeither::Either<(), T>>>
+) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
 {
-    let res = req(client, url, headers).then(handle_response_300).await?;
+    let res = req(client, verb, url, headers)
+        .then(handle_doc_response)
+        .await?;
     Ok(libeither::Either::new_right(res))
 }
 
@@ -258,6 +293,25 @@ fn build_create_url(name: &str, config: Config) -> String {
     url
 }
 
+fn build_delete_url(collection: &str, key: &str, config: &DeleteConfig) -> String {
+    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
+    let mut has_qp = false;
+
+    // Add waitForSync if necessary
+    if config.wait_for_sync().unwrap_or(false) {
+        add_qp!(url, has_qp, "waitForSync=true");
+    }
+
+    // Setup the output related query parameters
+    if config.silent().unwrap_or(false) {
+        add_qp!(url, has_qp, "silent=true";);
+    } else if config.return_old().unwrap_or(false) {
+        add_qp!(url, has_qp, "returnOld=true";);
+    }
+
+    url
+}
+
 fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
     if has_qp {
         *url += "&";
@@ -270,13 +324,13 @@ fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
 
 #[cfg(test)]
 mod test {
-    use super::{build_create_url, prepend_sep};
+    use super::{build_create_url, build_delete_url, prepend_sep};
     use crate::{
         doc::{
-            input::{ConfigBuilder, OverwriteMode, ReadConfigBuilder},
+            input::{ConfigBuilder, DeleteConfigBuilder, OverwriteMode, ReadConfigBuilder},
             output::{DocMeta, OutputDoc},
         },
-        error::RuarangoError,
+        error::RuarangoErr,
         traits::{Document, Either},
         utils::{
             default_conn, mock_auth,
@@ -307,7 +361,7 @@ mod test {
     }
 
     #[test]
-    fn basic_url() -> Result<()> {
+    fn basic_create_url() -> Result<()> {
         let config = ConfigBuilder::default().build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test", url);
@@ -315,7 +369,15 @@ mod test {
     }
 
     #[test]
-    fn wait_for_sync_url() -> Result<()> {
+    fn basic_delete_url() -> Result<()> {
+        let config = DeleteConfigBuilder::default().build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!("_api/document/test_coll/test_key", url);
+        Ok(())
+    }
+
+    #[test]
+    fn create_wait_for_sync_url() -> Result<()> {
         let config = ConfigBuilder::default().wait_for_sync(true).build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?waitForSync=true", url);
@@ -323,7 +385,15 @@ mod test {
     }
 
     #[test]
-    fn silent_url() -> Result<()> {
+    fn delete_wait_for_sync_url() -> Result<()> {
+        let config = DeleteConfigBuilder::default().wait_for_sync(true).build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!("_api/document/test_coll/test_key?waitForSync=true", url);
+        Ok(())
+    }
+
+    #[test]
+    fn create_silent_url() -> Result<()> {
         let config = ConfigBuilder::default().silent(true).build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?silent=true", url);
@@ -331,7 +401,15 @@ mod test {
     }
 
     #[test]
-    fn silent_url_forces_no_return() -> Result<()> {
+    fn delete_silent_url() -> Result<()> {
+        let config = DeleteConfigBuilder::default().silent(true).build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!("_api/document/test_coll/test_key?silent=true", url);
+        Ok(())
+    }
+
+    #[test]
+    fn create_silent_url_forces_no_return() -> Result<()> {
         let config = ConfigBuilder::default()
             .silent(true)
             .return_new(true)
@@ -343,13 +421,32 @@ mod test {
     }
 
     #[test]
-    fn returns_url() -> Result<()> {
+    fn delete_silent_url_forces_no_return() -> Result<()> {
+        let config = DeleteConfigBuilder::default()
+            .silent(true)
+            .return_old(true)
+            .build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!("_api/document/test_coll/test_key?silent=true", url);
+        Ok(())
+    }
+
+    #[test]
+    fn create_returns_url() -> Result<()> {
         let config = ConfigBuilder::default()
             .return_new(true)
             .return_old(true)
             .build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?returnNew=true&returnOld=true", url);
+        Ok(())
+    }
+
+    #[test]
+    fn delete_returns_url() -> Result<()> {
+        let config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!("_api/document/test_coll/test_key?returnOld=true", url);
         Ok(())
     }
 
@@ -410,7 +507,7 @@ mod test {
     }
 
     #[test]
-    fn all_the_opts() -> Result<()> {
+    fn create_all_the_opts() -> Result<()> {
         let config = ConfigBuilder::default()
             .wait_for_sync(true)
             .return_new(true)
@@ -422,6 +519,20 @@ mod test {
         let url = build_create_url("test", config);
         assert_eq!(
             "_api/document/test?waitForSync=true&returnNew=true&returnOld=true&overwriteMode=update&keepNull=true&mergeObjects=true",
+            url
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn delete_all_the_opts() -> Result<()> {
+        let config = DeleteConfigBuilder::default()
+            .wait_for_sync(true)
+            .return_old(true)
+            .build()?;
+        let url = build_delete_url("test_coll", "test_key", &config);
+        assert_eq!(
+            "_api/document/test_coll/test_key?waitForSync=true&returnOld=true",
             url
         );
         Ok(())
@@ -528,28 +639,25 @@ mod test {
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoError>("".into())?
+                .ok_or::<RuarangoErr>("".into())?
                 .key(),
             "abc"
         );
         assert_eq!(
-            res.new_doc()
-                .as_ref()
-                .ok_or::<RuarangoError>("".into())?
-                .id(),
+            res.new_doc().as_ref().ok_or::<RuarangoErr>("".into())?.id(),
             "def"
         );
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoError>("".into())?
+                .ok_or::<RuarangoErr>("".into())?
                 .rev(),
             "ghi"
         );
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoError>("".into())?
+                .ok_or::<RuarangoErr>("".into())?
                 .test(),
             "test"
         );
@@ -607,12 +715,9 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         let config = ReadConfigBuilder::default().build()?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> =
-            conn.read("test_coll", "test_doc", config).await?;
+        let outer_either: Either<OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
-        let either = outer_either.right_safe()?;
-        assert!(either.is_right());
-        let doc = either.right_safe()?;
+        let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
         assert!(!doc.id().is_empty());
         assert!(!doc.rev().is_empty());
@@ -647,11 +752,8 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_none_match("_cIw-YT6---")
             .build()?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> =
-            conn.read("test_coll", "test_doc", config).await?;
-        assert!(outer_either.is_right());
-        let either = outer_either.right_safe()?;
-        assert!(either.is_left());
+        let res: Result<Either<OutputDoc>> = conn.read("test_coll", "test_doc", config).await;
+        assert!(res.is_err());
 
         Ok(())
     }
@@ -666,12 +768,9 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("_cIw-YT6---")
             .build()?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> =
-            conn.read("test_coll", "test_doc", config).await?;
+        let outer_either: Either<OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
-        let either = outer_either.right_safe()?;
-        assert!(either.is_right());
-        let doc = either.right_safe()?;
+        let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
         assert!(!doc.id().is_empty());
         assert!(!doc.rev().is_empty());

@@ -10,7 +10,7 @@
 
 use super::Either;
 use crate::doc::{
-    input::{Config, ReadConfig},
+    input::{Config, DeleteConfig, ReadConfig},
     output::DocMeta,
 };
 use anyhow::Result;
@@ -45,12 +45,7 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Read a document
-    async fn read<T>(
-        &self,
-        collection: &str,
-        key: &str,
-        config: ReadConfig,
-    ) -> Result<Either<libeither::Either<(), T>>>
+    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<Either<T>>
     where
         T: DeserializeOwned + Send + Sync;
 
@@ -81,9 +76,13 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Delete the given docment
-    async fn delete<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn delete<U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: DeleteConfig,
+    ) -> Result<Either<DocMeta<U, V>>>
     where
-        T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 }

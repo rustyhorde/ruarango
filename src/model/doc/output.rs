@@ -10,9 +10,10 @@
 
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
+use std::fmt;
 #[cfg(test)]
 use {
-    crate::{error::RuarangoError::InvalidMock, utils::mocks::Mock},
+    crate::{error::RuarangoErr::InvalidMock, utils::mocks::Mock},
     anyhow::Result,
 };
 
@@ -176,5 +177,51 @@ impl Mock<ReadMockKind> for OutputDoc {
         Ok(match name {
             ReadMockKind::Found => OutputDoc::default(),
         })
+    }
+}
+
+/// Output on a precondition failure for some endpoints
+#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct DocErr {
+    /// Is this an error?
+    error: bool,
+    /// The error code
+    code: u16,
+    /// The ArangoDB code
+    #[serde(rename = "errorNum")]
+    error_num: usize,
+    /// The error message
+    #[serde(rename = "errorMessage", skip_serializing_if = "Option::is_none")]
+    error_message: Option<String>,
+    /// Contains the document key
+    #[serde(rename = "_key", skip_serializing_if = "Option::is_none")]
+    key: Option<String>,
+    /// Contains the document identifier of the newly created document
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    /// Contains the document revision
+    #[serde(rename = "_rev", skip_serializing_if = "Option::is_none")]
+    rev: Option<String>,
+}
+
+impl fmt::Display for DocErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error: {}", self.error)?;
+        write!(f, ", code: {}", self.code)?;
+        write!(f, ", error_num: {}", self.error_num)?;
+        if let Some(error_message) = &self.error_message {
+            write!(f, ", error_message: {}", error_message)?;
+        }
+        if let Some(key) = &self.key {
+            write!(f, ", key: {}", key)?;
+        }
+        if let Some(id) = &self.id {
+            write!(f, ", id: {}", id)?;
+        }
+        if let Some(rev) = &self.rev {
+            write!(f, ", rev: {}", rev)?;
+        }
+        Ok(())
     }
 }

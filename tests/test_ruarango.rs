@@ -212,11 +212,11 @@ mod coll {
     });
 
     int_test_async!(res; Revision; collection_revision_async, conn_ruarango_async, revision(TEST_COLL) => {
-        assert_eq!(res.revision(), "1697040852040286208");
+        assert!(!res.revision().is_empty());
     });
 
     int_test_sync!(res; collection_revision, conn_ruarango, revision(TEST_COLL) => {
-        assert_eq!(res.revision(), "1697040852040286208");
+        assert!(!res.revision().is_empty());
     });
 
     int_test_async!(res; Load; collection_load_async, conn_ruarango_async, load(TEST_COLL, false) => {
@@ -462,13 +462,16 @@ mod db {
 }
 
 mod doc {
-    use super::common::{conn_ruarango, conn_ruarango_async, process_async_result_300};
+    use super::common::{conn_ruarango, conn_ruarango_async, process_async_doc_result};
     use anyhow::Result;
     use getset::Getters;
-    use reqwest::{Error, StatusCode};
     use ruarango::{
-        doc::input::{ReadConfig, ReadConfigBuilder},
+        doc::{
+            input::{ConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder},
+            output::DocMeta,
+        },
         Document, Either,
+        Error::{self, DocumentNotFound, PreconditionFailed},
     };
     use serde_derive::{Deserialize, Serialize};
 
@@ -484,18 +487,32 @@ mod doc {
         test: String,
     }
 
-    #[ignore]
+    #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+    #[getset(get)]
+    struct TestDoc {
+        #[serde(rename = "_key", skip_serializing_if = "Option::is_none")]
+        key: Option<String>,
+        test: String,
+    }
+
+    impl Default for TestDoc {
+        fn default() -> Self {
+            Self {
+                key: None,
+                test: "test".to_string(),
+            }
+        }
+    }
+
+    #[ignore = "This seems to give back a 304 Not Modified rather than the result"]
     #[tokio::test]
     async fn doc_read_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
-        let res: Either<libeither::Either<(), OutputDoc>> = conn
+        let res: Either<OutputDoc> = conn
             .read("test_coll", "51210", ReadConfigBuilder::default().build()?)
             .await?;
         assert!(res.is_left());
-        println!("Got back async result");
-        let either: libeither::Either<(), OutputDoc> = process_async_result_300(res, &conn).await?;
-        assert!(either.is_right());
-        let doc = either.right_safe()?;
+        let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
         assert_eq!(doc.test(), "tester");
         Ok(())
     }
@@ -503,13 +520,11 @@ mod doc {
     #[tokio::test]
     async fn doc_read() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let res: Either<libeither::Either<(), OutputDoc>> = conn
+        let res: Either<OutputDoc> = conn
             .read("test_coll", "51210", ReadConfigBuilder::default().build()?)
             .await?;
         assert!(res.is_right());
-        let none_match = res.right_safe()?;
-        assert!(none_match.is_right());
-        let doc = none_match.right_safe()?;
+        let doc = res.right_safe()?;
         assert_eq!(doc.test(), "tester");
         Ok(())
     }
@@ -534,32 +549,29 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_none_match_matches_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
-        let res: Either<libeither::Either<(), OutputDoc>> = conn
+        let res: Either<OutputDoc> = conn
             .read(
                 "test_coll",
                 "51210",
                 if_none_match_config(IfNoneMatchKind::Match)?,
             )
             .await?;
-        let none_match: libeither::Either<(), OutputDoc> =
-            process_async_result_300(res, &conn).await?;
-        assert!(none_match.is_left());
+        let none_match: Result<OutputDoc> = process_async_doc_result(res, &conn).await;
+        assert!(none_match.is_err());
         Ok(())
     }
 
     #[tokio::test]
     async fn doc_read_if_none_match_matches() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> = conn
+        let res: Result<Either<OutputDoc>> = conn
             .read(
                 "test_coll",
                 "51210",
                 if_none_match_config(IfNoneMatchKind::Match)?,
             )
-            .await?;
-        assert!(outer_either.is_right());
-        let none_match = outer_either.right_safe()?;
-        assert!(none_match.is_left());
+            .await;
+        assert!(res.is_err());
         Ok(())
     }
 
@@ -567,17 +579,14 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
-        let res: Either<libeither::Either<(), OutputDoc>> = conn
+        let res: Either<OutputDoc> = conn
             .read(
                 "test_coll",
                 "51210",
                 if_none_match_config(IfNoneMatchKind::NoneMatch)?,
             )
             .await?;
-        let if_match: libeither::Either<(), OutputDoc> =
-            process_async_result_300(res, &conn).await?;
-        assert!(if_match.is_right());
-        let doc = if_match.right_safe()?;
+        let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
         assert_eq!(doc.test(), "tester");
         Ok(())
     }
@@ -585,17 +594,15 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_none_match_doesnt_match() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> = conn
+        let either: Either<OutputDoc> = conn
             .read(
                 "test_coll",
                 "51210",
                 if_none_match_config(IfNoneMatchKind::NoneMatch)?,
             )
             .await?;
-        assert!(outer_either.is_right());
-        let none_match = outer_either.right_safe()?;
-        assert!(none_match.is_right());
-        let doc = none_match.right_safe()?;
+        assert!(either.is_right());
+        let doc = either.right_safe()?;
         assert_eq!(doc.test(), "tester");
         Ok(())
     }
@@ -619,13 +626,11 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_match_matches() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let outer_either: Either<libeither::Either<(), OutputDoc>> = conn
+        let either: Either<OutputDoc> = conn
             .read("test_coll", "51210", if_match_config(IfMatchKind::Match)?)
             .await?;
-        assert!(outer_either.is_right());
-        let none_match = outer_either.right_safe()?;
-        assert!(none_match.is_right());
-        let doc = none_match.right_safe()?;
+        assert!(either.is_right());
+        let doc = either.right_safe()?;
         assert_eq!(doc.test(), "tester");
         Ok(())
     }
@@ -633,7 +638,7 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_match_doesnt_match() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let res: Result<Either<libeither::Either<(), OutputDoc>>> = conn
+        let res: Result<Either<OutputDoc>> = conn
             .read(
                 "test_coll",
                 "51210",
@@ -644,9 +649,86 @@ mod doc {
             Ok(_) => panic!("This should be an error!"),
             Err(e) => {
                 let err = e.downcast_ref::<Error>().expect("unanticipated error");
-                assert_eq!(err.status(), Some(StatusCode::PRECONDITION_FAILED));
+                assert_eq!(err, &PreconditionFailed { err: None });
             }
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn doc_read_not_found() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let res: Result<Either<OutputDoc>> = conn
+            .read("test_coll", "yoda", ReadConfigBuilder::default().build()?)
+            .await;
+        match res {
+            Ok(_) => panic!("This should be an error!"),
+            Err(e) => {
+                let err = e.downcast_ref::<Error>().expect("unanticipated error");
+                assert_eq!(err, &DocumentNotFound);
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_delete_basic() -> Result<()> {
+        let conn = conn_ruarango().await?;
+
+        // Create a document
+        let create_config = ConfigBuilder::default().build()?;
+        let create_res: Either<DocMeta<(), ()>> = conn
+            .create("test_coll", create_config, &TestDoc::default())
+            .await?;
+        assert!(create_res.is_right());
+        let doc_meta = create_res.right_safe()?;
+        let key = doc_meta.key();
+
+        // Delete that document
+        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_res: Either<DocMeta<(), TestDoc>> =
+            conn.delete("test_coll", &key, delete_config).await?;
+        assert!(delete_res.is_right());
+        let doc_meta = delete_res.right_safe()?;
+        assert!(doc_meta.old_doc().is_some());
+        assert_eq!(doc_meta.old_doc().as_ref().unwrap().test(), "test");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_delete_overwrite_replace() -> Result<()> {
+        let conn = conn_ruarango().await?;
+
+        // Create a document
+        let create_config = ConfigBuilder::default().build()?;
+        let create_res: Either<DocMeta<(), ()>> = conn
+            .create("test_coll", create_config, &TestDoc::default())
+            .await?;
+        assert!(create_res.is_right());
+        let doc_meta = create_res.right_safe()?;
+        let key = doc_meta.key();
+
+        // Overwrite with replace
+        let overwrite = ConfigBuilder::default().overwrite(true).build()?;
+        let mut new_doc = TestDoc::default();
+        new_doc.key = Some(key.clone());
+        new_doc.test = "testing".to_string();
+        let overwrite_res: Either<DocMeta<(), ()>> =
+            conn.create("test_coll", overwrite, &new_doc).await?;
+        assert!(overwrite_res.is_right());
+        let doc_meta = overwrite_res.right_safe()?;
+        let key = doc_meta.key();
+
+        // Delete that document
+        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_res: Either<DocMeta<(), TestDoc>> =
+            conn.delete("test_coll", &key, delete_config).await?;
+        assert!(delete_res.is_right());
+        let doc_meta = delete_res.right_safe()?;
+        assert!(doc_meta.old_doc().is_some());
+        assert_eq!(doc_meta.old_doc().as_ref().unwrap().test(), "testing");
+
         Ok(())
     }
 }

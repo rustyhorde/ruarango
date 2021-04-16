@@ -143,10 +143,7 @@ where
     Ok(conn.fetch(id).await?)
 }
 
-pub(crate) async fn process_async_result_300<T>(
-    res: Either<libeither::Either<(), T>>,
-    conn: &Connection,
-) -> Result<libeither::Either<(), T>>
+pub(crate) async fn process_async_doc_result<T>(res: Either<T>, conn: &Connection) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
@@ -166,6 +163,5 @@ where
         status = conn.status(id).await?;
     }
 
-    let res: libeither::Either<(), T> = conn.fetch_either(id).await?;
-    Ok(res)
+    Ok(conn.fetch_doc_job(id).await?)
 }
