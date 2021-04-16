@@ -32,6 +32,18 @@ pub trait Document {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
+    /// Create multiple documents
+    async fn creates<T, U, V>(
+        &self,
+        collection: &str,
+        config: Config,
+        documents: &Vec<T>,
+    ) -> Result<Either<Vec<DocMeta<U, V>>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
+
     /// Read a document
     async fn read<T>(
         &self,
@@ -42,6 +54,36 @@ pub trait Document {
     where
         T: DeserializeOwned + Send + Sync;
 
-    /// Update the given docment with the given data
-    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>;
+    /// Read multiple documents
+    async fn reads<T>() -> Result<Either<Vec<T>>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Replace a docment with the given document
+    async fn replace<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Replace multiple documents
+    async fn replaces<T, U, V>() -> Result<Either<Vec<DocMeta<U, V>>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Add/Replace the given data in the given document
+    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Delete the given docment
+    async fn delete<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
 }

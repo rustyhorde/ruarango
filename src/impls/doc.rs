@@ -56,6 +56,20 @@ impl Document for Connection {
         }
     }
 
+    async fn creates<T, U, V>(
+        &self,
+        _collection: &str,
+        _config: Config,
+        _documents: &Vec<T>,
+    ) -> Result<Either<Vec<DocMeta<U, V>>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        Err(anyhow!("not implemented"))
+    }
+
     async fn read<T>(
         &self,
         collection: &str,
@@ -102,7 +116,46 @@ impl Document for Connection {
         }
     }
 
-    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>> {
+    async fn reads<T>() -> Result<Either<Vec<T>>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync,
+    {
+        Err(anyhow!("not implemented"))
+    }
+
+    async fn replace<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        Err(anyhow!("not implemented"))
+    }
+
+    async fn replaces<T, U, V>() -> Result<Either<Vec<DocMeta<U, V>>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        Err(anyhow!("not implemented"))
+    }
+
+    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        Err(anyhow!("not implemented"))
+    }
+
+    async fn delete<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
         Err(anyhow!("not implemented"))
     }
 }
