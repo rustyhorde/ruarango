@@ -649,7 +649,17 @@ mod doc {
             Ok(_) => panic!("This should be an error!"),
             Err(e) => {
                 let err = e.downcast_ref::<Error>().expect("unanticipated error");
-                assert_eq!(err, &PreconditionFailed { err: None });
+                match err {
+                    PreconditionFailed { err } => {
+                        assert!(err.is_some());
+                        let pre_cond = err.as_ref().expect("this is bad!");
+                        assert!(pre_cond.error());
+                        assert_eq!(*pre_cond.code(), 412);
+                        assert_eq!(*pre_cond.error_num(), 1200);
+                        assert_eq!(pre_cond.error_message(), &Some("conflict".to_string()));
+                    }
+                    _ => panic!("Incorrect error!"),
+                }
             }
         }
         Ok(())
