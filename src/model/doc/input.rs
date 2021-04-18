@@ -203,3 +203,42 @@ impl DeleteConfig {
         self.if_match.is_some()
     }
 }
+
+/// Document replace configuration
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub(crate)")]
+pub struct ReplaceConfig {
+    /// Wait until the delete operation has been synced to disk.
+    #[builder(setter(strip_option), default)]
+    wait_for_sync: Option<bool>,
+    /// By default, or if this is set to true, the `_rev` attribute in
+    /// the given document is ignored. If this is set to false, then
+    /// the `_rev` attribute given in the body document is taken as a
+    /// precondition. The document is only replaced if the current revision
+    /// is the one specified.
+    #[builder(setter(strip_option), default)]
+    ignore_revs: Option<bool>,
+    /// Additionally return the complete new document under the attribute `new`
+    /// in the result.
+    #[builder(setter(strip_option), default)]
+    return_new: Option<bool>,
+    /// Additionally return the complete old document under the attribute `old`
+    /// in the result.
+    #[builder(setter(strip_option), default)]
+    return_old: Option<bool>,
+    /// If set to true, an empty object will be returned as response. No meta-data
+    /// will be returned for the replaced document. This option can be used to
+    /// save some network traffic.
+    #[builder(setter(strip_option), default)]
+    silent: Option<bool>,
+    /// You can conditionally replace a document based on a target `rev` by
+    /// using the `if_match` option
+    #[builder(setter(into, strip_option), default)]
+    if_match: Option<String>,
+}
+
+impl ReplaceConfig {
+    pub(crate) fn has_header(&self) -> bool {
+        self.if_match.is_some()
+    }
+}

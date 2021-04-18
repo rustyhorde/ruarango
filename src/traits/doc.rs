@@ -10,7 +10,7 @@
 
 use super::Either;
 use crate::doc::{
-    input::{Config, DeleteConfig, ReadConfig},
+    input::{Config, DeleteConfig, ReadConfig, ReplaceConfig},
     output::DocMeta,
 };
 use anyhow::Result;
@@ -55,7 +55,12 @@ pub trait Document {
         T: Serialize + DeserializeOwned + Send + Sync;
 
     /// Replace a docment with the given document
-    async fn replace<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn replace<T, U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: ReplaceConfig,
+    ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,

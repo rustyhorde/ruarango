@@ -11,7 +11,7 @@
 use crate::{
     api_post_async, api_post_right,
     doc::{
-        input::{Config, DeleteConfig, OverwriteMode, ReadConfig},
+        input::{Config, DeleteConfig, OverwriteMode, ReadConfig, ReplaceConfig},
         output::DocMeta,
     },
     error::RuarangoErr::Unreachable,
@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use futures::{Future, FutureExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
-    Client, Response, Url,
+    Body, Client, Response, Url,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -100,10 +100,18 @@ impl Document for Connection {
             }
         }
 
+        let blah: Option<String> = None;
         if *self.is_async() {
-            async_req(self.async_client(), &HttpVerb::Get, current_url, headers).await
+            async_req(
+                self.async_client(),
+                &HttpVerb::Get,
+                current_url,
+                headers,
+                blah,
+            )
+            .await
         } else {
-            sync_req(self.client(), &HttpVerb::Get, current_url, headers).await
+            sync_req(self.client(), &HttpVerb::Get, current_url, headers, blah).await
         }
     }
 
@@ -114,13 +122,46 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn replace<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn replace<T, U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: ReplaceConfig,
+    ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        Err(anyhow!("not implemented"))
+        let suffix = &build_replace_url(collection, key, &config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+        let mut headers = None;
+
+        if config.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = config.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+
+        let blah: Option<String> = None;
+        if *self.is_async() {
+            async_req(self.async_client(), &HttpVerb::Put, url, headers, blah).await
+        } else {
+            sync_req(self.client(), &HttpVerb::Put, url, headers, blah).await
+        }
     }
 
     async fn replaces<T, U, V>() -> Result<Either<Vec<DocMeta<U, V>>>>
@@ -174,10 +215,25 @@ impl Document for Connection {
             }
         }
 
+        #[allow(unused_qualifications)]
         if *self.is_async() {
-            async_req(self.async_client(), &HttpVerb::Delete, url, headers).await
+            async_req(
+                self.async_client(),
+                &HttpVerb::Delete,
+                url,
+                headers,
+                Option::<String>::None,
+            )
+            .await
         } else {
-            sync_req(self.client(), &HttpVerb::Delete, url, headers).await
+            sync_req(
+                self.client(),
+                &HttpVerb::Delete,
+                url,
+                headers,
+                Option::<String>::None,
+            )
+            .await
         }
     }
 }
@@ -185,36 +241,48 @@ impl Document for Connection {
 enum HttpVerb {
     Get,
     Delete,
+    Put,
 }
 
-fn req(
+fn req<T>(
     client: &Client,
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-) -> impl Future<Output = std::result::Result<Response, reqwest::Error>> {
+    body: Option<T>,
+) -> impl Future<Output = std::result::Result<Response, reqwest::Error>>
+where
+    T: Into<Body>,
+{
     let mut rb = match verb {
         HttpVerb::Get => client.get(url),
         HttpVerb::Delete => client.delete(url),
+        HttpVerb::Put => client.put(url),
     };
 
     if let Some(headers) = headers {
         rb = rb.headers(headers);
     }
 
+    if let Some(body) = body {
+        rb = rb.body(body)
+    }
+
     rb.send()
 }
 
-async fn async_req<T>(
+async fn async_req<T, U>(
     client: &Client,
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
+    body: Option<U>,
 ) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
+    U: Into<Body>,
 {
-    let res = req(client, verb, url, headers).await?;
+    let res = req(client, verb, url, headers, body).await?;
 
     let status = res.status().as_u16();
     let job_id = res
@@ -225,16 +293,18 @@ where
     Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
 }
 
-async fn sync_req<T>(
+async fn sync_req<T, U>(
     client: &Client,
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
+    body: Option<U>,
 ) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
+    U: Into<Body>,
 {
-    let res = req(client, verb, url, headers)
+    let res = req(client, verb, url, headers, body)
         .then(handle_doc_response)
         .await?;
     Ok(libeither::Either::new_right(res))
@@ -307,6 +377,35 @@ fn build_delete_url(collection: &str, key: &str, config: &DeleteConfig) -> Strin
         add_qp!(url, has_qp, "silent=true";);
     } else if config.return_old().unwrap_or(false) {
         add_qp!(url, has_qp, "returnOld=true";);
+    }
+
+    url
+}
+
+fn build_replace_url(collection: &str, key: &str, config: &ReplaceConfig) -> String {
+    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
+    let mut has_qp = false;
+
+    // Add waitForSync if necessary
+    if config.wait_for_sync().unwrap_or(false) {
+        add_qp!(url, has_qp, "waitForSync=true");
+    }
+
+    // Setup the output related query parameters
+    if config.silent().unwrap_or(false) {
+        add_qp!(url, has_qp, "silent=true");
+    } else {
+        if config.return_new().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnNew=true");
+        }
+        if config.return_old().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnOld=true");
+        }
+    }
+
+    // Add ignoreRevs if necessary
+    if config.ignore_revs().unwrap_or(false) {
+        add_qp!(url, has_qp, "ignoreRevs=true";);
     }
 
     url
