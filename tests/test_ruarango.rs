@@ -187,15 +187,15 @@ mod coll {
     });
 
     int_test_async!(res; Count; collection_count_async, conn_ruarango_async, count(TEST_COLL) => {
-        assert_eq!(*res.count(), 1);
+        assert!(*res.count() >= 1);
     });
 
     int_test_sync!(res; collection_count, conn_ruarango, count(TEST_COLL) => {
-        assert_eq!(*res.count(), 1);
+        assert!(*res.count() >= 1);
     });
 
     int_test_async!(res; Figures; collection_figures_async, conn_ruarango_async, figures(TEST_COLL) => {
-        assert_eq!(*res.figures().indexes().count(), 1);
+        assert!(*res.figures().indexes().count() >= 1);
         assert!(*res.figures().indexes().size() > 0);
         assert!(*res.figures().documents_size() > 0);
         assert!(!res.figures().cache_in_use());
@@ -204,7 +204,7 @@ mod coll {
     });
 
     int_test_sync!(res; collection_figures, conn_ruarango, figures(TEST_COLL) => {
-        assert_eq!(*res.figures().indexes().count(), 1);
+        assert!(*res.figures().indexes().count() >= 1);
         assert!(*res.figures().indexes().size() > 0);
         assert!(*res.figures().documents_size() > 0);
         assert!(!res.figures().cache_in_use());
