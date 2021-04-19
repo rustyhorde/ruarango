@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use futures::{Future, FutureExt};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
-    Body, Client, Response, Url,
+    Client, Response, Url,
 };
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -100,18 +100,17 @@ impl Document for Connection {
             }
         }
 
-        let blah: Option<String> = None;
         if *self.is_async() {
-            async_req(
+            async_req::<T, String>(
                 self.async_client(),
                 &HttpVerb::Get,
                 current_url,
                 headers,
-                blah,
+                None,
             )
             .await
         } else {
-            sync_req(self.client(), &HttpVerb::Get, current_url, headers, blah).await
+            sync_req::<T, String>(self.client(), &HttpVerb::Get, current_url, headers, None).await
         }
     }
 
@@ -127,6 +126,7 @@ impl Document for Connection {
         collection: &str,
         key: &str,
         config: ReplaceConfig,
+        document: &T,
     ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
@@ -156,11 +156,17 @@ impl Document for Connection {
             }
         }
 
-        let blah: Option<String> = None;
         if *self.is_async() {
-            async_req(self.async_client(), &HttpVerb::Put, url, headers, blah).await
+            async_req(
+                self.async_client(),
+                &HttpVerb::Put,
+                url,
+                headers,
+                Some(document),
+            )
+            .await
         } else {
-            sync_req(self.client(), &HttpVerb::Put, url, headers, blah).await
+            sync_req(self.client(), &HttpVerb::Put, url, headers, Some(document)).await
         }
     }
 
@@ -215,25 +221,18 @@ impl Document for Connection {
             }
         }
 
-        #[allow(unused_qualifications)]
         if *self.is_async() {
-            async_req(
+            async_req::<DocMeta<U, V>, String>(
                 self.async_client(),
                 &HttpVerb::Delete,
                 url,
                 headers,
-                Option::<String>::None,
+                None,
             )
             .await
         } else {
-            sync_req(
-                self.client(),
-                &HttpVerb::Delete,
-                url,
-                headers,
-                Option::<String>::None,
-            )
-            .await
+            sync_req::<DocMeta<U, V>, String>(self.client(), &HttpVerb::Delete, url, headers, None)
+                .await
         }
     }
 }
@@ -249,10 +248,10 @@ fn req<T>(
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-    body: Option<T>,
+    json: Option<T>,
 ) -> impl Future<Output = std::result::Result<Response, reqwest::Error>>
 where
-    T: Into<Body>,
+    T: Serialize + Send + Sync,
 {
     let mut rb = match verb {
         HttpVerb::Get => client.get(url),
@@ -264,8 +263,8 @@ where
         rb = rb.headers(headers);
     }
 
-    if let Some(body) = body {
-        rb = rb.body(body)
+    if let Some(json) = json {
+        rb = rb.json(&json)
     }
 
     rb.send()
@@ -276,13 +275,13 @@ async fn async_req<T, U>(
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-    body: Option<U>,
+    json: Option<U>,
 ) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
-    U: Into<Body>,
+    U: Serialize + Send + Sync,
 {
-    let res = req(client, verb, url, headers, body).await?;
+    let res = req(client, verb, url, headers, json).await?;
 
     let status = res.status().as_u16();
     let job_id = res
@@ -298,13 +297,13 @@ async fn sync_req<T, U>(
     verb: &HttpVerb,
     url: Url,
     headers: Option<HeaderMap>,
-    body: Option<U>,
+    json: Option<U>,
 ) -> Result<Either<T>>
 where
     T: DeserializeOwned + Send + Sync,
-    U: Into<Body>,
+    U: Serialize + Send + Sync,
 {
-    let res = req(client, verb, url, headers, body)
+    let res = req(client, verb, url, headers, json)
         .then(handle_doc_response)
         .await?;
     Ok(libeither::Either::new_right(res))

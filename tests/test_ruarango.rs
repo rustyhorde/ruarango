@@ -464,11 +464,14 @@ mod db {
 
 mod doc {
     use super::common::{conn_ruarango, conn_ruarango_async, process_async_doc_result};
-    use anyhow::Result;
+    use anyhow::{anyhow, Result};
     use getset::Getters;
     use ruarango::{
         doc::{
-            input::{ConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder},
+            input::{
+                ConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder,
+                ReplaceConfigBuilder,
+            },
             output::DocMeta,
         },
         Document, Either,
@@ -682,6 +685,10 @@ mod doc {
         Ok(())
     }
 
+    fn unwrap_doc<'a>(doc_opt: &'a Option<TestDoc>) -> Result<&TestDoc> {
+        Ok(doc_opt.as_ref().ok_or_else(|| anyhow!("bad"))?)
+    }
+
     #[tokio::test]
     async fn create_delete_basic() -> Result<()> {
         let conn = conn_ruarango().await?;
@@ -701,14 +708,15 @@ mod doc {
             conn.delete("test_coll", &key, delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
-        assert!(doc_meta.old_doc().is_some());
-        assert_eq!(doc_meta.old_doc().as_ref().unwrap().test(), "test");
+        let doc_opt = doc_meta.old_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn create_delete_overwrite_replace() -> Result<()> {
+    async fn create_overwrite_replace_delete() -> Result<()> {
         let conn = conn_ruarango().await?;
 
         // Create a document
@@ -737,8 +745,48 @@ mod doc {
             conn.delete("test_coll", &key, delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
-        assert!(doc_meta.old_doc().is_some());
-        assert_eq!(doc_meta.old_doc().as_ref().unwrap().test(), "testing");
+        let doc_opt = doc_meta.old_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_replace_delete() -> Result<()> {
+        let conn = conn_ruarango().await?;
+
+        // Create a document
+        let create_config = ConfigBuilder::default().build()?;
+        let create_res: Either<DocMeta<(), ()>> = conn
+            .create("test_coll", create_config, &TestDoc::default())
+            .await?;
+        assert!(create_res.is_right());
+        let doc_meta = create_res.right_safe()?;
+        let key = doc_meta.key();
+
+        // Replace
+        let replace = ReplaceConfigBuilder::default().return_new(true).build()?;
+        let mut new_doc = TestDoc::default();
+        new_doc.test = "testing".to_string();
+        let replace_res: Either<DocMeta<TestDoc, ()>> =
+            conn.replace("test_coll", key, replace, &new_doc).await?;
+        assert!(replace_res.is_right());
+        let doc_meta = replace_res.right_safe()?;
+        let key = doc_meta.key();
+        let doc_opt = doc_meta.new_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+
+        // Delete that document
+        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_res: Either<DocMeta<(), TestDoc>> =
+            conn.delete("test_coll", &key, delete_config).await?;
+        assert!(delete_res.is_right());
+        let doc_meta = delete_res.right_safe()?;
+        let doc_opt = doc_meta.old_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
 
         Ok(())
     }

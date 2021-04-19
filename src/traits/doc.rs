@@ -60,6 +60,7 @@ pub trait Document {
         collection: &str,
         key: &str,
         config: ReplaceConfig,
+        document: &T,
     ) -> Result<Either<DocMeta<U, V>>>
     where
         T: Serialize + Send + Sync,
