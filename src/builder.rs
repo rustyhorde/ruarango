@@ -45,7 +45,7 @@ impl Default for AsyncKind {
 /// An `ArangoDB` connection builder
 #[doc(hidden)]
 #[derive(Builder, Clone, Debug, Default)]
-#[allow(clippy::clippy::module_name_repetitions)]
+#[allow(clippy::module_name_repetitions)]
 #[builder(build_fn(skip), pattern = "immutable")]
 pub struct Connection {
     /// The url used to connect to `ArangoDB`
