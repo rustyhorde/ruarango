@@ -541,7 +541,7 @@ mod doc {
     fn if_none_match_config(kind: IfNoneMatchKind) -> Result<ReadConfig> {
         Ok(match kind {
             IfNoneMatchKind::Match => ReadConfigBuilder::default()
-                .if_none_match(r#""_cLEYlhK---""#)
+                .if_none_match(r#""_cM7mafK---""#)
                 .build()?,
             IfNoneMatchKind::NoneMatch => ReadConfigBuilder::default()
                 .if_none_match(r#""_cJG9Tz1---""#)
@@ -619,7 +619,7 @@ mod doc {
     fn if_match_config(kind: IfMatchKind) -> Result<ReadConfig> {
         Ok(match kind {
             IfMatchKind::Match => ReadConfigBuilder::default()
-                .if_match(r#""_cLEYlhK---""#)
+                .if_match(r#""_cM7mafK---""#)
                 .build()?,
             IfMatchKind::NoneMatch => ReadConfigBuilder::default()
                 .if_match(r#""_cJG9Tz1---""#)
