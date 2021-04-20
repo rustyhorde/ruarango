@@ -757,29 +757,38 @@ mod doc {
     #[tokio::test]
     async fn creates_deletes_basic() -> Result<()> {
         let conn = conn_ruarango().await?;
-
-        // Create a document
+        let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
+        // Create some documents
         let create_config = CreateConfigBuilder::default().build()?;
-        let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> = conn
-            .creates("test_coll", create_config, &[TestDoc::default()])
-            .await?;
+        let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> =
+            conn.creates("test_coll", create_config, &docs).await?;
         assert!(create_res.is_right());
-        let doc_meta = create_res.right_safe()?;
-        assert_eq!(doc_meta.len(), 1);
-        let doc_either = doc_meta.get(0).unwrap().clone();
-        assert!(doc_either.is_right());
-        let doc = doc_either.right_safe()?;
-        let key = doc.key();
+        let doc_meta_vec = create_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
 
-        // Delete that document
+        let mut keys = vec![];
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            println!("{:?}", doc_meta);
+            keys.push(doc_meta.key().clone());
+        }
+
+        // Delete the documents
         let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
-            conn.delete("test_coll", key, delete_config).await?;
+        let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
+            conn.deletes("test_coll", delete_config, &keys).await?;
         assert!(delete_res.is_right());
-        let doc_meta = delete_res.right_safe()?;
-        let doc_opt = doc_meta.old_doc();
-        assert!(doc_opt.is_some());
-        assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
+        let doc_meta_vec = delete_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
+
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            let doc_opt = doc_meta.old_doc();
+            assert!(doc_opt.is_some());
+            assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
+        }
 
         Ok(())
     }

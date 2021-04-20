@@ -95,4 +95,16 @@ pub trait Document {
     where
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Deletes the given docments
+    async fn deletes<T, U, V>(
+        &self,
+        collection: &str,
+        config: DeleteConfig,
+        documents: &[T],
+    ) -> DocMetaVecResult<U, V>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
 }

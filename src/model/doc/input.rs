@@ -196,6 +196,11 @@ pub struct DeleteConfig {
     /// using the `if_match` option
     #[builder(setter(into, strip_option), default)]
     if_match: Option<String>,
+    /// If set to true, ignore any `_rev` attribute in the selectors. No
+    /// revision check is performed. If set to false then revisions are checked.
+    /// The default is true.
+    #[builder(setter(into, strip_option), default)]
+    ignore_revs: Option<bool>,
 }
 
 impl DeleteConfig {

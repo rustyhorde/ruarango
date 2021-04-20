@@ -280,6 +280,37 @@ impl Document for Connection {
                 .await
         }
     }
+
+    async fn deletes<T, U, V>(
+        &self,
+        collection: &str,
+        config: DeleteConfig,
+        documents: &[T],
+    ) -> DocMetaVecResult<U, V>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        let suffix = &build_deletes_url(collection, &config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+
+        if *self.is_async() {
+            async_req(
+                self.async_client(),
+                &HttpVerb::Delete,
+                url,
+                None,
+                Some(documents),
+            )
+            .await
+        } else {
+            sync_req_vec(self.client(), &HttpVerb::Delete, url, None, Some(documents)).await
+        }
+    }
 }
 
 enum HttpVerb {
@@ -440,6 +471,28 @@ fn build_delete_url(collection: &str, key: &str, config: &DeleteConfig) -> Strin
         add_qp!(url, has_qp, "silent=true";);
     } else if config.return_old().unwrap_or(false) {
         add_qp!(url, has_qp, "returnOld=true";);
+    }
+
+    url
+}
+
+fn build_deletes_url(collection: &str, config: &DeleteConfig) -> String {
+    let mut url = format!("{}/{}", BASE_SUFFIX, collection);
+    let mut has_qp = false;
+
+    // Add waitForSync if necessary
+    if config.wait_for_sync().unwrap_or(false) {
+        add_qp!(url, has_qp, "waitForSync=true");
+    }
+
+    // Setup the output related query parameters
+    if config.return_old().unwrap_or(false) {
+        add_qp!(url, has_qp, "returnOld=true");
+    }
+
+    // Setup ignore revs
+    if config.ignore_revs().unwrap_or(false) {
+        add_qp!(url, has_qp, "ignoreRevs=true";);
     }
 
     url
