@@ -17,10 +17,10 @@ use {
     anyhow::Result,
 };
 
-/// Output when [`create`](crate::Document::create) is called for a document
+/// Document metadata output
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
-pub struct DocMeta<T, U> {
+pub struct DocMeta<N, O> {
     /// Contains the document key
     #[serde(rename = "_key")]
     key: String,
@@ -35,11 +35,11 @@ pub struct DocMeta<T, U> {
     old_rev: Option<String>,
     /// Contains the new document, if `return_new` was enabled
     #[serde(rename = "new", skip_serializing_if = "Option::is_none")]
-    new_doc: Option<T>,
+    new_doc: Option<N>,
     /// Contains the old document, if `return_old` was enabled, and the
     /// [`overwrite`](crate::doc::input::OverwriteMode) mode supports it.
     #[serde(rename = "old", skip_serializing_if = "Option::is_none")]
-    old_doc: Option<U>,
+    old_doc: Option<O>,
 }
 
 #[cfg(test)]
@@ -224,18 +224,4 @@ impl fmt::Display for DocErr {
         }
         Ok(())
     }
-}
-
-/// Output on a failure for some endpoints
-#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
-#[getset(get = "pub")]
-pub struct DocBaseErr {
-    /// Is this an error?
-    error: bool,
-    /// The ArangoDB code
-    #[serde(rename = "errorNum")]
-    error_num: usize,
-    /// The error message
-    #[serde(rename = "errorMessage")]
-    error_message: String,
 }

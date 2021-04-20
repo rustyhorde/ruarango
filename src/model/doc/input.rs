@@ -108,7 +108,7 @@ impl Visitor<'_> for OverwriteModeVisitor {
 /// Document creation configuration
 #[derive(Builder, Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct Config {
+pub struct CreateConfig {
     /// Wait until document has been synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,

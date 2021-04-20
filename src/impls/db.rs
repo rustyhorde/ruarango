@@ -14,7 +14,8 @@ use crate::{
     common::output::Response,
     conn::Connection,
     db::{input::Create, output::Current},
-    traits::{Database, Either, JobInfo},
+    traits::{Database, JobInfo},
+    types::ArangoResult,
     utils::handle_response,
 };
 use anyhow::{Context, Result};
@@ -28,7 +29,7 @@ const CURRENT_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/current");
 
 #[async_trait]
 impl Database for Connection {
-    async fn current(&self) -> Result<Either<Response<Current>>> {
+    async fn current(&self) -> ArangoResult<Response<Current>> {
         if *self.is_async() {
             api_get_async!(self, db_url, CURRENT_SUFFIX)
         } else {
@@ -36,7 +37,7 @@ impl Database for Connection {
         }
     }
 
-    async fn user(&self) -> Result<Either<Response<Vec<String>>>> {
+    async fn user(&self) -> ArangoResult<Response<Vec<String>>> {
         if *self.is_async() {
             api_get_async!(self, db_url, USER_SUFFIX)
         } else {
@@ -44,7 +45,7 @@ impl Database for Connection {
         }
     }
 
-    async fn list(&self) -> Result<Either<Response<Vec<String>>>> {
+    async fn list(&self) -> ArangoResult<Response<Vec<String>>> {
         if *self.is_async() {
             api_get_async!(self, base_url, BASE_SUFFIX)
         } else {
@@ -52,7 +53,7 @@ impl Database for Connection {
         }
     }
 
-    async fn create(&self, create: &Create) -> Result<Either<Response<bool>>> {
+    async fn create(&self, create: &Create) -> ArangoResult<Response<bool>> {
         if *self.is_async() {
             api_post_async!(self, base_url, BASE_SUFFIX, create)
         } else {
@@ -60,7 +61,7 @@ impl Database for Connection {
         }
     }
 
-    async fn drop(&self, name: &str) -> Result<Either<Response<bool>>> {
+    async fn drop(&self, name: &str) -> ArangoResult<Response<bool>> {
         if *self.is_async() {
             api_delete_async!(self, base_url, &format!("{}/{}", BASE_SUFFIX, name))
         } else {

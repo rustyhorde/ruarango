@@ -8,12 +8,10 @@
 
 //! Document operations trait
 
-use super::Either;
-use crate::doc::{
-    input::{Config, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig},
-    output::{DocBaseErr, DocMeta},
+use crate::{
+    doc::input::{CreateConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig},
+    types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
 };
-use anyhow::Result;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -24,9 +22,9 @@ pub trait Document {
     async fn create<T, U, V>(
         &self,
         collection: &str,
-        config: Config,
+        config: CreateConfig,
         document: &T,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -36,16 +34,16 @@ pub trait Document {
     async fn creates<T, U, V>(
         &self,
         collection: &str,
-        config: Config,
+        config: CreateConfig,
         documents: &[T],
-    ) -> Result<Either<Vec<DocMeta<U, V>>>>
+    ) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Read a document
-    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<Either<T>>
+    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> ArangoResult<T>
     where
         T: DeserializeOwned + Send + Sync;
 
@@ -55,7 +53,7 @@ pub trait Document {
         collection: &str,
         config: ReadsConfig,
         documents: &[T],
-    ) -> Result<Either<Vec<libeither::Either<DocBaseErr, U>>>>
+    ) -> ArangoVecResult<U>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync;
@@ -67,21 +65,21 @@ pub trait Document {
         key: &str,
         config: ReplaceConfig,
         document: &T,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Replace multiple documents
-    async fn replaces<T, U, V>() -> Result<Either<Vec<DocMeta<U, V>>>>
+    async fn replaces<T, U, V>() -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Add/Replace the given data in the given document
-    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn update<T, U, V>() -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -93,7 +91,7 @@ pub trait Document {
         collection: &str,
         key: &str,
         config: DeleteConfig,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;

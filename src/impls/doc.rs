@@ -10,18 +10,23 @@
 
 use crate::{
     api_post_async, api_post_right,
+    common::output::ArangoErr,
     doc::{
-        input::{Config, DeleteConfig, OverwriteMode, ReadConfig, ReadsConfig, ReplaceConfig},
-        output::{DocBaseErr, DocMeta},
+        input::{
+            CreateConfig, DeleteConfig, OverwriteMode, ReadConfig, ReadsConfig, ReplaceConfig,
+        },
+        output::DocMeta,
     },
     error::RuarangoErr::Unreachable,
-    traits::{Document, Either, JobInfo},
+    traits::{Document, JobInfo},
+    types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
     utils::{handle_doc_response, handle_doc_vec_response, handle_response},
     Connection,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use futures::{Future, FutureExt};
+use libeither::Either;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Client, Response, Url,
@@ -36,9 +41,9 @@ impl Document for Connection {
     async fn create<T, U, V>(
         &self,
         collection: &str,
-        config: Config,
+        config: CreateConfig,
         document: &T,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -54,19 +59,36 @@ impl Document for Connection {
 
     async fn creates<T, U, V>(
         &self,
-        _collection: &str,
-        _config: Config,
-        _documents: &[T],
-    ) -> Result<Either<Vec<DocMeta<U, V>>>>
+        collection: &str,
+        config: CreateConfig,
+        documents: &[T],
+    ) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        Err(anyhow!("not implemented"))
+        let suffix = &build_create_url(collection, config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+
+        if *self.is_async() {
+            async_req(
+                self.async_client(),
+                &HttpVerb::Post,
+                url,
+                None,
+                Some(documents),
+            )
+            .await
+        } else {
+            sync_req_vec(self.client(), &HttpVerb::Post, url, None, Some(documents)).await
+        }
     }
 
-    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> Result<Either<T>>
+    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> ArangoResult<T>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -119,7 +141,7 @@ impl Document for Connection {
         collection: &str,
         config: ReadsConfig,
         documents: &[T],
-    ) -> Result<Either<Vec<libeither::Either<DocBaseErr, U>>>>
+    ) -> ArangoVecResult<U>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -129,7 +151,19 @@ impl Document for Connection {
             .db_url()
             .join(suffix)
             .with_context(|| format!("Unable to build '{}' url", suffix))?;
-        sync_req_vec(self.client(), &HttpVerb::Put, url, None, Some(documents)).await
+
+        if *self.is_async() {
+            async_req(
+                self.async_client(),
+                &HttpVerb::Put,
+                url,
+                None,
+                Some(documents),
+            )
+            .await
+        } else {
+            sync_req_vec(self.client(), &HttpVerb::Put, url, None, Some(documents)).await
+        }
     }
 
     async fn replace<T, U, V>(
@@ -138,7 +172,7 @@ impl Document for Connection {
         key: &str,
         config: ReplaceConfig,
         document: &T,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -181,7 +215,7 @@ impl Document for Connection {
         }
     }
 
-    async fn replaces<T, U, V>() -> Result<Either<Vec<DocMeta<U, V>>>>
+    async fn replaces<T, U, V>() -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -190,7 +224,7 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn update<T, U, V>() -> Result<Either<DocMeta<U, V>>>
+    async fn update<T, U, V>() -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -204,7 +238,7 @@ impl Document for Connection {
         collection: &str,
         key: &str,
         config: DeleteConfig,
-    ) -> Result<Either<DocMeta<U, V>>>
+    ) -> DocMetaResult<U, V>
     where
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
@@ -249,8 +283,9 @@ impl Document for Connection {
 }
 
 enum HttpVerb {
-    Get,
     Delete,
+    Get,
+    Post,
     Put,
 }
 
@@ -265,8 +300,9 @@ where
     T: Serialize + Send + Sync,
 {
     let mut rb = match verb {
-        HttpVerb::Get => client.get(url),
         HttpVerb::Delete => client.delete(url),
+        HttpVerb::Get => client.get(url),
+        HttpVerb::Post => client.post(url),
         HttpVerb::Put => client.put(url),
     };
 
@@ -287,7 +323,7 @@ async fn async_req<T, U>(
     url: Url,
     headers: Option<HeaderMap>,
     json: Option<U>,
-) -> Result<Either<T>>
+) -> ArangoResult<T>
 where
     T: DeserializeOwned + Send + Sync,
     U: Serialize + Send + Sync,
@@ -300,7 +336,7 @@ where
         .get("x-arango-async-id")
         .map(|x| x.to_str().unwrap_or_default().to_string());
 
-    Ok(libeither::Either::new_left(JobInfo::new(status, job_id)))
+    Ok(Either::new_left(JobInfo::new(status, job_id)))
 }
 
 async fn sync_req<T, U>(
@@ -309,7 +345,7 @@ async fn sync_req<T, U>(
     url: Url,
     headers: Option<HeaderMap>,
     json: Option<U>,
-) -> Result<Either<T>>
+) -> ArangoResult<T>
 where
     T: DeserializeOwned + Send + Sync,
     U: Serialize + Send + Sync,
@@ -317,7 +353,7 @@ where
     let res = req(client, verb, url, headers, json)
         .then(handle_doc_response)
         .await?;
-    Ok(libeither::Either::new_right(res))
+    Ok(Either::new_right(res))
 }
 
 async fn sync_req_vec<T, U>(
@@ -326,7 +362,7 @@ async fn sync_req_vec<T, U>(
     url: Url,
     headers: Option<HeaderMap>,
     json: Option<U>,
-) -> Result<Either<Vec<libeither::Either<DocBaseErr, T>>>>
+) -> ArangoResult<Vec<Either<ArangoErr, T>>>
 where
     T: DeserializeOwned + Send + Sync,
     U: Serialize + Send + Sync,
@@ -334,7 +370,7 @@ where
     let res = req(client, verb, url, headers, json)
         .then(handle_doc_vec_response)
         .await?;
-    Ok(libeither::Either::new_right(res))
+    Ok(Either::new_right(res))
 }
 
 macro_rules! add_qp {
@@ -349,7 +385,7 @@ macro_rules! add_qp {
     };
 }
 
-fn build_create_url(name: &str, config: Config) -> String {
+fn build_create_url(name: &str, config: CreateConfig) -> String {
     let mut url = format!("{}/{}", BASE_SUFFIX, name);
     let mut has_qp = false;
 
@@ -467,11 +503,12 @@ mod test {
     use super::{build_create_url, build_delete_url, prepend_sep};
     use crate::{
         doc::{
-            input::{ConfigBuilder, DeleteConfigBuilder, OverwriteMode, ReadConfigBuilder},
+            input::{CreateConfigBuilder, DeleteConfigBuilder, OverwriteMode, ReadConfigBuilder},
             output::{DocMeta, OutputDoc},
         },
         error::RuarangoErr,
-        traits::{Document, Either},
+        traits::Document,
+        types::{ArangoEither, ArangoResult},
         utils::{
             default_conn, mock_auth,
             mocks::doc::{
@@ -482,6 +519,7 @@ mod test {
     };
     use anyhow::Result;
     use getset::{Getters, Setters};
+    use libeither::Either;
     use serde_derive::{Deserialize, Serialize};
     use wiremock::{
         matchers::{header_exists, method, path},
@@ -502,7 +540,7 @@ mod test {
 
     #[test]
     fn basic_create_url() -> Result<()> {
-        let config = ConfigBuilder::default().build()?;
+        let config = CreateConfigBuilder::default().build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test", url);
         Ok(())
@@ -518,7 +556,7 @@ mod test {
 
     #[test]
     fn create_wait_for_sync_url() -> Result<()> {
-        let config = ConfigBuilder::default().wait_for_sync(true).build()?;
+        let config = CreateConfigBuilder::default().wait_for_sync(true).build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?waitForSync=true", url);
         Ok(())
@@ -534,7 +572,7 @@ mod test {
 
     #[test]
     fn create_silent_url() -> Result<()> {
-        let config = ConfigBuilder::default().silent(true).build()?;
+        let config = CreateConfigBuilder::default().silent(true).build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?silent=true", url);
         Ok(())
@@ -550,7 +588,7 @@ mod test {
 
     #[test]
     fn create_silent_url_forces_no_return() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .silent(true)
             .return_new(true)
             .return_old(true)
@@ -573,7 +611,7 @@ mod test {
 
     #[test]
     fn create_returns_url() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .return_new(true)
             .return_old(true)
             .build()?;
@@ -592,7 +630,7 @@ mod test {
 
     #[test]
     fn overwrite_url() -> Result<()> {
-        let config = ConfigBuilder::default().overwrite(true).build()?;
+        let config = CreateConfigBuilder::default().overwrite(true).build()?;
         let url = build_create_url("test", config);
         assert_eq!("_api/document/test?overwrite=true", url);
         Ok(())
@@ -600,7 +638,7 @@ mod test {
 
     #[test]
     fn overwrite_mode_url() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .overwrite_mode(OverwriteMode::Update)
             .build()?;
         let url = build_create_url("test", config);
@@ -610,7 +648,7 @@ mod test {
 
     #[test]
     fn overwrite_mode_forces_no_overwrite() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .overwrite(true)
             .overwrite_mode(OverwriteMode::Update)
             .build()?;
@@ -621,7 +659,7 @@ mod test {
 
     #[test]
     fn overwrite_mode_update() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .keep_null(true)
             .merge_objects(true)
             .overwrite_mode(OverwriteMode::Update)
@@ -636,7 +674,7 @@ mod test {
 
     #[test]
     fn overwrite_mode_non_update_forces_no_keep_null_merge_objects() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .keep_null(true)
             .merge_objects(true)
             .overwrite_mode(OverwriteMode::Conflict)
@@ -648,7 +686,7 @@ mod test {
 
     #[test]
     fn create_all_the_opts() -> Result<()> {
-        let config = ConfigBuilder::default()
+        let config = CreateConfigBuilder::default()
             .wait_for_sync(true)
             .return_new(true)
             .return_old(true)
@@ -708,9 +746,9 @@ mod test {
         mock_create(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        let config = ConfigBuilder::default().build()?;
+        let config = CreateConfigBuilder::default().build()?;
         let doc = TestDoc::default();
-        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: ArangoEither<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
@@ -731,10 +769,10 @@ mod test {
         mock_create_2(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        let config = ConfigBuilder::default().build()?;
+        let config = CreateConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: ArangoEither<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
@@ -744,8 +782,8 @@ mod test {
         assert!(res.new_doc().is_none());
         assert!(res.old_doc().is_none());
 
-        let overwrite_config = ConfigBuilder::default().overwrite(true).build()?;
-        let either: Either<DocMeta<(), ()>> =
+        let overwrite_config = CreateConfigBuilder::default().overwrite(true).build()?;
+        let either: ArangoEither<DocMeta<(), ()>> =
             conn.create("test_coll", overwrite_config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
@@ -766,9 +804,10 @@ mod test {
         mock_return_new(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        let config = ConfigBuilder::default().return_new(true).build()?;
+        let config = CreateConfigBuilder::default().return_new(true).build()?;
         let doc = TestDoc::default();
-        let either: Either<DocMeta<OutputDoc, ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: ArangoEither<DocMeta<OutputDoc, ()>> =
+            conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "abc");
@@ -815,10 +854,10 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         // let conn = default_conn("http://localhost:8529").await?;
-        let config = ConfigBuilder::default().build()?;
+        let config = CreateConfigBuilder::default().build()?;
         let mut doc = TestDoc::default();
         let _ = doc.set_key(Some("test_key".to_string()));
-        let either: Either<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
+        let either: ArangoEither<DocMeta<(), ()>> = conn.create("test_coll", config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
         assert_eq!(res.key(), "test_key");
@@ -828,12 +867,12 @@ mod test {
         assert!(res.new_doc().is_none());
         assert!(res.old_doc().is_none());
 
-        let overwrite_config = ConfigBuilder::default()
+        let overwrite_config = CreateConfigBuilder::default()
             .overwrite(true)
             .return_new(true)
             .return_old(true)
             .build()?;
-        let either: Either<DocMeta<OutputDoc, OutputDoc>> =
+        let either: ArangoEither<DocMeta<OutputDoc, OutputDoc>> =
             conn.create("test_coll", overwrite_config, &doc).await?;
         assert!(either.is_right());
         let res = either.right_safe()?;
@@ -855,7 +894,8 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         let config = ReadConfigBuilder::default().build()?;
-        let outer_either: Either<OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
+        let outer_either: ArangoEither<OutputDoc> =
+            conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
         let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
@@ -892,7 +932,7 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_none_match("_cIw-YT6---")
             .build()?;
-        let res: Result<Either<OutputDoc>> = conn.read("test_coll", "test_doc", config).await;
+        let res: ArangoResult<OutputDoc> = conn.read("test_coll", "test_doc", config).await;
         assert!(res.is_err());
 
         Ok(())
@@ -908,7 +948,8 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("_cIw-YT6---")
             .build()?;
-        let outer_either: Either<OutputDoc> = conn.read("test_coll", "test_doc", config).await?;
+        let outer_either: ArangoEither<OutputDoc> =
+            conn.read("test_coll", "test_doc", config).await?;
         assert!(outer_either.is_right());
         let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
@@ -945,7 +986,7 @@ mod test {
         let config = ReadConfigBuilder::default()
             .if_match("this_wont_match")
             .build()?;
-        let outer_either: Result<Either<libeither::Either<(), TestDoc>>> =
+        let outer_either: ArangoResult<Either<(), TestDoc>> =
             conn.read("test_coll", "test_doc", config).await;
         assert!(outer_either.is_err());
 

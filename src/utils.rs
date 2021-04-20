@@ -13,9 +13,10 @@ use crate::{
         Conflict, DocumentNotFound, InvalidBody, InvalidDocResponse, NotModified,
         PreconditionFailed,
     },
-    model::doc::output::{DocBaseErr, DocErr},
+    model::{common::output::ArangoErr, doc::output::DocErr},
 };
 use anyhow::{anyhow, Result};
+use libeither::Either;
 use reqwest::{Error, StatusCode};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -54,7 +55,7 @@ where
     }
 }
 
-async fn handle_text_vec<T>(res: reqwest::Response) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+async fn handle_text_vec<T>(res: reqwest::Response) -> Result<Vec<Either<ArangoErr, T>>>
 where
     T: DeserializeOwned,
 {
@@ -62,16 +63,16 @@ where
         Ok(text) => {
             let invalid_body = |e: serde_json::Error| -> anyhow::Error { invalid_body(&e, &text) };
             let body: Value = serde_json::from_str(&text).map_err(invalid_body)?;
-            let mut result: Vec<libeither::Either<DocBaseErr, T>> = vec![];
+            let mut result: Vec<Either<ArangoErr, T>> = vec![];
             match body {
                 Value::Array(v) => {
                     for val in v {
                         let doc_val = val.clone();
                         let err_val = val.clone();
                         match serde_json::from_value::<T>(doc_val) {
-                            Ok(doc) => result.push(libeither::Either::new_right(doc)),
-                            Err(_e) => match serde_json::from_value::<DocBaseErr>(err_val) {
-                                Ok(doc_err) => result.push(libeither::Either::new_left(doc_err)),
+                            Ok(doc) => result.push(Either::new_right(doc)),
+                            Err(_e) => match serde_json::from_value::<ArangoErr>(err_val) {
+                                Ok(doc_err) => result.push(Either::new_left(doc_err)),
                                 Err(_e) => {}
                             },
                         }
@@ -124,9 +125,7 @@ where
     }
 }
 
-async fn to_docmeta_vec_json<T>(
-    res: reqwest::Response,
-) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+async fn to_docmeta_vec_json<T>(res: reqwest::Response) -> Result<Vec<Either<ArangoErr, T>>>
 where
     T: DeserializeOwned,
 {
@@ -162,7 +161,7 @@ where
 
 pub(crate) async fn handle_doc_vec_response<T>(
     res: std::result::Result<reqwest::Response, Error>,
-) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+) -> Result<Vec<Either<ArangoErr, T>>>
 where
     T: DeserializeOwned,
 {

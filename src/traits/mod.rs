@@ -38,6 +38,3 @@ impl JobInfo {
         Self { code, id }
     }
 }
-
-/// A result from an operation that supports asynchronous invocation
-pub type Either<T> = libeither::Either<JobInfo, T>;

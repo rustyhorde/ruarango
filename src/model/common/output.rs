@@ -69,3 +69,17 @@ impl Default for Response<Vec<Collections>> {
         }
     }
 }
+
+/// Arango Error Output
+#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct ArangoErr {
+    /// Is this an error?
+    error: bool,
+    /// The ArangoDB code
+    #[serde(rename = "errorNum")]
+    error_num: usize,
+    /// The error message
+    #[serde(rename = "errorMessage")]
+    error_message: String,
+}
