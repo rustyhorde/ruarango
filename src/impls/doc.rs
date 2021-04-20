@@ -11,12 +11,12 @@
 use crate::{
     api_post_async, api_post_right,
     doc::{
-        input::{Config, DeleteConfig, OverwriteMode, ReadConfig, ReplaceConfig},
-        output::DocMeta,
+        input::{Config, DeleteConfig, OverwriteMode, ReadConfig, ReadsConfig, ReplaceConfig},
+        output::{DocBaseErr, DocMeta},
     },
     error::RuarangoErr::Unreachable,
     traits::{Document, Either, JobInfo},
-    utils::{handle_doc_response, handle_response},
+    utils::{handle_doc_response, handle_doc_vec_response, handle_response},
     Connection,
 };
 use anyhow::{anyhow, Context, Result};
@@ -114,11 +114,22 @@ impl Document for Connection {
         }
     }
 
-    async fn reads<T>() -> Result<Either<Vec<T>>>
+    async fn reads<T, U>(
+        &self,
+        collection: &str,
+        config: ReadsConfig,
+        documents: &[T],
+    ) -> Result<Either<Vec<libeither::Either<DocBaseErr, U>>>>
     where
-        T: Serialize + DeserializeOwned + Send + Sync,
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
     {
-        Err(anyhow!("not implemented"))
+        let suffix = &build_reads_url(collection, config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+        sync_req_vec(self.client(), &HttpVerb::Put, url, None, Some(documents)).await
     }
 
     async fn replace<T, U, V>(
@@ -309,6 +320,23 @@ where
     Ok(libeither::Either::new_right(res))
 }
 
+async fn sync_req_vec<T, U>(
+    client: &Client,
+    verb: &HttpVerb,
+    url: Url,
+    headers: Option<HeaderMap>,
+    json: Option<U>,
+) -> Result<Either<Vec<libeither::Either<DocBaseErr, T>>>>
+where
+    T: DeserializeOwned + Send + Sync,
+    U: Serialize + Send + Sync,
+{
+    let res = req(client, verb, url, headers, json)
+        .then(handle_doc_vec_response)
+        .await?;
+    Ok(libeither::Either::new_right(res))
+}
+
 macro_rules! add_qp {
     ($url:ident, $has_qp:ident, $val:expr;) => {
         let _ = prepend_sep(&mut $url, $has_qp);
@@ -403,6 +431,20 @@ fn build_replace_url(collection: &str, key: &str, config: &ReplaceConfig) -> Str
     }
 
     // Add ignoreRevs if necessary
+    if config.ignore_revs().unwrap_or(false) {
+        add_qp!(url, has_qp, "ignoreRevs=true";);
+    }
+
+    url
+}
+
+fn build_reads_url(collection: &str, config: ReadsConfig) -> String {
+    let mut url = format!("{}/{}", BASE_SUFFIX, collection);
+    let mut has_qp = false;
+
+    add_qp!(url, has_qp, "onlyget=true");
+
+    // Add waitForSync if necessary
     if config.ignore_revs().unwrap_or(false) {
         add_qp!(url, has_qp, "ignoreRevs=true";);
     }

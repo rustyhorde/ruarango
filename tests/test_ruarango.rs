@@ -470,9 +470,9 @@ mod doc {
         doc::{
             input::{
                 ConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder,
-                ReplaceConfigBuilder,
+                ReadsConfigBuilder, ReplaceConfigBuilder,
             },
-            output::DocMeta,
+            output::{DocBaseErr, DocMeta},
         },
         Document, Either,
         Error::{self, DocumentNotFound, PreconditionFailed},
@@ -508,6 +508,12 @@ mod doc {
         }
     }
 
+    #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+    struct SearchDoc {
+        #[serde(rename = "_key")]
+        key: String,
+    }
+
     #[ignore = "This seems to give back a 304 Not Modified rather than the result"]
     #[tokio::test]
     async fn doc_read_async() -> Result<()> {
@@ -530,6 +536,39 @@ mod doc {
         assert!(res.is_right());
         let doc = res.right_safe()?;
         assert_eq!(doc.test(), "tester");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn doc_reads() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let mut search_docs = vec![];
+        search_docs.push(SearchDoc {
+            key: "51210".to_string(),
+        });
+        search_docs.push(SearchDoc {
+            key: "abcd".to_string(),
+        });
+        let res: Either<Vec<libeither::Either<DocBaseErr, OutputDoc>>> = conn
+            .reads(
+                "test_coll",
+                ReadsConfigBuilder::default().build()?,
+                &search_docs,
+            )
+            .await?;
+        assert!(res.is_right());
+        let docs = res.right_safe()?;
+        assert_eq!(docs.len(), 2);
+        let output_doc = docs.get(0).unwrap().clone();
+        assert!(output_doc.is_right());
+        let doc = output_doc.right_safe()?;
+        assert_eq!(doc.key(), "51210");
+        assert_eq!(doc.test(), "tester");
+        let err_doc = docs.get(1).unwrap().clone();
+        assert!(err_doc.is_left());
+        let err = err_doc.left_safe()?;
+        assert!(err.error());
+        assert_eq!(*err.error_num(), 1202);
         Ok(())
     }
 

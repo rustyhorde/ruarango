@@ -10,8 +10,8 @@
 
 use super::Either;
 use crate::doc::{
-    input::{Config, DeleteConfig, ReadConfig, ReplaceConfig},
-    output::DocMeta,
+    input::{Config, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig},
+    output::{DocBaseErr, DocMeta},
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -50,9 +50,15 @@ pub trait Document {
         T: DeserializeOwned + Send + Sync;
 
     /// Read multiple documents
-    async fn reads<T>() -> Result<Either<Vec<T>>>
+    async fn reads<T, U>(
+        &self,
+        collection: &str,
+        config: ReadsConfig,
+        documents: &[T],
+    ) -> Result<Either<Vec<libeither::Either<DocBaseErr, U>>>>
     where
-        T: Serialize + DeserializeOwned + Send + Sync;
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync;
 
     /// Replace a docment with the given document
     async fn replace<T, U, V>(

@@ -13,11 +13,12 @@ use crate::{
         Conflict, DocumentNotFound, InvalidBody, InvalidDocResponse, NotModified,
         PreconditionFailed,
     },
-    model::doc::output::DocErr,
+    model::doc::output::{DocBaseErr, DocErr},
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use reqwest::{Error, StatusCode};
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 
 #[cfg(test)]
 use {
@@ -32,18 +33,54 @@ use {
     },
 };
 
+fn invalid_body(e: &serde_json::Error, text: &str) -> anyhow::Error {
+    InvalidBody {
+        err: format!("{}", e),
+        body: text.to_string(),
+    }
+    .into()
+}
+
 async fn handle_text<T>(res: reqwest::Response) -> Result<T>
 where
     T: DeserializeOwned,
 {
     match res.text().await {
-        Ok(text) => serde_json::from_str::<T>(&text).map_err(|e| {
-            InvalidBody {
-                err: format!("{}", e),
-                body: text,
+        Ok(text) => {
+            let invalid_body = |e: serde_json::Error| -> anyhow::Error { invalid_body(&e, &text) };
+            serde_json::from_str::<T>(&text).map_err(invalid_body)
+        }
+        Err(e) => Err(e.into()),
+    }
+}
+
+async fn handle_text_vec<T>(res: reqwest::Response) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+where
+    T: DeserializeOwned,
+{
+    match res.text().await {
+        Ok(text) => {
+            let invalid_body = |e: serde_json::Error| -> anyhow::Error { invalid_body(&e, &text) };
+            let body: Value = serde_json::from_str(&text).map_err(invalid_body)?;
+            let mut result: Vec<libeither::Either<DocBaseErr, T>> = vec![];
+            match body {
+                Value::Array(v) => {
+                    for val in v {
+                        let doc_val = val.clone();
+                        let err_val = val.clone();
+                        match serde_json::from_value::<T>(doc_val) {
+                            Ok(doc) => result.push(libeither::Either::new_right(doc)),
+                            Err(_e) => match serde_json::from_value::<DocBaseErr>(err_val) {
+                                Ok(doc_err) => result.push(libeither::Either::new_left(doc_err)),
+                                Err(_e) => {}
+                            },
+                        }
+                    }
+                }
+                _ => return Err(anyhow!("result was not an array!")),
             }
-            .into()
-        }),
+            Ok(result)
+        }
         Err(e) => Err(e.into()),
     }
 }
@@ -87,6 +124,33 @@ where
     }
 }
 
+async fn to_docmeta_vec_json<T>(
+    res: reqwest::Response,
+) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+where
+    T: DeserializeOwned,
+{
+    match res.status() {
+        StatusCode::OK | StatusCode::CREATED | StatusCode::ACCEPTED => {
+            Ok(handle_text_vec(res).await?)
+        }
+        StatusCode::NOT_FOUND => Err(DocumentNotFound.into()),
+        StatusCode::NOT_MODIFIED => Err(NotModified.into()),
+        StatusCode::CONFLICT => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(Conflict { err }.into())
+        }
+        StatusCode::PRECONDITION_FAILED => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(PreconditionFailed { err }.into())
+        }
+        _ => {
+            let status = res.status().as_u16();
+            Err(InvalidDocResponse { status }.into())
+        }
+    }
+}
+
 pub(crate) async fn handle_doc_response<T>(
     res: std::result::Result<reqwest::Response, Error>,
 ) -> Result<T>
@@ -94,6 +158,15 @@ where
     T: DeserializeOwned,
 {
     res.map(to_docmeta_json)?.await
+}
+
+pub(crate) async fn handle_doc_vec_response<T>(
+    res: std::result::Result<reqwest::Response, Error>,
+) -> Result<Vec<libeither::Either<DocBaseErr, T>>>
+where
+    T: DeserializeOwned,
+{
+    res.map(to_docmeta_vec_json)?.await
 }
 
 #[cfg(test)]

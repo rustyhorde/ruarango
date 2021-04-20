@@ -225,3 +225,17 @@ impl fmt::Display for DocErr {
         Ok(())
     }
 }
+
+/// Output on a failure for some endpoints
+#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct DocBaseErr {
+    /// Is this an error?
+    error: bool,
+    /// The ArangoDB code
+    #[serde(rename = "errorNum")]
+    error_num: usize,
+    /// The error message
+    #[serde(rename = "errorMessage")]
+    error_message: String,
+}

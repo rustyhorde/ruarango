@@ -242,3 +242,15 @@ impl ReplaceConfig {
         self.if_match.is_some()
     }
 }
+
+/// Document reads configuration
+#[derive(Builder, Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub(crate)")]
+pub struct ReadsConfig {
+    /// Should the value be true (the default):
+    /// If a search document contains a value for the `_rev` field,
+    /// then the document is only returned if it has the same revision value.
+    /// Otherwise a precondition failed error is returned.
+    #[builder(setter(strip_option), default)]
+    ignore_revs: Option<bool>,
+}
