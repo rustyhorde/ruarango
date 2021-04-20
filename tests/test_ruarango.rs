@@ -273,12 +273,12 @@ mod coll {
 
     int_test_async!(res; RecalculateCount; collection_recalculate_count_async, conn_ruarango_async, recalculate_count(TEST_COLL) => {
         assert!(res.result());
-        assert_eq!(*res.count(), 1);
+        assert!(*res.count() >= 1);
     });
 
     int_test_sync!(res; collection_recalculate_count, conn_ruarango, recalculate_count(TEST_COLL) => {
         assert!(res.result());
-        assert_eq!(*res.count(), 1);
+        assert!(*res.count() >= 1);
     });
 
     int_test_async!(res; conn; Create; collection_rename_async, conn_ruarango_async, create(&create_config(CreateKind::RenameAsync)?) => {
