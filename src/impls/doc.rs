@@ -14,6 +14,7 @@ use crate::{
     doc::{
         input::{
             CreateConfig, DeleteConfig, OverwriteMode, ReadConfig, ReadsConfig, ReplaceConfig,
+            UpdateConfig,
         },
         output::DocMeta,
     },
@@ -33,7 +34,6 @@ use reqwest::{
 };
 use serde::{de::DeserializeOwned, Serialize};
 
-#[allow(dead_code)]
 const BASE_SUFFIX: &str = "_api/document";
 
 #[async_trait]
@@ -224,7 +224,63 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn update<T, U, V>() -> DocMetaResult<U, V>
+    async fn update<T, U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: UpdateConfig,
+        document: T,
+    ) -> DocMetaResult<U, V>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync,
+    {
+        let suffix = &build_update_url(collection, key, &config);
+        let url = self
+            .db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))?;
+        let mut headers = None;
+
+        if config.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = config.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+
+        if *self.is_async() {
+            async_req(
+                self.async_client(),
+                &HttpVerb::Patch,
+                url,
+                headers,
+                Some(document),
+            )
+            .await
+        } else {
+            sync_req(
+                self.client(),
+                &HttpVerb::Patch,
+                url,
+                headers,
+                Some(document),
+            )
+            .await
+        }
+    }
+
+    async fn updates<T, U, V>() -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -316,6 +372,7 @@ impl Document for Connection {
 enum HttpVerb {
     Delete,
     Get,
+    Patch,
     Post,
     Put,
 }
@@ -333,6 +390,7 @@ where
     let mut rb = match verb {
         HttpVerb::Delete => client.delete(url),
         HttpVerb::Get => client.get(url),
+        HttpVerb::Patch => client.patch(url),
         HttpVerb::Post => client.post(url),
         HttpVerb::Put => client.put(url),
     };
@@ -534,6 +592,43 @@ fn build_reads_url(collection: &str, config: ReadsConfig) -> String {
     add_qp!(url, has_qp, "onlyget=true");
 
     // Add waitForSync if necessary
+    if config.ignore_revs().unwrap_or(false) {
+        add_qp!(url, has_qp, "ignoreRevs=true";);
+    }
+
+    url
+}
+
+fn build_update_url(collection: &str, key: &str, config: &UpdateConfig) -> String {
+    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
+    let mut has_qp = false;
+
+    // Add waitForSync if necessary
+    if config.wait_for_sync().unwrap_or(false) {
+        add_qp!(url, has_qp, "waitForSync=true");
+    }
+
+    // Setup the output related query parameters
+    if config.silent().unwrap_or(false) {
+        add_qp!(url, has_qp, "silent=true");
+    } else {
+        if config.return_new().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnNew=true");
+        }
+        if config.return_old().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnOld=true");
+        }
+    }
+
+    // Setup the overwrite related query parameters
+    if config.keep_null().unwrap_or(false) {
+        add_qp!(url, has_qp, "keepNull=true");
+    }
+
+    if config.merge_objects().unwrap_or(false) {
+        add_qp!(url, has_qp, "mergeObjects=true");
+    }
+
     if config.ignore_revs().unwrap_or(false) {
         add_qp!(url, has_qp, "ignoreRevs=true";);
     }

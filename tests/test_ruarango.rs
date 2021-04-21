@@ -470,7 +470,7 @@ mod doc {
         doc::{
             input::{
                 CreateConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder,
-                ReadsConfigBuilder, ReplaceConfigBuilder,
+                ReadsConfigBuilder, ReplaceConfigBuilder, UpdateConfigBuilder,
             },
             output::DocMeta,
         },
@@ -855,6 +855,51 @@ mod doc {
         let doc_opt = doc_meta.new_doc();
         assert!(doc_opt.is_some());
         assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+
+        // Delete that document
+        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
+            conn.delete("test_coll", &key, delete_config).await?;
+        assert!(delete_res.is_right());
+        let doc_meta = delete_res.right_safe()?;
+        let doc_opt = doc_meta.old_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn create_update_delete() -> Result<()> {
+        let conn = conn_ruarango().await?;
+
+        // Create a document
+        let create_config = CreateConfigBuilder::default().build()?;
+        let create_res: ArangoEither<DocMeta<(), ()>> = conn
+            .create("test_coll", create_config, &TestDoc::default())
+            .await?;
+        assert!(create_res.is_right());
+        let doc_meta = create_res.right_safe()?;
+        let key = doc_meta.key();
+
+        // Update
+        let update = UpdateConfigBuilder::default()
+            .return_old(true)
+            .return_new(true)
+            .build()?;
+        let mut new_doc = TestDoc::default();
+        new_doc.test = "testing".to_string();
+        let replace_res: ArangoEither<DocMeta<TestDoc, TestDoc>> =
+            conn.update("test_coll", key, update, &new_doc).await?;
+        assert!(replace_res.is_right());
+        let doc_meta = replace_res.right_safe()?;
+        let key = doc_meta.key();
+        let doc_opt = doc_meta.new_doc();
+        assert!(doc_opt.is_some());
+        assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+        let old_doc_opt = doc_meta.old_doc();
+        assert!(old_doc_opt.is_some());
+        assert_eq!(unwrap_doc(old_doc_opt)?.test(), "test");
 
         // Delete that document
         let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;

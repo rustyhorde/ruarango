@@ -259,3 +259,57 @@ pub struct ReadsConfig {
     #[builder(setter(strip_option), default)]
     ignore_revs: Option<bool>,
 }
+
+/// Document update configuration
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
+#[getset(get = "pub(crate)")]
+pub struct UpdateConfig {
+    /// Wait until document has been synced to disk.
+    #[builder(setter(strip_option), default)]
+    wait_for_sync: Option<bool>,
+    /// Additionally return the complete new document under the attribute `new`
+    /// in the result.
+    #[builder(setter(strip_option), default)]
+    return_new: Option<bool>,
+    /// Additionally return the complete old document under the attribute `old`
+    /// in the result. Only available if the `overwrite` option is used.
+    #[builder(setter(strip_option), default)]
+    return_old: Option<bool>,
+    /// If set to true, an empty object will be returned as response. No meta-data
+    /// will be returned for the created document. This option can be used to
+    /// save some network traffic.
+    #[builder(setter(strip_option), default)]
+    silent: Option<bool>,
+    /// If the intention is to delete existing attributes with the update-insert
+    /// command, `keep_null` can be used with a value of false.
+    /// This will modify the behavior of `create` to remove any attributes from
+    /// the existing document that are contained in the patch document
+    /// with an attribute value of `null`.
+    /// This option controls the update-insert behavior only.
+    #[builder(setter(strip_option), default)]
+    keep_null: Option<bool>,
+    /// Controls whether objects (not arrays) will be merged if present in both the
+    /// existing and the update-insert document. If set to false, the value in the
+    /// patch document will overwrite the existing document's value. If set to true,
+    /// objects will be merged. The default is true.
+    /// This option controls the update-insert behavior only.
+    #[builder(setter(strip_option), default)]
+    merge_objects: Option<bool>,
+    /// By default, or if this is set to true, the _rev attributes in
+    /// the given document is ignored. If this is set to false, then
+    /// the _rev attribute given in the body document is taken as a
+    /// precondition. The document is only updated if the current revision
+    /// is the one specified.
+    #[builder(setter(strip_option), default)]
+    ignore_revs: Option<bool>,
+    /// You can conditionally replace a document based on a target `rev` by
+    /// using the `if_match` option
+    #[builder(setter(into, strip_option), default)]
+    if_match: Option<String>,
+}
+
+impl UpdateConfig {
+    pub(crate) fn has_header(&self) -> bool {
+        self.if_match.is_some()
+    }
+}

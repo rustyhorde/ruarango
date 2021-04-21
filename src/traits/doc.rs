@@ -9,7 +9,9 @@
 //! Document operations trait
 
 use crate::{
-    doc::input::{CreateConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig},
+    doc::input::{
+        CreateConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig, UpdateConfig,
+    },
     types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
 };
 use async_trait::async_trait;
@@ -79,7 +81,20 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Add/Replace the given data in the given document
-    async fn update<T, U, V>() -> DocMetaResult<U, V>
+    async fn update<T, U, V>(
+        &self,
+        collection: &str,
+        key: &str,
+        config: UpdateConfig,
+        document: T,
+    ) -> DocMetaResult<U, V>
+    where
+        T: Serialize + Send + Sync,
+        U: Serialize + DeserializeOwned + Send + Sync,
+        V: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Add/Replace the given data in the given documents
+    async fn updates<T, U, V>() -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
