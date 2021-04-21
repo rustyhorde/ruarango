@@ -14,8 +14,7 @@ use crate::{
         CreateConfig, CreatesConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig,
         UpdateConfig, UpdatesConfig,
     },
-    error::RuarangoErr::Unreachable,
-    model::BuildUrl,
+    model::{AddHeaders, BuildUrl},
     traits::Document,
     types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
     utils::{doc_resp, doc_vec_resp},
@@ -23,7 +22,6 @@ use crate::{
 };
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{de::DeserializeOwned, Serialize};
 
 const BASE_SUFFIX: &str = "_api/document";
@@ -51,107 +49,33 @@ impl Document for Connection {
         self.post(url, None, config.document(), doc_vec_resp).await
     }
 
-    async fn read<T>(&self, collection: &str, key: &str, config: ReadConfig) -> ArangoResult<T>
+    async fn read<T>(&self, config: ReadConfig) -> ArangoResult<T>
     where
         T: DeserializeOwned + Send + Sync,
     {
-        let suffix = &format!("{}/{}/{}", BASE_SUFFIX, collection, key);
-        let current_url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-        let mut headers = None;
-
-        if config.has_header() {
-            let mut headers_map = HeaderMap::new();
-
-            if let Some(rev) = config.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else if let Some(rev) = config.if_none_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-none-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-
-        self.req(
-            &crate::conn::HttpVerb::Get,
-            current_url,
-            headers,
-            EMPTY_BODY,
-            doc_resp,
-        )
-        .await
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.get(url, headers, EMPTY_BODY, doc_resp).await
     }
 
-    async fn reads<T, U>(
-        &self,
-        collection: &str,
-        config: ReadsConfig,
-        documents: &[T],
-    ) -> ArangoVecResult<U>
+    async fn reads<T, U>(&self, config: ReadsConfig<T>) -> ArangoVecResult<U>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_reads_url(collection, config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-
-        self.req(&HttpVerb::Put, url, None, Some(documents), doc_vec_resp)
-            .await
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        self.put(url, None, config.documents(), doc_vec_resp).await
     }
 
-    async fn replace<T, U, V>(
-        &self,
-        collection: &str,
-        key: &str,
-        config: ReplaceConfig,
-        document: &T,
-    ) -> DocMetaResult<U, V>
+    async fn replace<T, U, V>(&self, config: ReplaceConfig<T>) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_replace_url(collection, key, &config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-        let mut headers = None;
-
-        if config.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = config.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-
-        self.req(&HttpVerb::Put, url, headers, Some(document), doc_resp)
-            .await
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.put(url, headers, config.document(), doc_resp).await
     }
 
     async fn replaces<T, U, V>() -> DocMetaVecResult<U, V>
@@ -163,101 +87,36 @@ impl Document for Connection {
         Err(anyhow!("not implemented"))
     }
 
-    async fn update<T, U, V>(
-        &self,
-        collection: &str,
-        key: &str,
-        config: UpdateConfig,
-        document: T,
-    ) -> DocMetaResult<U, V>
+    async fn update<T, U, V>(&self, config: UpdateConfig<T>) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_update_url(collection, key, &config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-        let mut headers = None;
-
-        if config.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = config.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-
-        self.req(&HttpVerb::Patch, url, headers, Some(document), doc_resp)
-            .await
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.patch(url, headers, config.document(), doc_resp).await
     }
 
-    async fn updates<T, U, V>(
-        &self,
-        collection: &str,
-        config: UpdatesConfig,
-        documents: &[T],
-    ) -> DocMetaVecResult<U, V>
+    async fn updates<T, U, V>(&self, config: UpdatesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_updates_url(collection, config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-
-        self.req(&HttpVerb::Patch, url, None, Some(documents), doc_vec_resp)
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        self.patch(url, None, config.documents(), doc_vec_resp)
             .await
     }
 
-    async fn delete<U, V>(
-        &self,
-        collection: &str,
-        key: &str,
-        config: DeleteConfig,
-    ) -> DocMetaResult<U, V>
+    async fn delete<U, V>(&self, config: DeleteConfig) -> DocMetaResult<U, V>
     where
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_delete_url(collection, key, &config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-        let mut headers = None;
-
-        if config.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = config.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-
-        self.req(&HttpVerb::Delete, url, headers, EMPTY_BODY, doc_resp)
-            .await
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.delete(url, headers, EMPTY_BODY, doc_resp).await
     }
 
     async fn deletes<T, U, V>(
@@ -294,25 +153,6 @@ macro_rules! add_qp {
     };
 }
 
-fn build_delete_url(collection: &str, key: &str, config: &DeleteConfig) -> String {
-    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
-    let mut has_qp = false;
-
-    // Add waitForSync if necessary
-    if config.wait_for_sync().unwrap_or(false) {
-        add_qp!(url, has_qp, "waitForSync=true");
-    }
-
-    // Setup the output related query parameters
-    if config.silent().unwrap_or(false) {
-        add_qp!(url, has_qp, "silent=true";);
-    } else if config.return_old().unwrap_or(false) {
-        add_qp!(url, has_qp, "returnOld=true";);
-    }
-
-    url
-}
-
 fn build_deletes_url(collection: &str, config: &DeleteConfig) -> String {
     let mut url = format!("{}/{}", BASE_SUFFIX, collection);
     let mut has_qp = false;
@@ -335,119 +175,6 @@ fn build_deletes_url(collection: &str, config: &DeleteConfig) -> String {
     url
 }
 
-fn build_replace_url(collection: &str, key: &str, config: &ReplaceConfig) -> String {
-    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
-    let mut has_qp = false;
-
-    // Add waitForSync if necessary
-    if config.wait_for_sync().unwrap_or(false) {
-        add_qp!(url, has_qp, "waitForSync=true");
-    }
-
-    // Setup the output related query parameters
-    if config.silent().unwrap_or(false) {
-        add_qp!(url, has_qp, "silent=true");
-    } else {
-        if config.return_new().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnNew=true");
-        }
-        if config.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true");
-        }
-    }
-
-    // Add ignoreRevs if necessary
-    if config.ignore_revs().unwrap_or(false) {
-        add_qp!(url, has_qp, "ignoreRevs=true";);
-    }
-
-    url
-}
-
-fn build_reads_url(collection: &str, config: ReadsConfig) -> String {
-    let mut url = format!("{}/{}", BASE_SUFFIX, collection);
-    let mut has_qp = false;
-
-    add_qp!(url, has_qp, "onlyget=true");
-
-    // Add waitForSync if necessary
-    if config.ignore_revs().unwrap_or(false) {
-        add_qp!(url, has_qp, "ignoreRevs=true";);
-    }
-
-    url
-}
-
-fn build_update_url(collection: &str, key: &str, config: &UpdateConfig) -> String {
-    let mut url = format!("{}/{}/{}", BASE_SUFFIX, collection, key);
-    let mut has_qp = false;
-
-    // Add waitForSync if necessary
-    if config.wait_for_sync().unwrap_or(false) {
-        add_qp!(url, has_qp, "waitForSync=true");
-    }
-
-    // Setup the output related query parameters
-    if config.silent().unwrap_or(false) {
-        add_qp!(url, has_qp, "silent=true");
-    } else {
-        if config.return_new().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnNew=true");
-        }
-        if config.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true");
-        }
-    }
-
-    // Setup the overwrite related query parameters
-    if config.keep_null().unwrap_or(false) {
-        add_qp!(url, has_qp, "keepNull=true");
-    }
-
-    if config.merge_objects().unwrap_or(false) {
-        add_qp!(url, has_qp, "mergeObjects=true");
-    }
-
-    if config.ignore_revs().unwrap_or(false) {
-        add_qp!(url, has_qp, "ignoreRevs=true";);
-    }
-
-    url
-}
-
-fn build_updates_url(collection: &str, config: UpdatesConfig) -> String {
-    let mut url = format!("{}/{}", BASE_SUFFIX, collection);
-    let mut has_qp = false;
-
-    // Add waitForSync if necessary
-    if config.wait_for_sync().unwrap_or(false) {
-        add_qp!(url, has_qp, "waitForSync=true");
-    }
-
-    // Setup the output related query parameters
-    if config.return_new().unwrap_or(false) {
-        add_qp!(url, has_qp, "returnNew=true");
-    }
-    if config.return_old().unwrap_or(false) {
-        add_qp!(url, has_qp, "returnOld=true");
-    }
-
-    // Setup the overwrite related query parameters
-    if config.keep_null().unwrap_or(false) {
-        add_qp!(url, has_qp, "keepNull=true");
-    }
-
-    if config.merge_objects().unwrap_or(false) {
-        add_qp!(url, has_qp, "mergeObjects=true");
-    }
-
-    if config.ignore_revs().unwrap_or(false) {
-        add_qp!(url, has_qp, "ignoreRevs=true";);
-    }
-
-    url
-}
-
 fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
     if has_qp {
         *url += "&";
@@ -460,10 +187,10 @@ fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
 
 #[cfg(test)]
 mod test {
-    use super::{build_delete_url, prepend_sep};
+    use super::prepend_sep;
     use crate::{
         doc::{
-            input::{CreateConfigBuilder, DeleteConfigBuilder, ReadConfigBuilder},
+            input::{CreateConfigBuilder, ReadConfigBuilder},
             output::{DocMeta, OutputDoc},
         },
         error::RuarangoErr,
@@ -510,13 +237,13 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn basic_delete_url() -> Result<()> {
-        let config = DeleteConfigBuilder::default().build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!("_api/document/test_coll/test_key", url);
-        Ok(())
-    }
+    // #[test]
+    // fn basic_delete_url() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default().build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!("_api/document/test_coll/test_key", url);
+    //     Ok(())
+    // }
 
     // #[test]
     // fn create_wait_for_sync_url() -> Result<()> {
@@ -526,13 +253,13 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn delete_wait_for_sync_url() -> Result<()> {
-        let config = DeleteConfigBuilder::default().wait_for_sync(true).build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!("_api/document/test_coll/test_key?waitForSync=true", url);
-        Ok(())
-    }
+    // #[test]
+    // fn delete_wait_for_sync_url() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default().wait_for_sync(true).build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!("_api/document/test_coll/test_key?waitForSync=true", url);
+    //     Ok(())
+    // }
 
     // #[test]
     // fn create_silent_url() -> Result<()> {
@@ -542,13 +269,13 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn delete_silent_url() -> Result<()> {
-        let config = DeleteConfigBuilder::default().silent(true).build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!("_api/document/test_coll/test_key?silent=true", url);
-        Ok(())
-    }
+    // #[test]
+    // fn delete_silent_url() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default().silent(true).build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!("_api/document/test_coll/test_key?silent=true", url);
+    //     Ok(())
+    // }
 
     // #[test]
     // fn create_silent_url_forces_no_return() -> Result<()> {
@@ -562,16 +289,16 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn delete_silent_url_forces_no_return() -> Result<()> {
-        let config = DeleteConfigBuilder::default()
-            .silent(true)
-            .return_old(true)
-            .build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!("_api/document/test_coll/test_key?silent=true", url);
-        Ok(())
-    }
+    // #[test]
+    // fn delete_silent_url_forces_no_return() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default()
+    //         .silent(true)
+    //         .return_old(true)
+    //         .build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!("_api/document/test_coll/test_key?silent=true", url);
+    //     Ok(())
+    // }
 
     // #[test]
     // fn create_returns_url() -> Result<()> {
@@ -584,13 +311,13 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn delete_returns_url() -> Result<()> {
-        let config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!("_api/document/test_coll/test_key?returnOld=true", url);
-        Ok(())
-    }
+    // #[test]
+    // fn delete_returns_url() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default().return_old(true).build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!("_api/document/test_coll/test_key?returnOld=true", url);
+    //     Ok(())
+    // }
 
     // #[test]
     // fn overwrite_url() -> Result<()> {
@@ -666,19 +393,19 @@ mod test {
     //     Ok(())
     // }
 
-    #[test]
-    fn delete_all_the_opts() -> Result<()> {
-        let config = DeleteConfigBuilder::default()
-            .wait_for_sync(true)
-            .return_old(true)
-            .build()?;
-        let url = build_delete_url("test_coll", "test_key", &config);
-        assert_eq!(
-            "_api/document/test_coll/test_key?waitForSync=true&returnOld=true",
-            url
-        );
-        Ok(())
-    }
+    // #[test]
+    // fn delete_all_the_opts() -> Result<()> {
+    //     let config = DeleteConfigBuilder::default()
+    //         .wait_for_sync(true)
+    //         .return_old(true)
+    //         .build()?;
+    //     let url = build_delete_url("test_coll", "test_key", &config);
+    //     assert_eq!(
+    //         "_api/document/test_coll/test_key?waitForSync=true&returnOld=true",
+    //         url
+    //     );
+    //     Ok(())
+    // }
 
     #[derive(Clone, Deserialize, Getters, Serialize, Setters)]
     #[getset(get, set)]
@@ -873,9 +600,11 @@ mod test {
         mock_read(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        let config = ReadConfigBuilder::default().build()?;
-        let outer_either: ArangoEither<OutputDoc> =
-            conn.read("test_coll", "test_doc", config).await?;
+        let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("test_doc")
+            .build()?;
+        let outer_either: ArangoEither<OutputDoc> = conn.read(config).await?;
         assert!(outer_either.is_right());
         let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
@@ -908,11 +637,12 @@ mod test {
         mock_read_if_none_match(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        // let conn = default_conn("http://localhost:8529").await?;
         let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("test_doc")
             .if_none_match("_cIw-YT6---")
             .build()?;
-        let res: ArangoResult<OutputDoc> = conn.read("test_coll", "test_doc", config).await;
+        let res: ArangoResult<OutputDoc> = conn.read(config).await;
         assert!(res.is_err());
 
         Ok(())
@@ -926,10 +656,11 @@ mod test {
 
         let conn = default_conn(mock_server.uri()).await?;
         let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("test_doc")
             .if_match("_cIw-YT6---")
             .build()?;
-        let outer_either: ArangoEither<OutputDoc> =
-            conn.read("test_coll", "test_doc", config).await?;
+        let outer_either: ArangoEither<OutputDoc> = conn.read(config).await?;
         assert!(outer_either.is_right());
         let doc = outer_either.right_safe()?;
         assert_eq!(doc.key(), "abc");
@@ -962,12 +693,12 @@ mod test {
         mock_read_if_match_fail(&mock_server).await?;
 
         let conn = default_conn(mock_server.uri()).await?;
-        // let conn = default_conn("http://localhost:8529").await?;
         let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("test_doc")
             .if_match("this_wont_match")
             .build()?;
-        let outer_either: ArangoResult<Either<(), TestDoc>> =
-            conn.read("test_coll", "test_doc", config).await;
+        let outer_either: ArangoResult<Either<(), TestDoc>> = conn.read(config).await;
         assert!(outer_either.is_err());
 
         Ok(())

@@ -8,11 +8,18 @@
 
 //! Document Input Structs
 
-use crate::{model::BuildUrl, Connection};
+use crate::{
+    error::RuarangoErr::Unreachable,
+    model::{AddHeaders, BuildUrl},
+    Connection,
+};
 use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
-use reqwest::Url;
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Url,
+};
 use serde::{
     de::{self, Deserialize as Deser, Deserializer, Visitor},
     ser::{Serialize as Ser, Serializer},
@@ -342,6 +349,12 @@ impl<T> BuildUrl for CreatesConfig<T> {
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct ReadConfig {
+    /// The collection to read the document from
+    #[builder(setter(into))]
+    collection: String,
+    /// The document _key
+    #[builder(setter(into))]
+    key: String,
     /// If the `if_none_match` option is given, then it must contain exactly one
     /// revision. The document is returned if it has a different revision than the
     /// given revision. Otherwise, an HTTP 304 is returned.
@@ -356,9 +369,45 @@ pub struct ReadConfig {
     if_match: Option<String>,
 }
 
-impl ReadConfig {
-    pub(crate) fn has_header(&self) -> bool {
+impl BuildUrl for ReadConfig {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &format!("{}/{}/{}", base, self.collection, self.key);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
+    }
+}
+
+impl AddHeaders for ReadConfig {
+    fn has_header(&self) -> bool {
         self.if_match.is_some() || self.if_none_match.is_some()
+    }
+
+    fn add_headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = None;
+        if self.has_header() {
+            let mut headers_map = HeaderMap::new();
+
+            if let Some(rev) = self.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else if let Some(rev) = self.if_none_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-none-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(headers)
     }
 }
 
@@ -366,6 +415,12 @@ impl ReadConfig {
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct DeleteConfig {
+    /// The collection to replace the document in
+    #[builder(setter(into))]
+    collection: String,
+    /// The _key of the document to replace
+    #[builder(setter(into))]
+    key: String,
     /// Wait until the delete operation has been synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
@@ -390,15 +445,74 @@ pub struct DeleteConfig {
 }
 
 impl DeleteConfig {
-    pub(crate) fn has_header(&self) -> bool {
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
+        let mut has_qp = false;
+
+        // Add waitForSync if necessary
+        if self.wait_for_sync().unwrap_or(false) {
+            add_qp!(url, has_qp, "waitForSync=true");
+        }
+
+        // Setup the output related query parameters
+        if self.silent().unwrap_or(false) {
+            add_qp!(url, has_qp, "silent=true";);
+        } else if self.return_old().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnOld=true";);
+        }
+
+        url
+    }
+}
+
+impl AddHeaders for DeleteConfig {
+    fn has_header(&self) -> bool {
         self.if_match.is_some()
+    }
+
+    fn add_headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = None;
+
+        if self.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = self.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(headers)
+    }
+}
+
+impl BuildUrl for DeleteConfig {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &self.build_suffix(base);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }
 
 /// Document replace configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct ReplaceConfig {
+pub struct ReplaceConfig<T> {
+    /// The collection to replace the document in
+    #[builder(setter(into))]
+    collection: String,
+    /// The _key of the document to replace
+    #[builder(setter(into))]
+    key: String,
+    /// The patch document
+    document: T,
     /// Wait until the delete operation has been synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
@@ -428,28 +542,126 @@ pub struct ReplaceConfig {
     if_match: Option<String>,
 }
 
-impl ReplaceConfig {
-    pub(crate) fn has_header(&self) -> bool {
+impl<T> ReplaceConfig<T> {
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
+        let mut has_qp = false;
+
+        // Add waitForSync if necessary
+        if self.wait_for_sync().unwrap_or(false) {
+            add_qp!(url, has_qp, "waitForSync=true");
+        }
+
+        // Setup the output related query parameters
+        if self.silent().unwrap_or(false) {
+            add_qp!(url, has_qp, "silent=true");
+        } else {
+            if self.return_new().unwrap_or(false) {
+                add_qp!(url, has_qp, "returnNew=true");
+            }
+            if self.return_old().unwrap_or(false) {
+                add_qp!(url, has_qp, "returnOld=true");
+            }
+        }
+
+        // Add ignoreRevs if necessary
+        if self.ignore_revs().unwrap_or(false) {
+            add_qp!(url, has_qp, "ignoreRevs=true";);
+        }
+
+        url
+    }
+}
+
+impl<T> BuildUrl for ReplaceConfig<T> {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &self.build_suffix(base);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
+    }
+}
+
+impl<T> AddHeaders for ReplaceConfig<T> {
+    fn has_header(&self) -> bool {
         self.if_match.is_some()
+    }
+
+    fn add_headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = None;
+        if self.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = self.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(headers)
     }
 }
 
 /// Document reads configuration
-#[derive(Builder, Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct ReadsConfig {
+pub struct ReadsConfig<T> {
+    /// The collection to read the documents from
+    #[builder(setter(into))]
+    collection: String,
     /// Should the value be true (the default):
     /// If a search document contains a value for the `_rev` field,
     /// then the document is only returned if it has the same revision value.
     /// Otherwise a precondition failed error is returned.
     #[builder(setter(strip_option), default)]
     ignore_revs: Option<bool>,
+    /// The search documents to read
+    documents: Vec<T>,
+}
+
+impl<T> ReadsConfig<T> {
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}", base, self.collection);
+        let mut has_qp = false;
+
+        add_qp!(url, has_qp, "onlyget=true");
+
+        // Add waitForSync if necessary
+        if self.ignore_revs().unwrap_or(false) {
+            add_qp!(url, has_qp, "ignoreRevs=true";);
+        }
+
+        url
+    }
+}
+
+impl<T> BuildUrl for ReadsConfig<T> {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &self.build_suffix(base);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
+    }
 }
 
 /// Document update configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct UpdateConfig {
+pub struct UpdateConfig<T> {
+    /// The collection to replace the document in
+    #[builder(setter(into))]
+    collection: String,
+    /// The _key of the document to replace
+    #[builder(setter(into))]
+    key: String,
+    /// The patch document
+    document: T,
     /// Wait until document has been synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
@@ -494,16 +706,90 @@ pub struct UpdateConfig {
     if_match: Option<String>,
 }
 
-impl UpdateConfig {
-    pub(crate) fn has_header(&self) -> bool {
+impl<T> UpdateConfig<T> {
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
+        let mut has_qp = false;
+
+        // Add waitForSync if necessary
+        if self.wait_for_sync().unwrap_or(false) {
+            add_qp!(url, has_qp, "waitForSync=true");
+        }
+
+        // Setup the output related query parameters
+        if self.silent().unwrap_or(false) {
+            add_qp!(url, has_qp, "silent=true");
+        } else {
+            if self.return_new().unwrap_or(false) {
+                add_qp!(url, has_qp, "returnNew=true");
+            }
+            if self.return_old().unwrap_or(false) {
+                add_qp!(url, has_qp, "returnOld=true");
+            }
+        }
+
+        // Setup the overwrite related query parameters
+        if self.keep_null().unwrap_or(false) {
+            add_qp!(url, has_qp, "keepNull=true");
+        }
+
+        if self.merge_objects().unwrap_or(false) {
+            add_qp!(url, has_qp, "mergeObjects=true");
+        }
+
+        if self.ignore_revs().unwrap_or(false) {
+            add_qp!(url, has_qp, "ignoreRevs=true";);
+        }
+
+        url
+    }
+}
+
+impl<T> AddHeaders for UpdateConfig<T> {
+    fn has_header(&self) -> bool {
         self.if_match.is_some()
+    }
+
+    fn add_headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = None;
+
+        if self.has_header() {
+            let mut headers_map = HeaderMap::new();
+            if let Some(rev) = self.if_match() {
+                let _ = headers_map.append(
+                    HeaderName::from_static("if-match"),
+                    HeaderValue::from_str(rev)?,
+                );
+                headers = Some(headers_map);
+            } else {
+                return Err(Unreachable {
+                    msg: "'if_match' should be true!".to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(headers)
+    }
+}
+
+impl<T> BuildUrl for UpdateConfig<T> {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &self.build_suffix(base);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }
 
 /// Document updates configuration
-#[derive(Builder, Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct UpdatesConfig {
+pub struct UpdatesConfig<T> {
+    /// The collection to replace the document in
+    #[builder(setter(into))]
+    collection: String,
+    /// The patch documents
+    documents: Vec<T>,
     /// Wait until document has been synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
@@ -537,4 +823,48 @@ pub struct UpdatesConfig {
     /// is the one specified.
     #[builder(setter(strip_option), default)]
     ignore_revs: Option<bool>,
+}
+
+impl<T> UpdatesConfig<T> {
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}", base, self.collection);
+        let mut has_qp = false;
+
+        // Add waitForSync if necessary
+        if self.wait_for_sync().unwrap_or(false) {
+            add_qp!(url, has_qp, "waitForSync=true");
+        }
+
+        // Setup the output related query parameters
+        if self.return_new().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnNew=true");
+        }
+        if self.return_old().unwrap_or(false) {
+            add_qp!(url, has_qp, "returnOld=true");
+        }
+
+        // Setup the overwrite related query parameters
+        if self.keep_null().unwrap_or(false) {
+            add_qp!(url, has_qp, "keepNull=true");
+        }
+
+        if self.merge_objects().unwrap_or(false) {
+            add_qp!(url, has_qp, "mergeObjects=true");
+        }
+
+        if self.ignore_revs().unwrap_or(false) {
+            add_qp!(url, has_qp, "ignoreRevs=true";);
+        }
+
+        url
+    }
+}
+
+impl<T> BuildUrl for UpdatesConfig<T> {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = &self.build_suffix(base);
+        conn.db_url()
+            .join(suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
+    }
 }

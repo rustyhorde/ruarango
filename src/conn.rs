@@ -87,6 +87,56 @@ impl Connection {
         }
     }
 
+    pub(crate) async fn delete<F, T, U, V>(
+        &self,
+        url: Url,
+        headers: Option<HeaderMap>,
+        json: U,
+        f: F,
+    ) -> ArangoResult<T>
+    where
+        T: DeserializeOwned + Send + Sync,
+        U: Serialize + Send + Sync,
+        F: FnOnce(std::result::Result<Response, Error>) -> V,
+        V: Future<Output = Result<T>> + Send + Sync,
+    {
+        self.req(&HttpVerb::Delete, url, headers, Some(json), f)
+            .await
+    }
+
+    pub(crate) async fn get<F, T, U, V>(
+        &self,
+        url: Url,
+        headers: Option<HeaderMap>,
+        json: Option<U>,
+        f: F,
+    ) -> ArangoResult<T>
+    where
+        T: DeserializeOwned + Send + Sync,
+        U: Serialize + Send + Sync,
+        F: FnOnce(std::result::Result<Response, Error>) -> V,
+        V: Future<Output = Result<T>> + Send + Sync,
+    {
+        self.req(&HttpVerb::Get, url, headers, json, f).await
+    }
+
+    pub(crate) async fn patch<F, T, U, V>(
+        &self,
+        url: Url,
+        headers: Option<HeaderMap>,
+        json: U,
+        f: F,
+    ) -> ArangoResult<T>
+    where
+        T: DeserializeOwned + Send + Sync,
+        U: Serialize + Send + Sync,
+        F: FnOnce(std::result::Result<Response, Error>) -> V,
+        V: Future<Output = Result<T>> + Send + Sync,
+    {
+        self.req(&HttpVerb::Patch, url, headers, Some(json), f)
+            .await
+    }
+
     pub(crate) async fn post<F, T, U, V>(
         &self,
         url: Url,
@@ -101,6 +151,22 @@ impl Connection {
         V: Future<Output = Result<T>> + Send + Sync,
     {
         self.req(&HttpVerb::Post, url, headers, Some(json), f).await
+    }
+
+    pub(crate) async fn put<F, T, U, V>(
+        &self,
+        url: Url,
+        headers: Option<HeaderMap>,
+        json: U,
+        f: F,
+    ) -> ArangoResult<T>
+    where
+        T: DeserializeOwned + Send + Sync,
+        U: Serialize + Send + Sync,
+        F: FnOnce(std::result::Result<Response, Error>) -> V,
+        V: Future<Output = Result<T>> + Send + Sync,
+    {
+        self.req(&HttpVerb::Put, url, headers, Some(json), f).await
     }
 }
 

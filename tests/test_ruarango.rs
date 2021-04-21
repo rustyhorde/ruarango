@@ -519,9 +519,11 @@ mod doc {
     #[tokio::test]
     async fn doc_read_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
-        let res: ArangoEither<OutputDoc> = conn
-            .read("test_coll", "51210", ReadConfigBuilder::default().build()?)
-            .await?;
+        let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("51210")
+            .build()?;
+        let res: ArangoEither<OutputDoc> = conn.read(config).await?;
         assert!(res.is_left());
         let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
         assert_eq!(doc.test(), "tester");
@@ -531,9 +533,11 @@ mod doc {
     #[tokio::test]
     async fn doc_read() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let res: ArangoEither<OutputDoc> = conn
-            .read("test_coll", "51210", ReadConfigBuilder::default().build()?)
-            .await?;
+        let config = ReadConfigBuilder::default()
+            .collection("test_coll")
+            .key("51210")
+            .build()?;
+        let res: ArangoEither<OutputDoc> = conn.read(config).await?;
         assert!(res.is_right());
         let doc = res.right_safe()?;
         assert_eq!(doc.test(), "tester");
@@ -550,13 +554,11 @@ mod doc {
         search_docs.push(SearchDoc {
             key: "abcd".to_string(),
         });
-        let res: ArangoEither<ArangoVec<OutputDoc>> = conn
-            .reads(
-                "test_coll",
-                ReadsConfigBuilder::default().build()?,
-                &search_docs,
-            )
-            .await?;
+        let config = ReadsConfigBuilder::default()
+            .collection("test_coll")
+            .documents(search_docs)
+            .build()?;
+        let res: ArangoEither<ArangoVec<OutputDoc>> = conn.reads(config).await?;
         assert!(res.is_right());
         let docs = res.right_safe()?;
         assert_eq!(docs.len(), 2);
@@ -581,9 +583,13 @@ mod doc {
     fn if_none_match_config(kind: IfNoneMatchKind) -> Result<ReadConfig> {
         Ok(match kind {
             IfNoneMatchKind::Match => ReadConfigBuilder::default()
+                .collection("test_coll")
+                .key("51210")
                 .if_none_match(r#""_cM7mafK---""#)
                 .build()?,
             IfNoneMatchKind::NoneMatch => ReadConfigBuilder::default()
+                .collection("test_coll")
+                .key("51210")
                 .if_none_match(r#""_cJG9Tz1---""#)
                 .build()?,
         })
@@ -594,11 +600,7 @@ mod doc {
     async fn doc_read_if_none_match_matches_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
         let res: ArangoEither<OutputDoc> = conn
-            .read(
-                "test_coll",
-                "51210",
-                if_none_match_config(IfNoneMatchKind::Match)?,
-            )
+            .read(if_none_match_config(IfNoneMatchKind::Match)?)
             .await?;
         let none_match: Result<OutputDoc> = process_async_doc_result(res, &conn).await;
         assert!(none_match.is_err());
@@ -609,11 +611,7 @@ mod doc {
     async fn doc_read_if_none_match_matches() -> Result<()> {
         let conn = conn_ruarango().await?;
         let res: ArangoResult<OutputDoc> = conn
-            .read(
-                "test_coll",
-                "51210",
-                if_none_match_config(IfNoneMatchKind::Match)?,
-            )
+            .read(if_none_match_config(IfNoneMatchKind::Match)?)
             .await;
         assert!(res.is_err());
         Ok(())
@@ -624,11 +622,7 @@ mod doc {
     async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
         let conn = conn_ruarango_async().await?;
         let res: ArangoEither<OutputDoc> = conn
-            .read(
-                "test_coll",
-                "51210",
-                if_none_match_config(IfNoneMatchKind::NoneMatch)?,
-            )
+            .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
             .await?;
         let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
         assert_eq!(doc.test(), "tester");
@@ -639,11 +633,7 @@ mod doc {
     async fn doc_read_if_none_match_doesnt_match() -> Result<()> {
         let conn = conn_ruarango().await?;
         let either: ArangoEither<OutputDoc> = conn
-            .read(
-                "test_coll",
-                "51210",
-                if_none_match_config(IfNoneMatchKind::NoneMatch)?,
-            )
+            .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
             .await?;
         assert!(either.is_right());
         let doc = either.right_safe()?;
@@ -659,9 +649,13 @@ mod doc {
     fn if_match_config(kind: IfMatchKind) -> Result<ReadConfig> {
         Ok(match kind {
             IfMatchKind::Match => ReadConfigBuilder::default()
+                .collection("test_coll")
+                .key("51210")
                 .if_match(r#""_cM7mafK---""#)
                 .build()?,
             IfMatchKind::NoneMatch => ReadConfigBuilder::default()
+                .collection("test_coll")
+                .key("51210")
                 .if_match(r#""_cJG9Tz1---""#)
                 .build()?,
         })
@@ -670,9 +664,8 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_match_matches() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let either: ArangoEither<OutputDoc> = conn
-            .read("test_coll", "51210", if_match_config(IfMatchKind::Match)?)
-            .await?;
+        let either: ArangoEither<OutputDoc> =
+            conn.read(if_match_config(IfMatchKind::Match)?).await?;
         assert!(either.is_right());
         let doc = either.right_safe()?;
         assert_eq!(doc.test(), "tester");
@@ -682,13 +675,8 @@ mod doc {
     #[tokio::test]
     async fn doc_read_if_match_doesnt_match() -> Result<()> {
         let conn = conn_ruarango().await?;
-        let res: ArangoResult<OutputDoc> = conn
-            .read(
-                "test_coll",
-                "51210",
-                if_match_config(IfMatchKind::NoneMatch)?,
-            )
-            .await;
+        let res: ArangoResult<OutputDoc> =
+            conn.read(if_match_config(IfMatchKind::NoneMatch)?).await;
         match res {
             Ok(_) => panic!("This should be an error!"),
             Err(e) => {
@@ -713,7 +701,12 @@ mod doc {
     async fn doc_read_not_found() -> Result<()> {
         let conn = conn_ruarango().await?;
         let res: ArangoResult<OutputDoc> = conn
-            .read("test_coll", "yoda", ReadConfigBuilder::default().build()?)
+            .read(
+                ReadConfigBuilder::default()
+                    .collection("test_coll")
+                    .key("yoda")
+                    .build()?,
+            )
             .await;
         match res {
             Ok(_) => panic!("This should be an error!"),
@@ -744,9 +737,12 @@ mod doc {
         let key = doc_meta.key();
 
         // Delete that document
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
-            conn.delete("test_coll", &key, delete_config).await?;
+        let delete_config = DeleteConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .return_old(true)
+            .build()?;
+        let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
         let doc_opt = doc_meta.old_doc();
@@ -828,9 +824,12 @@ mod doc {
         let key = doc_meta.key();
 
         // Delete that document
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
-            conn.delete("test_coll", &key, delete_config).await?;
+        let delete_config = DeleteConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .return_old(true)
+            .build()?;
+        let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
         let doc_opt = doc_meta.old_doc();
@@ -855,11 +854,15 @@ mod doc {
         let key = doc_meta.key();
 
         // Replace
-        let replace = ReplaceConfigBuilder::default().return_new(true).build()?;
         let mut new_doc = TestDoc::default();
         new_doc.test = "testing".to_string();
-        let replace_res: ArangoEither<DocMeta<TestDoc, ()>> =
-            conn.replace("test_coll", key, replace, &new_doc).await?;
+        let replace = ReplaceConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .document(new_doc)
+            .return_new(true)
+            .build()?;
+        let replace_res: ArangoEither<DocMeta<TestDoc, ()>> = conn.replace(replace).await?;
         assert!(replace_res.is_right());
         let doc_meta = replace_res.right_safe()?;
         let key = doc_meta.key();
@@ -868,9 +871,12 @@ mod doc {
         assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
 
         // Delete that document
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
-            conn.delete("test_coll", &key, delete_config).await?;
+        let delete_config = DeleteConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .return_old(true)
+            .build()?;
+        let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
         let doc_opt = doc_meta.old_doc();
@@ -895,14 +901,16 @@ mod doc {
         let key = doc_meta.key();
 
         // Update
+        let mut new_doc = TestDoc::default();
+        new_doc.test = "testing".to_string();
         let update = UpdateConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .document(new_doc)
             .return_old(true)
             .return_new(true)
             .build()?;
-        let mut new_doc = TestDoc::default();
-        new_doc.test = "testing".to_string();
-        let replace_res: ArangoEither<DocMeta<TestDoc, TestDoc>> =
-            conn.update("test_coll", key, update, &new_doc).await?;
+        let replace_res: ArangoEither<DocMeta<TestDoc, TestDoc>> = conn.update(update).await?;
         assert!(replace_res.is_right());
         let doc_meta = replace_res.right_safe()?;
         let key = doc_meta.key();
@@ -914,9 +922,12 @@ mod doc {
         assert_eq!(unwrap_doc(old_doc_opt)?.test(), "test");
 
         // Delete that document
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
-        let delete_res: ArangoEither<DocMeta<(), TestDoc>> =
-            conn.delete("test_coll", &key, delete_config).await?;
+        let delete_config = DeleteConfigBuilder::default()
+            .collection("test_coll")
+            .key(key)
+            .return_old(true)
+            .build()?;
+        let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta = delete_res.right_safe()?;
         let doc_opt = doc_meta.old_doc();
@@ -962,16 +973,18 @@ mod doc {
             })
             .collect();
         assert_eq!(update_docs.len(), 3);
+        let len = update_docs.len();
         let updates_config = UpdatesConfigBuilder::default()
+            .collection("test_coll")
+            .documents(update_docs)
             .return_old(true)
             .return_new(true)
             .build()?;
-        let updates_res: ArangoEither<ArangoVec<DocMeta<TestDoc, TestDoc>>> = conn
-            .updates("test_coll", updates_config, &update_docs)
-            .await?;
+        let updates_res: ArangoEither<ArangoVec<DocMeta<TestDoc, TestDoc>>> =
+            conn.updates(updates_config).await?;
         assert!(updates_res.is_right());
         let doc_meta_vec = updates_res.right_safe()?;
-        assert_eq!(doc_meta_vec.len(), update_docs.len());
+        assert_eq!(doc_meta_vec.len(), len);
         for doc_meta_either in doc_meta_vec {
             println!("{:?}", doc_meta_either);
             assert!(doc_meta_either.is_right());

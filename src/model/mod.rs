@@ -25,5 +25,5 @@ pub(crate) trait BuildUrl {
 pub(crate) trait AddHeaders {
     fn has_header(&self) -> bool;
 
-    fn add_headers(&self) -> HeaderMap;
+    fn add_headers(&self) -> Result<Option<HeaderMap>>;
 }
