@@ -8,8 +8,22 @@
 
 //! Input/Output Models
 
+use crate::Connection;
+use anyhow::Result;
+use reqwest::{header::HeaderMap, Url};
+
 pub(crate) mod auth;
 pub mod coll;
 pub mod common;
 pub mod db;
 pub mod doc;
+
+pub(crate) trait BuildUrl {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url>;
+}
+
+pub(crate) trait AddHeaders {
+    fn has_header(&self) -> bool;
+
+    fn add_headers(&self) -> HeaderMap;
+}

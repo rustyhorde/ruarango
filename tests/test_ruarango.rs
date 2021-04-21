@@ -469,8 +469,9 @@ mod doc {
     use ruarango::{
         doc::{
             input::{
-                CreateConfigBuilder, DeleteConfigBuilder, ReadConfig, ReadConfigBuilder,
-                ReadsConfigBuilder, ReplaceConfigBuilder, UpdateConfigBuilder,
+                CreateConfigBuilder, CreatesConfigBuilder, DeleteConfigBuilder, ReadConfig,
+                ReadConfigBuilder, ReadsConfigBuilder, ReplaceConfigBuilder, UpdateConfigBuilder,
+                UpdatesConfigBuilder,
             },
             output::DocMeta,
         },
@@ -733,10 +734,11 @@ mod doc {
         let conn = conn_ruarango().await?;
 
         // Create a document
-        let create_config = CreateConfigBuilder::default().build()?;
-        let create_res: ArangoEither<DocMeta<(), ()>> = conn
-            .create("test_coll", create_config, &TestDoc::default())
-            .await?;
+        let create_config = CreateConfigBuilder::default()
+            .collection("test_coll")
+            .document(TestDoc::default())
+            .build()?;
+        let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
         assert!(create_res.is_right());
         let doc_meta = create_res.right_safe()?;
         let key = doc_meta.key();
@@ -758,10 +760,14 @@ mod doc {
     async fn creates_deletes_basic() -> Result<()> {
         let conn = conn_ruarango().await?;
         let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
+
         // Create some documents
-        let create_config = CreateConfigBuilder::default().build()?;
+        let create_config = CreatesConfigBuilder::default()
+            .collection("test_coll")
+            .document(docs.clone())
+            .build()?;
         let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> =
-            conn.creates("test_coll", create_config, &docs).await?;
+            conn.creates(create_config).await?;
         assert!(create_res.is_right());
         let doc_meta_vec = create_res.right_safe()?;
         assert_eq!(doc_meta_vec.len(), docs.len());
@@ -798,21 +804,25 @@ mod doc {
         let conn = conn_ruarango().await?;
 
         // Create a document
-        let create_config = CreateConfigBuilder::default().build()?;
-        let create_res: ArangoEither<DocMeta<(), ()>> = conn
-            .create("test_coll", create_config, &TestDoc::default())
-            .await?;
+        let create_config = CreateConfigBuilder::default()
+            .collection("test_coll")
+            .document(TestDoc::default())
+            .build()?;
+        let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
         assert!(create_res.is_right());
         let doc_meta = create_res.right_safe()?;
         let key = doc_meta.key();
 
         // Overwrite with replace
-        let overwrite = CreateConfigBuilder::default().overwrite(true).build()?;
         let mut new_doc = TestDoc::default();
         new_doc.key = Some(key.clone());
         new_doc.test = "testing".to_string();
-        let overwrite_res: ArangoEither<DocMeta<(), ()>> =
-            conn.create("test_coll", overwrite, &new_doc).await?;
+        let overwrite = CreateConfigBuilder::default()
+            .collection("test_coll")
+            .document(new_doc)
+            .overwrite(true)
+            .build()?;
+        let overwrite_res: ArangoEither<DocMeta<(), ()>> = conn.create(overwrite).await?;
         assert!(overwrite_res.is_right());
         let doc_meta = overwrite_res.right_safe()?;
         let key = doc_meta.key();
@@ -835,10 +845,11 @@ mod doc {
         let conn = conn_ruarango().await?;
 
         // Create a document
-        let create_config = CreateConfigBuilder::default().build()?;
-        let create_res: ArangoEither<DocMeta<(), ()>> = conn
-            .create("test_coll", create_config, &TestDoc::default())
-            .await?;
+        let create_config = CreateConfigBuilder::default()
+            .collection("test_coll")
+            .document(TestDoc::default())
+            .build()?;
+        let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
         assert!(create_res.is_right());
         let doc_meta = create_res.right_safe()?;
         let key = doc_meta.key();
@@ -874,10 +885,11 @@ mod doc {
         let conn = conn_ruarango().await?;
 
         // Create a document
-        let create_config = CreateConfigBuilder::default().build()?;
-        let create_res: ArangoEither<DocMeta<(), ()>> = conn
-            .create("test_coll", create_config, &TestDoc::default())
-            .await?;
+        let create_config = CreateConfigBuilder::default()
+            .collection("test_coll")
+            .document(TestDoc::default())
+            .build()?;
+        let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
         assert!(create_res.is_right());
         let doc_meta = create_res.right_safe()?;
         let key = doc_meta.key();
@@ -910,6 +922,83 @@ mod doc {
         let doc_opt = doc_meta.old_doc();
         assert!(doc_opt.is_some());
         assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn creates_updates_deletes_basic() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
+
+        // Create some documents
+        let create_config = CreatesConfigBuilder::default()
+            .collection("test_coll")
+            .document(docs.clone())
+            .build()?;
+        let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> =
+            conn.creates(create_config).await?;
+        assert!(create_res.is_right());
+        let doc_meta_vec = create_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
+
+        let mut keys = vec![];
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            keys.push(doc_meta.key().clone());
+        }
+        assert_eq!(keys.len(), docs.len());
+
+        // Update the documents
+        let update_docs: Vec<TestDoc> = docs
+            .iter()
+            .zip(keys.clone())
+            .map(|(doc, key)| {
+                let mut new_doc = doc.clone();
+                new_doc.key = Some(key.clone());
+                new_doc.test = "blah".to_string();
+                new_doc
+            })
+            .collect();
+        assert_eq!(update_docs.len(), 3);
+        let updates_config = UpdatesConfigBuilder::default()
+            .return_old(true)
+            .return_new(true)
+            .build()?;
+        let updates_res: ArangoEither<ArangoVec<DocMeta<TestDoc, TestDoc>>> = conn
+            .updates("test_coll", updates_config, &update_docs)
+            .await?;
+        assert!(updates_res.is_right());
+        let doc_meta_vec = updates_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), update_docs.len());
+        for doc_meta_either in doc_meta_vec {
+            println!("{:?}", doc_meta_either);
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            let old_doc_opt = doc_meta.old_doc();
+            assert!(old_doc_opt.is_some());
+            assert_eq!(unwrap_doc(old_doc_opt)?.test(), "test");
+            let new_doc_opt = doc_meta.new_doc();
+            assert!(new_doc_opt.is_some());
+            assert_eq!(unwrap_doc(new_doc_opt)?.test(), "blah");
+        }
+
+        // Delete the documents
+        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
+            conn.deletes("test_coll", delete_config, &keys).await?;
+        assert!(delete_res.is_right());
+        let doc_meta_vec = delete_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
+
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            let doc_opt = doc_meta.old_doc();
+            assert!(doc_opt.is_some());
+            assert_eq!(unwrap_doc(doc_opt)?.test(), "blah");
+        }
 
         Ok(())
     }

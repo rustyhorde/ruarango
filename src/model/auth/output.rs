@@ -9,18 +9,14 @@
 //! Auth Output Structs
 
 use getset::Getters;
-use serde_derive::Deserialize;
-#[cfg(test)]
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Getters)]
-#[cfg_attr(test, derive(Serialize))]
+#[derive(Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub(crate) struct AuthResponse {
     jwt: String,
 }
 
-#[cfg(test)]
 impl From<&str> for AuthResponse {
     fn from(val: &str) -> AuthResponse {
         Self {

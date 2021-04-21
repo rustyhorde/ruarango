@@ -10,7 +10,8 @@
 
 use crate::{
     doc::input::{
-        CreateConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig, UpdateConfig,
+        CreateConfig, CreatesConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig,
+        UpdateConfig, UpdatesConfig,
     },
     types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
 };
@@ -21,24 +22,14 @@ use serde::{de::DeserializeOwned, Serialize};
 #[async_trait]
 pub trait Document {
     /// Create a document
-    async fn create<T, U, V>(
-        &self,
-        collection: &str,
-        config: CreateConfig,
-        document: &T,
-    ) -> DocMetaResult<U, V>
+    async fn create<T, U, V>(&self, config: CreateConfig<T>) -> DocMetaResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Create multiple documents
-    async fn creates<T, U, V>(
-        &self,
-        collection: &str,
-        config: CreateConfig,
-        documents: &[T],
-    ) -> DocMetaVecResult<U, V>
+    async fn creates<T, U, V>(&self, config: CreatesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
@@ -80,7 +71,7 @@ pub trait Document {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
-    /// Add/Replace the given data in the given document
+    /// Update the given data in the given document
     async fn update<T, U, V>(
         &self,
         collection: &str,
@@ -93,8 +84,13 @@ pub trait Document {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync;
 
-    /// Add/Replace the given data in the given documents
-    async fn updates<T, U, V>() -> DocMetaVecResult<U, V>
+    /// Update the given data in the given documents
+    async fn updates<T, U, V>(
+        &self,
+        collection: &str,
+        config: UpdatesConfig,
+        documents: &[T],
+    ) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,

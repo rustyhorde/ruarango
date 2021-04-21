@@ -14,6 +14,7 @@ use crate::{
         PreconditionFailed,
     },
     model::{common::output::ArangoErr, doc::output::DocErr},
+    JobInfo,
 };
 use anyhow::{anyhow, Result};
 use libeither::Either;
@@ -102,6 +103,18 @@ where
     res.map(to_json)?.await
 }
 
+pub(crate) async fn handle_job_response(res: Result<reqwest::Response, Error>) -> Result<JobInfo> {
+    res.map(|res| {
+        let status = res.status().as_u16();
+        let job_id = res
+            .headers()
+            .get("x-arango-async-id")
+            .map(|x| x.to_str().unwrap_or_default().to_string());
+        JobInfo::new(status, job_id)
+    })
+    .map_err(|e| e.into())
+}
+
 async fn to_docmeta_json<T>(res: reqwest::Response) -> Result<T>
 where
     T: DeserializeOwned,
@@ -150,16 +163,14 @@ where
     }
 }
 
-pub(crate) async fn handle_doc_response<T>(
-    res: std::result::Result<reqwest::Response, Error>,
-) -> Result<T>
+pub(crate) async fn doc_resp<T>(res: std::result::Result<reqwest::Response, Error>) -> Result<T>
 where
     T: DeserializeOwned,
 {
     res.map(to_docmeta_json)?.await
 }
 
-pub(crate) async fn handle_doc_vec_response<T>(
+pub(crate) async fn doc_vec_resp<T>(
     res: std::result::Result<reqwest::Response, Error>,
 ) -> Result<Vec<Either<ArangoErr, T>>>
 where

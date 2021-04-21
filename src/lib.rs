@@ -10,9 +10,10 @@
 //!
 //! A database driver written in Rust for the [`ArangoDB`](https://www.arangodb.com) database.
 //!
-//! This driver supports the 3 modes of operation that `ArangoDB` exposes.  They are
-//! blocking, fire & forget, and store.  The latter two modes are asynchronus, while the
-//! first is synchronous.  More details can be found [here](https://www.arangodb.com/docs/stable/http/async-results-management.html)
+//! While the API for `ruarango` is async, `ArangoDB` supports 3 modes of operation.  They are blocking, store, and fire & forget.
+//! The latter two modes are asynchronus, while the first is synchronous.  More details can be found
+//! [here](https://www.arangodb.com/docs/stable/http/async-results-management.html).  See below for examples of using
+//! the driver in these various modes.
 //!
 //! # Synchronous Blocking Connection
 //! Use the driver in [`Blocking`](https://www.arangodb.com/docs/stable/http/async-results-management.html#blocking-execution) mode
@@ -23,48 +24,17 @@
 //! // traits for operations you wish to use
 //! use ruarango::{ConnectionBuilder, Database};
 //! # use libeither::Either;
-//! # use ruarango::{JobInfo, common::output::Response, db::output::Current};
+//! # use ruarango::{JobInfo, common::output::Response, db::output::Current, mock_auth, mock_database_create, start_mock_server};
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #    matchers::{method, path, body_string_contains},
 //! #    Mock, MockServer, ResponseTemplate,
 //! # };
-//! # #[derive(Deserialize, Serialize)]
-//! # pub(crate) struct AuthResponse {
-//! #     jwt: String,
-//! # }
 //! #
-//! # impl From<&str> for AuthResponse {
-//! #     fn from(val: &str) -> AuthResponse {
-//! #         Self {
-//! #             jwt: val.to_string(),
-//! #         }
-//! #     }
-//! # }
-//! #
-//! # #[tokio::main]
-//! # async fn main() -> Result<()> {
-//! # let mock_server = MockServer::start().await;
-//! # let body: AuthResponse = "not a real jwt".into();
-//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
-//! #
-//! # Mock::given(method("POST"))
-//! #     .and(path("/_open/auth"))
-//! #     .and(body_string_contains("username"))
-//! #     .and(body_string_contains("password"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
-//! # let body = Response::<Current>::default();
-//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
-//! #
-//! # Mock::given(method("GET"))
-//! #     .and(path("/_db/test_db/_api/database/current"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
+//! # async fn blah() -> Result<()> {
+//! # let mock_server = start_mock_server().await;
+//! # mock_auth(&mock_server).await;
+//! # mock_database_create(&mock_server).await;
 //! # let url = mock_server.uri();
 //!
 //! // Setup a synchronous connection to the database
@@ -89,6 +59,7 @@
 //! assert!(!contents.result().is_system());
 //! #     Ok(())
 //! # }
+//! # tokio_test::block_on(blah());
 //! ```
 //!
 //! # Asynchronous Store Connection
@@ -100,64 +71,23 @@
 //! // traits for operations you wish to use
 //! use ruarango::{ConnectionBuilder, Database, Job};
 //! # use libeither::Either;
-//! # use ruarango::{AsyncKind, JobInfo, common::output::Response, db::output::Current};
+//! # use ruarango::{
+//! #     mock_auth, mock_async_database_create, mock_get_job, mock_put_job, start_mock_server, AsyncKind, JobInfo,
+//! #     common::output::Response,
+//! #     db::output::Current,
+//! # };
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
-//! #    matchers::{method, path, body_string_contains},
-//! #    Mock, MockServer, ResponseTemplate,
+//! #     matchers::{method, path, body_string_contains},
+//! #     Mock, MockServer, ResponseTemplate,
 //! # };
-//! # #[derive(Deserialize, Serialize)]
-//! # pub(crate) struct AuthResponse {
-//! #     jwt: String,
-//! # }
 //! #
-//! # impl From<&str> for AuthResponse {
-//! #     fn from(val: &str) -> AuthResponse {
-//! #         Self {
-//! #             jwt: val.to_string(),
-//! #         }
-//! #     }
-//! # }
-//! #
-//! # #[tokio::main]
-//! # async fn main() -> Result<()> {
-//! # let mock_server = MockServer::start().await;
-//! # let body: AuthResponse = "not a real jwt".into();
-//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
-//! #
-//! # Mock::given(method("POST"))
-//! #     .and(path("/_open/auth"))
-//! #     .and(body_string_contains("username"))
-//! #     .and(body_string_contains("password"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
-//! # let mock_response = ResponseTemplate::new(202).insert_header("x-arango-async-id", "123456");
-//! #
-//! # Mock::given(method("GET"))
-//! #     .and(path("/_db/test_db/_api/database/current"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
-//! # let mock_response = ResponseTemplate::new(200);
-//! #
-//! # Mock::given(method("GET"))
-//! #     .and(path("/_db/test_db/_api/job/123456"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
-//! # let body = Response::<Current>::default();
-//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
-//! #
-//! # Mock::given(method("PUT"))
-//! #     .and(path("/_db/test_db/_api/job/123456"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
+//! # async fn blah() -> Result<()> {
+//! # let mock_server = start_mock_server().await;
+//! # mock_auth(&mock_server).await;
+//! # mock_async_database_create(&mock_server).await;
+//! # mock_get_job(&mock_server).await;
+//! # mock_put_job(&mock_server).await;
 //! # let url = mock_server.uri();
 //!
 //! // Setup a asynchronous store connection to the database
@@ -201,6 +131,7 @@
 //! assert!(!res.result().is_system());
 //! #     Ok(())
 //! # }
+//! # tokio_test::block_on(blah());
 //! ```
 //!
 //! # Asynchronous Fire & Forget Connection
@@ -212,47 +143,21 @@
 //! // traits for operations you wish to use
 //! use ruarango::{ConnectionBuilder, Database, Job};
 //! # use libeither::Either;
-//! # use ruarango::{AsyncKind, JobInfo, common::output::Response, db::output::Current};
+//! # use ruarango::{
+//! #     mock_auth, mock_async_ff_database_create, start_mock_server, AsyncKind, JobInfo,
+//! #     common::output::Response,
+//! #     db::output::Current
+//! # };
 //! # use serde_derive::{Deserialize, Serialize};
 //! # use wiremock::{
-//! #    matchers::{method, path, body_string_contains},
-//! #    Mock, MockServer, ResponseTemplate,
+//! #   matchers::{method, path, body_string_contains},
+//! #   Mock, MockServer, ResponseTemplate,
 //! # };
-//! # #[derive(Deserialize, Serialize)]
-//! # pub(crate) struct AuthResponse {
-//! #     jwt: String,
-//! # }
 //! #
-//! # impl From<&str> for AuthResponse {
-//! #     fn from(val: &str) -> AuthResponse {
-//! #         Self {
-//! #             jwt: val.to_string(),
-//! #         }
-//! #     }
-//! # }
-//! #
-//! # #[tokio::main]
-//! # async fn main() -> Result<()> {
-//! # let mock_server = MockServer::start().await;
-//! # let body: AuthResponse = "not a real jwt".into();
-//! # let mock_response = ResponseTemplate::new(200).set_body_json(body);
-//! #
-//! # Mock::given(method("POST"))
-//! #     .and(path("/_open/auth"))
-//! #     .and(body_string_contains("username"))
-//! #     .and(body_string_contains("password"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
-//! # let mock_response = ResponseTemplate::new(202);
-//! #
-//! # Mock::given(method("GET"))
-//! #     .and(path("/_db/test_db/_api/database/current"))
-//! #     .respond_with(mock_response)
-//! #     .mount(&mock_server)
-//! #     .await;
-//! #
+//! # async fn blah() -> Result<()> {
+//! # let mock_server = start_mock_server().await;
+//! # mock_auth(&mock_server).await;
+//! # mock_async_ff_database_create(&mock_server).await;
 //! # let url = mock_server.uri();
 //!
 //! // Setup a asynchronous store connection to the database
@@ -277,6 +182,7 @@
 //! assert!(contents.id().is_none());
 //! #     Ok(())
 //! # }
+//! # tokio_test::block_on(blah());
 //! ```
 //!
 // rustc lints
@@ -436,7 +342,7 @@
 #![cfg_attr(nightly_lints, deny(rustdoc::bare_urls))]
 
 #[cfg(test)]
-use {lazy_static as _, rand as _};
+use {lazy_static as _, rand as _, tokio_test as _};
 
 #[macro_use]
 mod impls;
@@ -446,6 +352,8 @@ mod utils;
 mod builder;
 mod conn;
 mod error;
+#[doc(hidden)]
+mod mocks;
 mod model;
 mod traits;
 mod types;
@@ -455,6 +363,20 @@ pub use builder::Connection as BaseConnection;
 pub use builder::ConnectionBuilder;
 pub use conn::Connection;
 pub use error::RuarangoErr as Error;
+#[doc(hidden)]
+pub use mocks::mock_async_database_create;
+#[doc(hidden)]
+pub use mocks::mock_async_ff_database_create;
+#[doc(hidden)]
+pub use mocks::mock_auth;
+#[doc(hidden)]
+pub use mocks::mock_database_create;
+#[doc(hidden)]
+pub use mocks::mock_get_job;
+#[doc(hidden)]
+pub use mocks::mock_put_job;
+#[doc(hidden)]
+pub use mocks::start_mock_server;
 pub use model::coll;
 pub use model::common;
 pub use model::db;

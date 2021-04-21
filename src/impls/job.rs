@@ -12,7 +12,7 @@ use crate::{
     api_get, api_put,
     conn::Connection,
     traits::Job,
-    utils::{handle_doc_response, handle_response},
+    utils::{doc_resp, handle_response},
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -46,7 +46,7 @@ impl Job for Connection {
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {
-        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => handle_doc_response)
+        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => doc_resp)
     }
 
     async fn jobs(&self, _kind: &str) -> Result<Vec<String>> {
