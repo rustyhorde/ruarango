@@ -59,9 +59,9 @@ impl Config {
         let mut has_qp = false;
 
         add_qp(*self.wait_for_sync(), &mut url, &mut has_qp, WaitForSync);
-        if self.silent().unwrap_or(false) {
+        if self.silent().is_some() {
             add_qp(*self.silent(), &mut url, &mut has_qp, Silent);
-        } else if self.return_old().unwrap_or(false) {
+        } else {
             add_qp(*self.return_old(), &mut url, &mut has_qp, ReturnOld);
         }
 

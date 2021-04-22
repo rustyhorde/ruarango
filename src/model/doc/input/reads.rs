@@ -43,7 +43,7 @@ impl<T> Config<T> {
         let mut url = format!("{}/{}", base, self.collection);
         let mut has_qp = false;
 
-        add_qp(Some(true), &mut url, &mut has_qp, OnlyGet);
+        add_qp(Some(true), &mut url, &mut has_qp, |_| OnlyGet);
         add_qp(*self.ignore_revs(), &mut url, &mut has_qp, IgnoreRevs);
 
         url

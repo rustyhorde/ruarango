@@ -13,6 +13,8 @@ mod deletes;
 mod read;
 mod reads;
 mod replace;
+mod update;
+mod updates;
 
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
@@ -34,20 +36,20 @@ pub use replace::{
     Config as ReplaceConfig, ConfigBuilder as ReplaceConfigBuilder,
     ConfigBuilderError as ReplaceConfigBuilderError,
 };
-
-use crate::{
-    add_qp,
-    error::RuarangoErr::Unreachable,
-    model::{AddHeaders, BuildUrl},
-    Connection,
+pub use update::{
+    Config as UpdateConfig, ConfigBuilder as UpdateConfigBuilder,
+    ConfigBuilderError as UpdateConfigBuilderError,
 };
+pub use updates::{
+    Config as UpdatesConfig, ConfigBuilder as UpdatesConfigBuilder,
+    ConfigBuilderError as UpdatesConfigBuilderError,
+};
+
+use crate::{add_qp, model::BuildUrl, Connection};
 use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
-use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue},
-    Url,
-};
+use reqwest::Url;
 use serde::{
     de::{self, Deserialize as Deser, Deserializer, Visitor},
     ser::{Serialize as Ser, Serializer},
@@ -347,225 +349,6 @@ impl<T> BuildUrl for CreatesConfig<T> {
         let suffix = self.build_suffix(base);
         conn.db_url()
             .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-/// Document update configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct UpdateConfig<T> {
-    /// The collection to replace the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// The _key of the document to replace
-    #[builder(setter(into))]
-    key: String,
-    /// The patch document
-    document: T,
-    /// Wait until document has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete new document under the attribute `new`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_new: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result. Only available if the `overwrite` option is used.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, an empty object will be returned as response. No meta-data
-    /// will be returned for the created document. This option can be used to
-    /// save some network traffic.
-    #[builder(setter(strip_option), default)]
-    silent: Option<bool>,
-    /// If the intention is to delete existing attributes with the update-insert
-    /// command, `keep_null` can be used with a value of false.
-    /// This will modify the behavior of `create` to remove any attributes from
-    /// the existing document that are contained in the patch document
-    /// with an attribute value of `null`.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    keep_null: Option<bool>,
-    /// Controls whether objects (not arrays) will be merged if present in both the
-    /// existing and the update-insert document. If set to false, the value in the
-    /// patch document will overwrite the existing document's value. If set to true,
-    /// objects will be merged. The default is true.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    merge_objects: Option<bool>,
-    /// By default, or if this is set to true, the _rev attributes in
-    /// the given document is ignored. If this is set to false, then
-    /// the _rev attribute given in the body document is taken as a
-    /// precondition. The document is only updated if the current revision
-    /// is the one specified.
-    #[builder(setter(strip_option), default)]
-    ignore_revs: Option<bool>,
-    /// You can conditionally replace a document based on a target `rev` by
-    /// using the `if_match` option
-    #[builder(setter(into, strip_option), default)]
-    if_match: Option<String>,
-}
-
-impl<T> UpdateConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.silent().unwrap_or(false) {
-            add_qp!(url, has_qp, "silent=true");
-        } else {
-            if self.return_new().unwrap_or(false) {
-                add_qp!(url, has_qp, "returnNew=true");
-            }
-            if self.return_old().unwrap_or(false) {
-                add_qp!(url, has_qp, "returnOld=true");
-            }
-        }
-
-        // Setup the overwrite related query parameters
-        if self.keep_null().unwrap_or(false) {
-            add_qp!(url, has_qp, "keepNull=true");
-        }
-
-        if self.merge_objects().unwrap_or(false) {
-            add_qp!(url, has_qp, "mergeObjects=true");
-        }
-
-        if self.ignore_revs().unwrap_or(false) {
-            add_qp!(url, has_qp, "ignoreRevs=true";);
-        }
-
-        url
-    }
-}
-
-impl<T> AddHeaders for UpdateConfig<T> {
-    fn has_header(&self) -> bool {
-        self.if_match.is_some()
-    }
-
-    fn add_headers(&self) -> Result<Option<HeaderMap>> {
-        let mut headers = None;
-
-        if self.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = self.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-        Ok(headers)
-    }
-}
-
-impl<T> BuildUrl for UpdateConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-/// Document updates configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct UpdatesConfig<T> {
-    /// The collection to replace the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// The patch documents
-    documents: Vec<T>,
-    /// Wait until document has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete new document under the attribute `new`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_new: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result. Only available if the `overwrite` option is used.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If the intention is to delete existing attributes with the update-insert
-    /// command, `keep_null` can be used with a value of false.
-    /// This will modify the behavior of `create` to remove any attributes from
-    /// the existing document that are contained in the patch document
-    /// with an attribute value of `null`.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    keep_null: Option<bool>,
-    /// Controls whether objects (not arrays) will be merged if present in both the
-    /// existing and the update-insert document. If set to false, the value in the
-    /// patch document will overwrite the existing document's value. If set to true,
-    /// objects will be merged. The default is true.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    merge_objects: Option<bool>,
-    /// By default, or if this is set to true, the _rev attributes in
-    /// the given document is ignored. If this is set to false, then
-    /// the _rev attribute given in the body document is taken as a
-    /// precondition. The document is only updated if the current revision
-    /// is the one specified.
-    #[builder(setter(strip_option), default)]
-    ignore_revs: Option<bool>,
-}
-
-impl<T> UpdatesConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}", base, self.collection);
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.return_new().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnNew=true");
-        }
-        if self.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true");
-        }
-
-        // Setup the overwrite related query parameters
-        if self.keep_null().unwrap_or(false) {
-            add_qp!(url, has_qp, "keepNull=true");
-        }
-
-        if self.merge_objects().unwrap_or(false) {
-            add_qp!(url, has_qp, "mergeObjects=true");
-        }
-
-        if self.ignore_revs().unwrap_or(false) {
-            add_qp!(url, has_qp, "ignoreRevs=true";);
-        }
-
-        url
-    }
-}
-
-impl<T> BuildUrl for UpdatesConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
             .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }
