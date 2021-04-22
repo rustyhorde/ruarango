@@ -10,7 +10,10 @@
 
 mod delete;
 
-pub use delete::{Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder};
+pub use delete::{
+    Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
+    ConfigBuilderError as DeleteConfigBuilderError,
+};
 
 use crate::{
     add_qp,
