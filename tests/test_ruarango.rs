@@ -469,9 +469,9 @@ mod doc {
     use ruarango::{
         doc::{
             input::{
-                CreateConfigBuilder, CreatesConfigBuilder, DeleteConfigBuilder, ReadConfig,
-                ReadConfigBuilder, ReadsConfigBuilder, ReplaceConfigBuilder, UpdateConfigBuilder,
-                UpdatesConfigBuilder,
+                CreateConfigBuilder, CreatesConfigBuilder, DeleteConfigBuilder,
+                DeletesConfigBuilder, ReadConfig, ReadConfigBuilder, ReadsConfigBuilder,
+                ReplaceConfigBuilder, UpdateConfigBuilder, UpdatesConfigBuilder,
             },
             output::DocMeta,
         },
@@ -777,9 +777,13 @@ mod doc {
         }
 
         // Delete the documents
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_config = DeletesConfigBuilder::default()
+            .collection("test_coll")
+            .documents(keys)
+            .return_old(true)
+            .build()?;
         let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
-            conn.deletes("test_coll", delete_config, &keys).await?;
+            conn.deletes(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta_vec = delete_res.right_safe()?;
         assert_eq!(doc_meta_vec.len(), docs.len());
@@ -998,9 +1002,13 @@ mod doc {
         }
 
         // Delete the documents
-        let delete_config = DeleteConfigBuilder::default().return_old(true).build()?;
+        let delete_config = DeletesConfigBuilder::default()
+            .collection("test_coll")
+            .documents(keys)
+            .return_old(true)
+            .build()?;
         let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
-            conn.deletes("test_coll", delete_config, &keys).await?;
+            conn.deletes(delete_config).await?;
         assert!(delete_res.is_right());
         let doc_meta_vec = delete_res.right_safe()?;
         assert_eq!(doc_meta_vec.len(), docs.len());

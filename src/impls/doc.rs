@@ -9,10 +9,9 @@
 //! Document trait implementation
 
 use crate::{
-    conn::HttpVerb,
     doc::input::{
-        CreateConfig, CreatesConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig,
-        UpdateConfig, UpdatesConfig,
+        CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
+        ReplaceConfig, UpdateConfig, UpdatesConfig,
     },
     model::{AddHeaders, BuildUrl},
     traits::Document,
@@ -20,7 +19,7 @@ use crate::{
     utils::{doc_resp, doc_vec_resp},
     Connection,
 };
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -119,75 +118,20 @@ impl Document for Connection {
         self.delete(url, headers, EMPTY_BODY, doc_resp).await
     }
 
-    async fn deletes<T, U, V>(
-        &self,
-        collection: &str,
-        config: DeleteConfig,
-        documents: &[T],
-    ) -> DocMetaVecResult<U, V>
+    async fn deletes<T, U, V>(&self, config: DeletesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let suffix = &build_deletes_url(collection, &config);
-        let url = self
-            .db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))?;
-
-        self.req(&HttpVerb::Delete, url, None, Some(documents), doc_vec_resp)
+        let url = config.build_url(BASE_SUFFIX, self)?;
+        self.delete(url, None, config.documents(), doc_vec_resp)
             .await
     }
 }
 
-macro_rules! add_qp {
-    ($url:ident, $has_qp:ident, $val:expr;) => {
-        let _ = prepend_sep(&mut $url, $has_qp);
-        $url += $val;
-    };
-    ($url:ident, $has_qp:ident, $val:expr) => {
-        let _ = prepend_sep(&mut $url, $has_qp);
-        $url += $val;
-        $has_qp = true;
-    };
-}
-
-fn build_deletes_url(collection: &str, config: &DeleteConfig) -> String {
-    let mut url = format!("{}/{}", BASE_SUFFIX, collection);
-    let mut has_qp = false;
-
-    // Add waitForSync if necessary
-    if config.wait_for_sync().unwrap_or(false) {
-        add_qp!(url, has_qp, "waitForSync=true");
-    }
-
-    // Setup the output related query parameters
-    if config.return_old().unwrap_or(false) {
-        add_qp!(url, has_qp, "returnOld=true");
-    }
-
-    // Setup ignore revs
-    if config.ignore_revs().unwrap_or(false) {
-        add_qp!(url, has_qp, "ignoreRevs=true";);
-    }
-
-    url
-}
-
-fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
-    if has_qp {
-        *url += "&";
-    } else {
-        *url += "?";
-    }
-
-    url
-}
-
 #[cfg(test)]
 mod test {
-    use super::prepend_sep;
     use crate::{
         doc::{
             input::{CreateConfigBuilder, ReadConfigBuilder},
@@ -212,18 +156,6 @@ mod test {
         matchers::{header_exists, method, path},
         Mock, MockServer, ResponseTemplate,
     };
-
-    #[test]
-    fn has_no_qp() {
-        let mut result = String::new();
-        assert_eq!("?", prepend_sep(&mut result, false));
-    }
-
-    #[test]
-    fn has_qp() {
-        let mut result = String::new();
-        assert_eq!("&", prepend_sep(&mut result, true));
-    }
 
     // #[tokio::test]
     // async fn basic_create_url() -> Result<()> {

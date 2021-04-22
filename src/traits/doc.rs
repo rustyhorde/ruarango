@@ -10,8 +10,8 @@
 
 use crate::{
     doc::input::{
-        CreateConfig, CreatesConfig, DeleteConfig, ReadConfig, ReadsConfig, ReplaceConfig,
-        UpdateConfig, UpdatesConfig,
+        CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
+        ReplaceConfig, UpdateConfig, UpdatesConfig,
     },
     types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
 };
@@ -81,12 +81,7 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Deletes the given docments
-    async fn deletes<T, U, V>(
-        &self,
-        collection: &str,
-        config: DeleteConfig,
-        documents: &[T],
-    ) -> DocMetaVecResult<U, V>
+    async fn deletes<T, U, V>(&self, config: DeletesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
