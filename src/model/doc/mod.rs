@@ -10,3 +10,5 @@
 
 pub mod input;
 pub mod output;
+
+pub(crate) const BASE_DOC_SUFFIX: &str = "_api/document";

@@ -35,6 +35,30 @@ use {
     },
 };
 
+pub(crate) fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
+    if has_qp {
+        *url += "&";
+    } else {
+        *url += "?";
+    }
+
+    url
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! add_qp {
+    ($url:ident, $has_qp:ident, $val:expr;) => {
+        let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+        $url += $val;
+    };
+    ($url:ident, $has_qp:ident, $val:expr) => {
+        let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+        $url += $val;
+        $has_qp = true;
+    };
+}
+
 fn invalid_body(e: &serde_json::Error, text: &str) -> anyhow::Error {
     InvalidBody {
         err: format!("{}", e),
@@ -112,7 +136,7 @@ pub(crate) async fn handle_job_response(res: Result<reqwest::Response, Error>) -
             .map(|x| x.to_str().unwrap_or_default().to_string());
         JobInfo::new(status, job_id)
     })
-    .map_err(|e| e.into())
+    .map_err(Error::into)
 }
 
 async fn to_docmeta_json<T>(res: reqwest::Response) -> Result<T>
@@ -701,5 +725,22 @@ pub(crate) mod mocks {
             path("_db/keti/_api/document/test_coll/test_doc"),
             header_exists("if-match")
         );
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::prepend_sep;
+
+    #[test]
+    fn has_no_qp() {
+        let mut result = String::new();
+        assert_eq!("?", prepend_sep(&mut result, false));
+    }
+
+    #[test]
+    fn has_qp() {
+        let mut result = String::new();
+        assert_eq!("&", prepend_sep(&mut result, true));
     }
 }

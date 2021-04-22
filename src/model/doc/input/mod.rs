@@ -8,7 +8,12 @@
 
 //! Document Input Structs
 
+mod delete;
+
+pub use delete::{Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder};
+
 use crate::{
+    add_qp,
     error::RuarangoErr::Unreachable,
     model::{AddHeaders, BuildUrl},
     Connection,
@@ -26,28 +31,6 @@ use serde::{
 };
 use serde_derive::{Deserialize, Serialize};
 use std::fmt;
-
-macro_rules! add_qp {
-    ($url:ident, $has_qp:ident, $val:expr;) => {
-        let _ = prepend_sep(&mut $url, $has_qp);
-        $url += $val;
-    };
-    ($url:ident, $has_qp:ident, $val:expr) => {
-        let _ = prepend_sep(&mut $url, $has_qp);
-        $url += $val;
-        $has_qp = true;
-    };
-}
-
-fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
-    if has_qp {
-        *url += "&";
-    } else {
-        *url += "?";
-    }
-
-    url
-}
 
 /// Overwrite Modes
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -408,96 +391,6 @@ impl AddHeaders for ReadConfig {
             }
         }
         Ok(headers)
-    }
-}
-
-/// Document delete configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct DeleteConfig {
-    /// The collection to replace the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// The _key of the document to replace
-    #[builder(setter(into))]
-    key: String,
-    /// Wait until the delete operation has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, an empty object will be returned as response. No meta-data
-    /// will be returned for the deleted document. This option can be used to
-    /// save some network traffic.
-    #[builder(setter(strip_option), default)]
-    silent: Option<bool>,
-    /// You can conditionally remove a document based on a target `rev` by
-    /// using the `if_match` option
-    #[builder(setter(into, strip_option), default)]
-    if_match: Option<String>,
-    /// If set to true, ignore any `_rev` attribute in the selectors. No
-    /// revision check is performed. If set to false then revisions are checked.
-    /// The default is true.
-    #[builder(setter(into, strip_option), default)]
-    ignore_revs: Option<bool>,
-}
-
-impl DeleteConfig {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.silent().unwrap_or(false) {
-            add_qp!(url, has_qp, "silent=true";);
-        } else if self.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true";);
-        }
-
-        url
-    }
-}
-
-impl AddHeaders for DeleteConfig {
-    fn has_header(&self) -> bool {
-        self.if_match.is_some()
-    }
-
-    fn add_headers(&self) -> Result<Option<HeaderMap>> {
-        let mut headers = None;
-
-        if self.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = self.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-        Ok(headers)
-    }
-}
-
-impl BuildUrl for DeleteConfig {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }
 
@@ -922,22 +815,5 @@ impl<T> BuildUrl for UpdatesConfig<T> {
         conn.db_url()
             .join(suffix)
             .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::prepend_sep;
-
-    #[test]
-    fn has_no_qp() {
-        let mut result = String::new();
-        assert_eq!("?", prepend_sep(&mut result, false));
-    }
-
-    #[test]
-    fn has_qp() {
-        let mut result = String::new();
-        assert_eq!("&", prepend_sep(&mut result, true));
     }
 }

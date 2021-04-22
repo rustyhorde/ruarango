@@ -9,9 +9,12 @@
 //! Document trait implementation
 
 use crate::{
-    doc::input::{
-        CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
-        ReplaceConfig, UpdateConfig, UpdatesConfig,
+    doc::{
+        input::{
+            CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
+            ReplaceConfig, UpdateConfig, UpdatesConfig,
+        },
+        BASE_DOC_SUFFIX,
     },
     model::{AddHeaders, BuildUrl},
     traits::Document,
@@ -23,7 +26,6 @@ use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
-const BASE_SUFFIX: &str = "_api/document";
 const EMPTY_BODY: Option<String> = None;
 
 #[async_trait]
@@ -34,7 +36,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         self.post(url, None, config.document(), doc_resp).await
     }
 
@@ -44,7 +46,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         self.post(url, None, config.document(), doc_vec_resp).await
     }
 
@@ -52,7 +54,7 @@ impl Document for Connection {
     where
         T: DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.get(url, headers, EMPTY_BODY, doc_resp).await
     }
@@ -62,7 +64,7 @@ impl Document for Connection {
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         self.put(url, None, config.documents(), doc_vec_resp).await
     }
 
@@ -72,7 +74,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.put(url, headers, config.document(), doc_resp).await
     }
@@ -92,7 +94,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.patch(url, headers, config.document(), doc_resp).await
     }
@@ -103,7 +105,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         self.patch(url, None, config.documents(), doc_vec_resp)
             .await
     }
@@ -113,7 +115,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.delete(url, headers, EMPTY_BODY, doc_resp).await
     }
@@ -124,7 +126,7 @@ impl Document for Connection {
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        let url = config.build_url(BASE_SUFFIX, self)?;
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
         self.delete(url, None, config.documents(), doc_vec_resp)
             .await
     }
@@ -170,14 +172,6 @@ mod test {
     // }
 
     // #[test]
-    // fn basic_delete_url() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default().build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!("_api/document/test_coll/test_key", url);
-    //     Ok(())
-    // }
-
-    // #[test]
     // fn create_wait_for_sync_url() -> Result<()> {
     //     let config = CreateConfigBuilder::default().wait_for_sync(true).build()?;
     //     let url = build_create_url("test", config);
@@ -186,26 +180,10 @@ mod test {
     // }
 
     // #[test]
-    // fn delete_wait_for_sync_url() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default().wait_for_sync(true).build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!("_api/document/test_coll/test_key?waitForSync=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
     // fn create_silent_url() -> Result<()> {
     //     let config = CreateConfigBuilder::default().silent(true).build()?;
     //     let url = build_create_url("test", config);
     //     assert_eq!("_api/document/test?silent=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn delete_silent_url() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default().silent(true).build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!("_api/document/test_coll/test_key?silent=true", url);
     //     Ok(())
     // }
 
@@ -222,17 +200,6 @@ mod test {
     // }
 
     // #[test]
-    // fn delete_silent_url_forces_no_return() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default()
-    //         .silent(true)
-    //         .return_old(true)
-    //         .build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!("_api/document/test_coll/test_key?silent=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
     // fn create_returns_url() -> Result<()> {
     //     let config = CreateConfigBuilder::default()
     //         .return_new(true)
@@ -240,14 +207,6 @@ mod test {
     //         .build()?;
     //     let url = build_create_url("test", config);
     //     assert_eq!("_api/document/test?returnNew=true&returnOld=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn delete_returns_url() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default().return_old(true).build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!("_api/document/test_coll/test_key?returnOld=true", url);
     //     Ok(())
     // }
 
@@ -320,20 +279,6 @@ mod test {
     //     let url = build_create_url("test", config);
     //     assert_eq!(
     //         "_api/document/test?waitForSync=true&returnNew=true&returnOld=true&overwriteMode=update&keepNull=true&mergeObjects=true",
-    //         url
-    //     );
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn delete_all_the_opts() -> Result<()> {
-    //     let config = DeleteConfigBuilder::default()
-    //         .wait_for_sync(true)
-    //         .return_old(true)
-    //         .build()?;
-    //     let url = build_delete_url("test_coll", "test_key", &config);
-    //     assert_eq!(
-    //         "_api/document/test_coll/test_key?waitForSync=true&returnOld=true",
     //         url
     //     );
     //     Ok(())
