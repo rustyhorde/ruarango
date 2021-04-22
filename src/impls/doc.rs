@@ -12,7 +12,7 @@ use crate::{
     doc::{
         input::{
             CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
-            ReplaceConfig, UpdateConfig, UpdatesConfig,
+            ReplaceConfig, ReplacesConfig, UpdateConfig, UpdatesConfig,
         },
         BASE_DOC_SUFFIX,
     },
@@ -22,7 +22,6 @@ use crate::{
     utils::{doc_resp, doc_vec_resp},
     Connection,
 };
-use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -79,13 +78,14 @@ impl Document for Connection {
         self.put(url, headers, config.document(), doc_resp).await
     }
 
-    async fn replaces<T, U, V>() -> DocMetaVecResult<U, V>
+    async fn replaces<T, U, V>(&self, config: ReplacesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
         V: Serialize + DeserializeOwned + Send + Sync,
     {
-        Err(anyhow!("not implemented"))
+        let url = config.build_url(BASE_DOC_SUFFIX, self)?;
+        self.put(url, None, config.documents(), doc_vec_resp).await
     }
 
     async fn update<T, U, V>(&self, config: UpdateConfig<T>) -> DocMetaResult<U, V>
@@ -158,131 +158,6 @@ mod test {
         matchers::{header_exists, method, path},
         Mock, MockServer, ResponseTemplate,
     };
-
-    // #[tokio::test]
-    // async fn basic_create_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default().build()?;
-    //     let conn = default_conn("http://localhost:8529").await?;
-    //     let url = build_create_url(&conn, "test", config)?;
-    //     assert_eq!(
-    //         "http://localhost:8529/_db/keti/_api/document/test",
-    //         url.into_string()
-    //     );
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn create_wait_for_sync_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default().wait_for_sync(true).build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?waitForSync=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn create_silent_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default().silent(true).build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?silent=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn create_silent_url_forces_no_return() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .silent(true)
-    //         .return_new(true)
-    //         .return_old(true)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?silent=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn create_returns_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .return_new(true)
-    //         .return_old(true)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?returnNew=true&returnOld=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn overwrite_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default().overwrite(true).build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?overwrite=true", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn overwrite_mode_url() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .overwrite_mode(OverwriteMode::Update)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?overwriteMode=update", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn overwrite_mode_forces_no_overwrite() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .overwrite(true)
-    //         .overwrite_mode(OverwriteMode::Update)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?overwriteMode=update", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn overwrite_mode_update() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .keep_null(true)
-    //         .merge_objects(true)
-    //         .overwrite_mode(OverwriteMode::Update)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!(
-    //         "_api/document/test?overwriteMode=update&keepNull=true&mergeObjects=true",
-    //         url
-    //     );
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn overwrite_mode_non_update_forces_no_keep_null_merge_objects() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .keep_null(true)
-    //         .merge_objects(true)
-    //         .overwrite_mode(OverwriteMode::Conflict)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!("_api/document/test?overwriteMode=conflict", url);
-    //     Ok(())
-    // }
-
-    // #[test]
-    // fn create_all_the_opts() -> Result<()> {
-    //     let config = CreateConfigBuilder::default()
-    //         .wait_for_sync(true)
-    //         .return_new(true)
-    //         .return_old(true)
-    //         .keep_null(true)
-    //         .merge_objects(true)
-    //         .overwrite_mode(OverwriteMode::Update)
-    //         .build()?;
-    //     let url = build_create_url("test", config);
-    //     assert_eq!(
-    //         "_api/document/test?waitForSync=true&returnNew=true&returnOld=true&overwriteMode=update&keepNull=true&mergeObjects=true",
-    //         url
-    //     );
-    //     Ok(())
-    // }
 
     #[derive(Clone, Deserialize, Getters, Serialize, Setters)]
     #[getset(get, set)]

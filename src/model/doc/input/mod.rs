@@ -8,14 +8,25 @@
 
 //! Document Input Structs
 
+mod create;
+mod creates;
 mod delete;
 mod deletes;
 mod read;
 mod reads;
 mod replace;
+mod replaces;
 mod update;
 mod updates;
 
+pub use create::{
+    Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
+    ConfigBuilderError as CreateConfigBuilderError,
+};
+pub use creates::{
+    Config as CreatesConfig, ConfigBuilder as CreatesConfigBuilder,
+    ConfigBuilderError as CreatesConfigBuilderError,
+};
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
     ConfigBuilderError as DeleteConfigBuilderError,
@@ -36,6 +47,10 @@ pub use replace::{
     Config as ReplaceConfig, ConfigBuilder as ReplaceConfigBuilder,
     ConfigBuilderError as ReplaceConfigBuilderError,
 };
+pub use replaces::{
+    Config as ReplacesConfig, ConfigBuilder as ReplacesConfigBuilder,
+    ConfigBuilderError as ReplacesConfigBuilderError,
+};
 pub use update::{
     Config as UpdateConfig, ConfigBuilder as UpdateConfigBuilder,
     ConfigBuilderError as UpdateConfigBuilderError,
@@ -45,16 +60,11 @@ pub use updates::{
     ConfigBuilderError as UpdatesConfigBuilderError,
 };
 
-use crate::{add_qp, model::BuildUrl, Connection};
-use anyhow::{Context, Result};
-use derive_builder::Builder;
-use getset::Getters;
-use reqwest::Url;
+use anyhow::Result;
 use serde::{
-    de::{self, Deserialize as Deser, Deserializer, Visitor},
-    ser::{Serialize as Ser, Serializer},
+    de::{self, Deserialize, Deserializer, Visitor},
+    ser::{Serialize, Serializer},
 };
-use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
 /// Overwrite Modes
@@ -98,7 +108,7 @@ impl fmt::Display for OverwriteMode {
     }
 }
 
-impl Ser for OverwriteMode {
+impl Serialize for OverwriteMode {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -112,7 +122,7 @@ impl Ser for OverwriteMode {
     }
 }
 
-impl<'de> Deser<'de> for OverwriteMode {
+impl<'de> Deserialize<'de> for OverwriteMode {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -121,6 +131,17 @@ impl<'de> Deser<'de> for OverwriteMode {
     }
 }
 
+impl From<OverwriteMode> for String {
+    fn from(mode: OverwriteMode) -> String {
+        match mode {
+            OverwriteMode::Ignore => "ignore",
+            OverwriteMode::Conflict => "conflict",
+            OverwriteMode::Replace => "replace",
+            OverwriteMode::Update => "update",
+        }
+        .to_string()
+    }
+}
 struct OverwriteModeVisitor;
 
 impl Visitor<'_> for OverwriteModeVisitor {
@@ -142,213 +163,5 @@ impl Visitor<'_> for OverwriteModeVisitor {
             "conflict" => Ok(OverwriteMode::Conflict),
             _ => Err(E::custom("Invalid overwrite mode")),
         }
-    }
-}
-
-/// Document creation configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct CreateConfig<T> {
-    /// The collection to create the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// Wait until document has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete new document under the attribute `new`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_new: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result. Only available if the `overwrite` option is used.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, an empty object will be returned as response. No meta-data
-    /// will be returned for the created document. This option can be used to
-    /// save some network traffic.
-    #[builder(setter(strip_option), default)]
-    silent: Option<bool>,
-    /// If set to true, the insert becomes a replace-insert. If a document with the
-    /// same `_key` already exists the new document is not rejected with unique
-    /// constraint violated but will replace the old document. Note that operations
-    /// with overwrite require a `_key` attribute in the given document.
-    /// Therefore, they can only be performed on collections sharded by `_key`.
-    #[builder(setter(strip_option), default)]
-    overwrite: Option<bool>,
-    /// This option supersedes overwrite
-    #[builder(setter(strip_option), default)]
-    overwrite_mode: Option<OverwriteMode>,
-    /// If the intention is to delete existing attributes with the update-insert
-    /// command, `keep_null` can be used with a value of false.
-    /// This will modify the behavior of `create` to remove any attributes from
-    /// the existing document that are contained in the patch document
-    /// with an attribute value of `null`.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    keep_null: Option<bool>,
-    /// Controls whether objects (not arrays) will be merged if present in both the
-    /// existing and the update-insert document. If set to false, the value in the
-    /// patch document will overwrite the existing document's value. If set to true,
-    /// objects will be merged. The default is true.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    merge_objects: Option<bool>,
-    /// The document to create
-    document: T,
-}
-
-impl<T> CreateConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut suffix = format!("{}/{}", base, self.collection());
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.silent().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "silent=true");
-        } else {
-            if self.return_new().unwrap_or(false) {
-                add_qp!(suffix, has_qp, "returnNew=true");
-            }
-            if self.return_old().unwrap_or(false) {
-                add_qp!(suffix, has_qp, "returnOld=true");
-            }
-        }
-
-        // Setup the overwrite related query parameters
-        if let Some(mode) = self.overwrite_mode() {
-            add_qp!(suffix, has_qp, &format!("overwriteMode={}", mode));
-
-            if *mode == OverwriteMode::Update {
-                if self.keep_null().unwrap_or(false) {
-                    add_qp!(suffix, has_qp, "keepNull=true");
-                }
-
-                if self.merge_objects().unwrap_or(false) {
-                    add_qp!(suffix, has_qp, "mergeObjects=true";);
-                }
-            }
-        } else if self.overwrite().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "overwrite=true";);
-        }
-
-        suffix
-    }
-}
-
-impl<T> BuildUrl for CreateConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = self.build_suffix(base);
-        conn.db_url()
-            .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-/// Documents creation configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct CreatesConfig<T> {
-    /// The collection to create the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// Wait until document has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete new document under the attribute `new`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_new: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result. Only available if the `overwrite` option is used.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, an empty object will be returned as response. No meta-data
-    /// will be returned for the created document. This option can be used to
-    /// save some network traffic.
-    #[builder(setter(strip_option), default)]
-    silent: Option<bool>,
-    /// If set to true, the insert becomes a replace-insert. If a document with the
-    /// same `_key` already exists the new document is not rejected with unique
-    /// constraint violated but will replace the old document. Note that operations
-    /// with overwrite require a `_key` attribute in the given document.
-    /// Therefore, they can only be performed on collections sharded by `_key`.
-    #[builder(setter(strip_option), default)]
-    overwrite: Option<bool>,
-    /// This option supersedes overwrite
-    #[builder(setter(strip_option), default)]
-    overwrite_mode: Option<OverwriteMode>,
-    /// If the intention is to delete existing attributes with the update-insert
-    /// command, `keep_null` can be used with a value of false.
-    /// This will modify the behavior of `create` to remove any attributes from
-    /// the existing document that are contained in the patch document
-    /// with an attribute value of `null`.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    keep_null: Option<bool>,
-    /// Controls whether objects (not arrays) will be merged if present in both the
-    /// existing and the update-insert document. If set to false, the value in the
-    /// patch document will overwrite the existing document's value. If set to true,
-    /// objects will be merged. The default is true.
-    /// This option controls the update-insert behavior only.
-    #[builder(setter(strip_option), default)]
-    merge_objects: Option<bool>,
-    /// The document to create
-    document: Vec<T>,
-}
-
-impl<T> CreatesConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut suffix = format!("{}/{}", base, self.collection());
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.silent().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "silent=true");
-        } else {
-            if self.return_new().unwrap_or(false) {
-                add_qp!(suffix, has_qp, "returnNew=true");
-            }
-            if self.return_old().unwrap_or(false) {
-                add_qp!(suffix, has_qp, "returnOld=true");
-            }
-        }
-
-        // Setup the overwrite related query parameters
-        if let Some(mode) = self.overwrite_mode() {
-            add_qp!(suffix, has_qp, &format!("overwriteMode={}", mode));
-
-            if *mode == OverwriteMode::Update {
-                if self.keep_null().unwrap_or(false) {
-                    add_qp!(suffix, has_qp, "keepNull=true");
-                }
-
-                if self.merge_objects().unwrap_or(false) {
-                    add_qp!(suffix, has_qp, "mergeObjects=true";);
-                }
-            }
-        } else if self.overwrite().unwrap_or(false) {
-            add_qp!(suffix, has_qp, "overwrite=true";);
-        }
-
-        suffix
-    }
-}
-
-impl<T> BuildUrl for CreatesConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = self.build_suffix(base);
-        conn.db_url()
-            .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }

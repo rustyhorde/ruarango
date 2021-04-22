@@ -39,6 +39,9 @@ pub(crate) const KEEP_NULL_FALSE_QP: &str = "keepNull=false";
 pub(crate) const MERGE_OBJECTS_QP: &str = "mergeObjects=true";
 pub(crate) const MERGE_OBJECTS_FALSE_QP: &str = "mergeObjects=false";
 pub(crate) const ONLYGET_QP: &str = "onlyget=true";
+pub(crate) const OVERWRITE_QP: &str = "overwrite=true";
+pub(crate) const OVERWRITE_FALSE_QP: &str = "overwrite=false";
+pub(crate) const OVERWRITE_MODE_QP: &str = "overwriteMode=";
 pub(crate) const RETURN_NEW_QP: &str = "returnNew=true";
 pub(crate) const RETURN_NEW_FALSE_QP: &str = "returnNew=false";
 pub(crate) const RETURN_OLD_QP: &str = "returnOld=true";
@@ -48,70 +51,62 @@ pub(crate) const SILENT_FALSE_QP: &str = "silent=false";
 pub(crate) const WAIT_FOR_SYNC_QP: &str = "waitForSync=true";
 pub(crate) const WAIT_FOR_SYNC_FALSE_QP: &str = "waitForSync=false";
 
+#[allow(variant_size_differences)]
 pub(crate) enum QueryParam {
     IgnoreRevs(bool),
     KeepNull(bool),
     MergeObjects(bool),
     OnlyGet,
+    Overwrite(bool),
+    OverwriteMode(String),
     ReturnNew(bool),
     ReturnOld(bool),
     Silent(bool),
     WaitForSync(bool),
 }
 
-impl<'a> From<QueryParam> for &'a str {
-    fn from(qp: QueryParam) -> &'a str {
+impl From<QueryParam> for String {
+    fn from(qp: QueryParam) -> String {
         match qp {
-            QueryParam::IgnoreRevs(v) => {
-                if v {
-                    IGNORE_REVS_QP
-                } else {
-                    IGNORE_REVS_FALSE_QP
-                }
+            QueryParam::IgnoreRevs(v) => if v {
+                IGNORE_REVS_QP
+            } else {
+                IGNORE_REVS_FALSE_QP
             }
+            .to_string(),
             QueryParam::KeepNull(v) => {
-                if v {
-                    KEEP_NULL_QP
-                } else {
-                    KEEP_NULL_FALSE_QP
-                }
+                if v { KEEP_NULL_QP } else { KEEP_NULL_FALSE_QP }.to_string()
             }
-            QueryParam::MergeObjects(v) => {
-                if v {
-                    MERGE_OBJECTS_QP
-                } else {
-                    MERGE_OBJECTS_FALSE_QP
-                }
+            QueryParam::MergeObjects(v) => if v {
+                MERGE_OBJECTS_QP
+            } else {
+                MERGE_OBJECTS_FALSE_QP
             }
-            QueryParam::OnlyGet => ONLYGET_QP,
-            QueryParam::ReturnNew(v) => {
-                if v {
-                    RETURN_NEW_QP
-                } else {
-                    RETURN_NEW_FALSE_QP
-                }
+            .to_string(),
+            QueryParam::OnlyGet => ONLYGET_QP.to_string(),
+            QueryParam::Overwrite(v) => {
+                if v { OVERWRITE_QP } else { OVERWRITE_FALSE_QP }.to_string()
             }
-            QueryParam::ReturnOld(v) => {
-                if v {
-                    RETURN_OLD_QP
-                } else {
-                    RETURN_OLD_FALSE_QP
-                }
+            QueryParam::OverwriteMode(v) => format!("{}{}", OVERWRITE_MODE_QP, v),
+            QueryParam::ReturnNew(v) => if v {
+                RETURN_NEW_QP
+            } else {
+                RETURN_NEW_FALSE_QP
             }
-            QueryParam::Silent(v) => {
-                if v {
-                    SILENT_QP
-                } else {
-                    SILENT_FALSE_QP
-                }
+            .to_string(),
+            QueryParam::ReturnOld(v) => if v {
+                RETURN_OLD_QP
+            } else {
+                RETURN_OLD_FALSE_QP
             }
-            QueryParam::WaitForSync(v) => {
-                if v {
-                    WAIT_FOR_SYNC_QP
-                } else {
-                    WAIT_FOR_SYNC_FALSE_QP
-                }
+            .to_string(),
+            QueryParam::Silent(v) => if v { SILENT_QP } else { SILENT_FALSE_QP }.to_string(),
+            QueryParam::WaitForSync(v) => if v {
+                WAIT_FOR_SYNC_QP
+            } else {
+                WAIT_FOR_SYNC_FALSE_QP
             }
+            .to_string(),
         }
     }
 }
@@ -123,7 +118,20 @@ where
     if let Some(flag) = opt {
         let kind = f(flag);
         let _ = prepend_sep(url, *has_qp);
-        url.push_str(kind.into());
+        url.push_str(&String::from(kind));
+        *has_qp = true;
+    }
+}
+
+pub(crate) fn add_qps<F, T>(opt: Option<T>, url: &mut String, has_qp: &mut bool, f: F)
+where
+    F: FnOnce(String) -> QueryParam,
+    T: Into<String>,
+{
+    if let Some(flag) = opt {
+        let kind = f(flag.into());
+        let _ = prepend_sep(url, *has_qp);
+        url.push_str(&String::from(kind));
         *has_qp = true;
     }
 }

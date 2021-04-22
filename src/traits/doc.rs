@@ -11,7 +11,7 @@
 use crate::{
     doc::input::{
         CreateConfig, CreatesConfig, DeleteConfig, DeletesConfig, ReadConfig, ReadsConfig,
-        ReplaceConfig, UpdateConfig, UpdatesConfig,
+        ReplaceConfig, ReplacesConfig, UpdateConfig, UpdatesConfig,
     },
     types::{ArangoResult, ArangoVecResult, DocMetaResult, DocMetaVecResult},
 };
@@ -54,7 +54,7 @@ pub trait Document {
         V: Serialize + DeserializeOwned + Send + Sync;
 
     /// Replace multiple documents
-    async fn replaces<T, U, V>() -> DocMetaVecResult<U, V>
+    async fn replaces<T, U, V>(&self, config: ReplacesConfig<T>) -> DocMetaVecResult<U, V>
     where
         T: Serialize + Send + Sync,
         U: Serialize + DeserializeOwned + Send + Sync,
