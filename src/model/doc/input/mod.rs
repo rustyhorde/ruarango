@@ -10,6 +10,9 @@
 
 mod delete;
 mod deletes;
+mod read;
+mod reads;
+mod replace;
 
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
@@ -18,6 +21,18 @@ pub use delete::{
 pub use deletes::{
     Config as DeletesConfig, ConfigBuilder as DeletesConfigBuilder,
     ConfigBuilderError as DeletesConfigBuilderError,
+};
+pub use read::{
+    Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,
+    ConfigBuilderError as ReadConfigBuilderError,
+};
+pub use reads::{
+    Config as ReadsConfig, ConfigBuilder as ReadsConfigBuilder,
+    ConfigBuilderError as ReadsConfigBuilderError,
+};
+pub use replace::{
+    Config as ReplaceConfig, ConfigBuilder as ReplaceConfigBuilder,
+    ConfigBuilderError as ReplaceConfigBuilderError,
 };
 
 use crate::{
@@ -332,221 +347,6 @@ impl<T> BuildUrl for CreatesConfig<T> {
         let suffix = self.build_suffix(base);
         conn.db_url()
             .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-/// Read document configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct ReadConfig {
-    /// The collection to read the document from
-    #[builder(setter(into))]
-    collection: String,
-    /// The document _key
-    #[builder(setter(into))]
-    key: String,
-    /// If the `if_none_match` option is given, then it must contain exactly one
-    /// revision. The document is returned if it has a different revision than the
-    /// given revision. Otherwise, an HTTP 304 is returned.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[builder(setter(into, strip_option), default)]
-    if_none_match: Option<String>,
-    /// If the `if_match` option is given, then it must contain exactly one
-    /// revision. The document is returned if it has the same revision as the
-    /// given revision. Otherwise a HTTP 412 is returned.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[builder(setter(into, strip_option), default)]
-    if_match: Option<String>,
-}
-
-impl BuildUrl for ReadConfig {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &format!("{}/{}/{}", base, self.collection, self.key);
-        conn.db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-impl AddHeaders for ReadConfig {
-    fn has_header(&self) -> bool {
-        self.if_match.is_some() || self.if_none_match.is_some()
-    }
-
-    fn add_headers(&self) -> Result<Option<HeaderMap>> {
-        let mut headers = None;
-        if self.has_header() {
-            let mut headers_map = HeaderMap::new();
-
-            if let Some(rev) = self.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else if let Some(rev) = self.if_none_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-none-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "One of 'if_match' or 'if_none_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-        Ok(headers)
-    }
-}
-
-/// Document replace configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct ReplaceConfig<T> {
-    /// The collection to replace the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// The _key of the document to replace
-    #[builder(setter(into))]
-    key: String,
-    /// The patch document
-    document: T,
-    /// Wait until the delete operation has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// By default, or if this is set to true, the `_rev` attribute in
-    /// the given document is ignored. If this is set to false, then
-    /// the `_rev` attribute given in the body document is taken as a
-    /// precondition. The document is only replaced if the current revision
-    /// is the one specified.
-    #[builder(setter(strip_option), default)]
-    ignore_revs: Option<bool>,
-    /// Additionally return the complete new document under the attribute `new`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_new: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, an empty object will be returned as response. No meta-data
-    /// will be returned for the replaced document. This option can be used to
-    /// save some network traffic.
-    #[builder(setter(strip_option), default)]
-    silent: Option<bool>,
-    /// You can conditionally replace a document based on a target `rev` by
-    /// using the `if_match` option
-    #[builder(setter(into, strip_option), default)]
-    if_match: Option<String>,
-}
-
-impl<T> ReplaceConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}/{}", base, self.collection, self.key);
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.silent().unwrap_or(false) {
-            add_qp!(url, has_qp, "silent=true");
-        } else {
-            if self.return_new().unwrap_or(false) {
-                add_qp!(url, has_qp, "returnNew=true");
-            }
-            if self.return_old().unwrap_or(false) {
-                add_qp!(url, has_qp, "returnOld=true");
-            }
-        }
-
-        // Add ignoreRevs if necessary
-        if self.ignore_revs().unwrap_or(false) {
-            add_qp!(url, has_qp, "ignoreRevs=true";);
-        }
-
-        url
-    }
-}
-
-impl<T> BuildUrl for ReplaceConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
-    }
-}
-
-impl<T> AddHeaders for ReplaceConfig<T> {
-    fn has_header(&self) -> bool {
-        self.if_match.is_some()
-    }
-
-    fn add_headers(&self) -> Result<Option<HeaderMap>> {
-        let mut headers = None;
-        if self.has_header() {
-            let mut headers_map = HeaderMap::new();
-            if let Some(rev) = self.if_match() {
-                let _ = headers_map.append(
-                    HeaderName::from_static("if-match"),
-                    HeaderValue::from_str(rev)?,
-                );
-                headers = Some(headers_map);
-            } else {
-                return Err(Unreachable {
-                    msg: "'if_match' should be true!".to_string(),
-                }
-                .into());
-            }
-        }
-        Ok(headers)
-    }
-}
-
-/// Document reads configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct ReadsConfig<T> {
-    /// The collection to read the documents from
-    #[builder(setter(into))]
-    collection: String,
-    /// Should the value be true (the default):
-    /// If a search document contains a value for the `_rev` field,
-    /// then the document is only returned if it has the same revision value.
-    /// Otherwise a precondition failed error is returned.
-    #[builder(setter(strip_option), default)]
-    ignore_revs: Option<bool>,
-    /// The search documents to read
-    documents: Vec<T>,
-}
-
-impl<T> ReadsConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}", base, self.collection);
-        let mut has_qp = false;
-
-        add_qp!(url, has_qp, "onlyget=true");
-
-        // Add waitForSync if necessary
-        if self.ignore_revs().unwrap_or(false) {
-            add_qp!(url, has_qp, "ignoreRevs=true";);
-        }
-
-        url
-    }
-}
-
-impl<T> BuildUrl for ReadsConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
             .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }

@@ -69,18 +69,15 @@ impl<T> BuildUrl for Config<T> {
 #[cfg(test)]
 mod test {
     use super::{Config, ConfigBuilder};
-    use crate::model::doc::BASE_DOC_SUFFIX;
+    use crate::model::{
+        doc::BASE_DOC_SUFFIX, IGNORE_REVS_QP, RETURN_OLD_QP, TEST_COLL, TEST_KEY, WAIT_FOR_SYNC_QP,
+    };
     use anyhow::Result;
     use const_format::concatcp;
 
-    const TEST_COLL: &str = "test_coll";
-    const TEST_KEY: &str = "test_key";
     const BASIC_ACTUAL: &str = concatcp!(BASE_DOC_SUFFIX, "/", TEST_COLL);
-    const WAIT_FOR_SYNC_QP: &str = "waitForSync=true";
     const WAIT_FOR_SYNC_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", WAIT_FOR_SYNC_QP);
-    const RETURN_OLD_QP: &str = "returnOld=true";
     const RETURN_OLD_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", RETURN_OLD_QP);
-    const IGNORE_REVS_QP: &str = "ignoreRevs=true";
     const IGNORE_REVS_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", IGNORE_REVS_QP);
     const ALL_ACTUAL: &str = concatcp!(
         BASIC_ACTUAL,

@@ -28,8 +28,21 @@ pub(crate) trait AddHeaders {
     fn add_headers(&self) -> Result<Option<HeaderMap>>;
 }
 
+#[cfg(test)]
+pub(crate) const TEST_COLL: &str = "test_coll";
+#[cfg(test)]
+pub(crate) const TEST_KEY: &str = "test_key";
+pub(crate) const IGNORE_REVS_QP: &str = "ignoreRevs=true";
+pub(crate) const ONLYGET_QP: &str = "onlyget=true";
+pub(crate) const RETURN_NEW_QP: &str = "returnNew=true";
+pub(crate) const RETURN_OLD_QP: &str = "returnOld=true";
+pub(crate) const SILENT_QP: &str = "silent=true";
+pub(crate) const WAIT_FOR_SYNC_QP: &str = "waitForSync=true";
+
 pub(crate) enum QueryParam {
     IgnoreRevs,
+    OnlyGet,
+    ReturnNew,
     ReturnOld,
     Silent,
     WaitForSync,
@@ -38,10 +51,12 @@ pub(crate) enum QueryParam {
 impl<'a> From<QueryParam> for &'a str {
     fn from(qp: QueryParam) -> &'a str {
         match qp {
-            QueryParam::IgnoreRevs => "ignoreRevs=true",
-            QueryParam::ReturnOld => "returnOld=true",
-            QueryParam::Silent => "silent=true",
-            QueryParam::WaitForSync => "waitForSync=true",
+            QueryParam::IgnoreRevs => IGNORE_REVS_QP,
+            QueryParam::OnlyGet => ONLYGET_QP,
+            QueryParam::ReturnNew => RETURN_NEW_QP,
+            QueryParam::ReturnOld => RETURN_OLD_QP,
+            QueryParam::Silent => SILENT_QP,
+            QueryParam::WaitForSync => WAIT_FOR_SYNC_QP,
         }
     }
 }
