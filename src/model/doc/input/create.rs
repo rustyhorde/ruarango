@@ -122,8 +122,8 @@ mod test {
     use crate::{
         doc::{input::OverwriteMode, BASE_DOC_SUFFIX},
         model::{
-            OVERWRITE_MODE_QP, OVERWRITE_QP, RETURN_NEW_QP, RETURN_OLD_QP, SILENT_QP, TEST_COLL, KEEP_NULL_QP, MERGE_OBJECTS_QP,
-            WAIT_FOR_SYNC_QP,
+            KEEP_NULL_QP, MERGE_OBJECTS_QP, OVERWRITE_MODE_QP, OVERWRITE_QP, RETURN_NEW_QP,
+            RETURN_OLD_QP, SILENT_QP, TEST_COLL, WAIT_FOR_SYNC_QP,
         },
     };
     use anyhow::Result;
@@ -136,9 +136,34 @@ mod test {
     const RETURN_OLD_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", RETURN_OLD_QP);
     const OVERWRITE_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", OVERWRITE_QP);
     const OVERWRITE_MODE_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", OVERWRITE_MODE_QP, "update");
-    const OVERWRITE_MODE_UPDATE_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", OVERWRITE_MODE_QP, "update", "&", KEEP_NULL_QP, "&", MERGE_OBJECTS_QP);
-    const OVERWRITE_MODE_REPLACE_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", OVERWRITE_MODE_QP, "replace");
-    const ALL_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", WAIT_FOR_SYNC_QP, "&", RETURN_NEW_QP, "&", RETURN_OLD_QP, "&", OVERWRITE_MODE_QP, "update", "&", KEEP_NULL_QP, "&", MERGE_OBJECTS_QP);
+    const OVERWRITE_MODE_UPDATE_ACTUAL: &str = concatcp!(
+        BASIC_ACTUAL,
+        "?",
+        OVERWRITE_MODE_QP,
+        "update",
+        "&",
+        KEEP_NULL_QP,
+        "&",
+        MERGE_OBJECTS_QP
+    );
+    const OVERWRITE_MODE_REPLACE_ACTUAL: &str =
+        concatcp!(BASIC_ACTUAL, "?", OVERWRITE_MODE_QP, "replace");
+    const ALL_ACTUAL: &str = concatcp!(
+        BASIC_ACTUAL,
+        "?",
+        WAIT_FOR_SYNC_QP,
+        "&",
+        RETURN_NEW_QP,
+        "&",
+        RETURN_OLD_QP,
+        "&",
+        OVERWRITE_MODE_QP,
+        "update",
+        "&",
+        KEEP_NULL_QP,
+        "&",
+        MERGE_OBJECTS_QP
+    );
 
     fn check_url<T>(config: Config<T>, actual: &str) -> Result<()> {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
