@@ -8,7 +8,7 @@
 
 //! Input/Output Models
 
-use crate::Connection;
+use crate::{utils::prepend_sep, Connection};
 use anyhow::Result;
 use reqwest::{header::HeaderMap, Url};
 
@@ -26,4 +26,30 @@ pub(crate) trait AddHeaders {
     fn has_header(&self) -> bool;
 
     fn add_headers(&self) -> Result<Option<HeaderMap>>;
+}
+
+pub(crate) enum QueryParam {
+    IgnoreRevs,
+    ReturnOld,
+    Silent,
+    WaitForSync,
+}
+
+impl<'a> From<QueryParam> for &'a str {
+    fn from(qp: QueryParam) -> &'a str {
+        match qp {
+            QueryParam::IgnoreRevs => "ignoreRevs=true",
+            QueryParam::ReturnOld => "returnOld=true",
+            QueryParam::Silent => "silent=true",
+            QueryParam::WaitForSync => "waitForSync=true",
+        }
+    }
+}
+
+pub(crate) fn add_qp(opt: Option<bool>, url: &mut String, has_qp: &mut bool, kind: QueryParam) {
+    if opt.unwrap_or(false) {
+        let _ = prepend_sep(url, *has_qp);
+        url.push_str(kind.into());
+        *has_qp = true;
+    }
 }

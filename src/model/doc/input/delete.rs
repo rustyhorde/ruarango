@@ -9,9 +9,11 @@
 //! Document Delete Input Structs
 
 use crate::{
-    add_qp,
     error::RuarangoErr::Unreachable,
-    model::{AddHeaders, BuildUrl},
+    model::{
+        add_qp, AddHeaders, BuildUrl,
+        QueryParam::{ReturnOld, Silent, WaitForSync},
+    },
     Connection,
 };
 use anyhow::{Context, Result};
@@ -56,16 +58,11 @@ impl Config {
         let mut url = format!("{}/{}/{}", base, self.collection, self.key);
         let mut has_qp = false;
 
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
+        add_qp(*self.wait_for_sync(), &mut url, &mut has_qp, WaitForSync);
         if self.silent().unwrap_or(false) {
-            add_qp!(url, has_qp, "silent=true";);
+            add_qp(*self.silent(), &mut url, &mut has_qp, Silent);
         } else if self.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true";);
+            add_qp(*self.return_old(), &mut url, &mut has_qp, ReturnOld);
         }
 
         url
@@ -109,7 +106,7 @@ impl BuildUrl for Config {
 }
 
 #[cfg(test)]
-mod delete_config_test {
+mod test {
     use super::{Config, ConfigBuilder};
     use crate::model::{doc::BASE_DOC_SUFFIX, AddHeaders};
     use anyhow::Result;
@@ -134,7 +131,7 @@ mod delete_config_test {
     }
 
     #[test]
-    fn basic_delete_url() -> Result<()> {
+    fn delete_url() -> Result<()> {
         let config = ConfigBuilder::default()
             .collection(TEST_COLL)
             .key(TEST_KEY)
@@ -163,7 +160,7 @@ mod delete_config_test {
     }
 
     #[test]
-    fn delete_silent_url_forces_no_return() -> Result<()> {
+    fn delete_silent_forces_no_return_old_url() -> Result<()> {
         let config = ConfigBuilder::default()
             .collection(TEST_COLL)
             .key(TEST_KEY)

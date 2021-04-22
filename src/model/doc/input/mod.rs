@@ -9,10 +9,15 @@
 //! Document Input Structs
 
 mod delete;
+mod deletes;
 
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
     ConfigBuilderError as DeleteConfigBuilderError,
+};
+pub use deletes::{
+    Config as DeletesConfig, ConfigBuilder as DeletesConfigBuilder,
+    ConfigBuilderError as DeletesConfigBuilderError,
 };
 
 use crate::{
@@ -394,62 +399,6 @@ impl AddHeaders for ReadConfig {
             }
         }
         Ok(headers)
-    }
-}
-
-/// Document deletes configuration
-#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
-#[getset(get = "pub(crate)")]
-pub struct DeletesConfig<T> {
-    /// The collection to replace the document in
-    #[builder(setter(into))]
-    collection: String,
-    /// The document keys to delete
-    documents: Vec<T>,
-    /// Wait until the delete operation has been synced to disk.
-    #[builder(setter(strip_option), default)]
-    wait_for_sync: Option<bool>,
-    /// Additionally return the complete old document under the attribute `old`
-    /// in the result.
-    #[builder(setter(strip_option), default)]
-    return_old: Option<bool>,
-    /// If set to true, ignore any `_rev` attribute in the selectors. No
-    /// revision check is performed. If set to false then revisions are checked.
-    /// The default is true.
-    #[builder(setter(into, strip_option), default)]
-    ignore_revs: Option<bool>,
-}
-
-impl<T> DeletesConfig<T> {
-    fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}", base, self.collection);
-        let mut has_qp = false;
-
-        // Add waitForSync if necessary
-        if self.wait_for_sync().unwrap_or(false) {
-            add_qp!(url, has_qp, "waitForSync=true");
-        }
-
-        // Setup the output related query parameters
-        if self.return_old().unwrap_or(false) {
-            add_qp!(url, has_qp, "returnOld=true");
-        }
-
-        // Setup ignore revs
-        if self.ignore_revs().unwrap_or(false) {
-            add_qp!(url, has_qp, "ignoreRevs=true";);
-        }
-
-        url
-    }
-}
-
-impl<T> BuildUrl for DeletesConfig<T> {
-    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
-        let suffix = &self.build_suffix(base);
-        conn.db_url()
-            .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
     }
 }
 
