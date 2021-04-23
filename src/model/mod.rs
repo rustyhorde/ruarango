@@ -15,6 +15,7 @@ use reqwest::{header::HeaderMap, Url};
 pub(crate) mod auth;
 pub mod coll;
 pub mod common;
+pub mod cursor;
 pub mod db;
 pub mod doc;
 

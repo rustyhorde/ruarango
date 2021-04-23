@@ -12,11 +12,13 @@ use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 
 mod coll;
+mod cursor;
 mod db;
 mod doc;
 mod job;
 
 pub use coll::Collection;
+pub use cursor::Cursor;
 pub use db::Database;
 pub use doc::Document;
 pub use job::Job;
