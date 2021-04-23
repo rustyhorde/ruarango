@@ -65,15 +65,13 @@ pub struct Config {
 
 impl ConfigBuilder {
     fn validate(&self) -> Result<(), String> {
-        if let Some(ref bs_opt) = self.batch_size {
+        self.batch_size.as_ref().map_or(Ok(()), |bs_opt| {
             if let Some(0) = bs_opt {
                 Err(BATCH_SIZE_ZERO_ERR.into())
             } else {
                 Ok(())
             }
-        } else {
-            Ok(())
-        }
+        })
     }
 }
 
