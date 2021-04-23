@@ -1090,7 +1090,7 @@ mod cursor {
         assert!(cursor_meta.result().is_some());
         assert!(cursor_meta.result().as_ref().unwrap().len() >= 1);
         assert!(cursor_meta.count().is_some());
-        assert_eq!(*cursor_meta.count().as_ref().unwrap(), 1);
+        assert!(*cursor_meta.count().as_ref().unwrap() >= 1);
         assert!(cursor_meta.id().is_none());
         assert!(!cursor_meta.has_more());
         assert!(!cursor_meta.cached());
@@ -1100,7 +1100,7 @@ mod cursor {
         let extra = cursor_meta.extra().as_ref().unwrap();
         assert_eq!(*extra.stats().writes_executed(), 0);
         assert_eq!(*extra.stats().writes_ignored(), 0);
-        assert_eq!(*extra.stats().scanned_full(), 1);
+        assert!(*extra.stats().scanned_full() >= 1);
         assert_eq!(*extra.stats().scanned_index(), 0);
         assert_eq!(*extra.stats().filtered(), 0);
         assert_eq!(*extra.stats().http_requests(), 0);
