@@ -8,6 +8,7 @@
 
 //! Cursor Create Input Struct
 
+use crate::{model::BuildUrl, Connection};
 use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
@@ -15,8 +16,6 @@ use reqwest::Url;
 use serde::{Serialize as Ser, Serializer};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::{model::BuildUrl, Connection};
 
 const BATCH_SIZE_ZERO_ERR: &str = "batch_size cannot be 0!";
 

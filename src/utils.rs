@@ -145,6 +145,14 @@ where
     res.map(to_json)?.await
 }
 
+fn to_empty(res: reqwest::Response) -> Result<()> {
+    res.error_for_status().map(|_| ()).map_err(Error::into)
+}
+
+pub(crate) async fn empty(res: Result<reqwest::Response, Error>) -> Result<()> {
+    res.map(to_empty)?
+}
+
 pub(crate) async fn handle_job_response(res: Result<reqwest::Response, Error>) -> Result<JobInfo> {
     res.map(|res| {
         let status = res.status().as_u16();
@@ -226,7 +234,7 @@ where
     T: DeserializeOwned,
 {
     match res.status() {
-        StatusCode::CREATED => Ok(handle_text(res).await?),
+        StatusCode::CREATED | StatusCode::ACCEPTED => Ok(handle_text(res).await?),
         StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND => {
             let err: Option<BaseErr> = handle_text(res).await.ok();
             Err(Cursor { err }.into())

@@ -9,9 +9,14 @@
 //! Cursor Input Structs
 
 mod create;
+mod delete;
 
 pub use create::{
     Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
     ConfigBuilderError as CreateConfigBuilderError, Options, OptionsBuilder, OptionsBuilderError,
     ProfileKind,
+};
+pub use delete::{
+    Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
+    ConfigBuilderError as DeleteConfigBuilderError,
 };

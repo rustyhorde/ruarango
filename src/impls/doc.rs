@@ -8,6 +8,7 @@
 
 //! Document trait implementation
 
+use super::EMPTY_BODY;
 use crate::{
     doc::{
         input::{
@@ -24,8 +25,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
-
-const EMPTY_BODY: Option<String> = None;
 
 #[async_trait]
 impl Document for Connection {

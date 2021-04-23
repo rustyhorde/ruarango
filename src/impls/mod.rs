@@ -14,6 +14,8 @@ mod db;
 mod doc;
 mod job;
 
+pub(crate) const EMPTY_BODY: Option<String> = None;
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! api_request {

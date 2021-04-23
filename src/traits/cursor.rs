@@ -8,7 +8,11 @@
 
 //! Cursor operations trait
 
-use crate::{cursor::output::CursorMeta, model::cursor::input::CreateConfig, ArangoResult};
+use crate::{
+    cursor::output::CursorMeta,
+    model::cursor::input::{CreateConfig, DeleteConfig},
+    ArangoResult,
+};
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -19,4 +23,7 @@ pub trait Cursor {
     async fn create<T>(&self, config: CreateConfig) -> ArangoResult<CursorMeta<T>>
     where
         T: Serialize + DeserializeOwned + Send + Sync;
+
+    /// Delete a cursor
+    async fn delete(&self, config: DeleteConfig) -> ArangoResult<()>;
 }

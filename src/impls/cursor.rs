@@ -8,10 +8,14 @@
 
 //! Cursor trait implementation
 
+use super::EMPTY_BODY;
 use crate::{
     cursor::{output::CursorMeta, BASE_CURSOR_SUFFIX},
-    model::{cursor::input::CreateConfig, BuildUrl},
-    utils::cursor_resp,
+    model::{
+        cursor::input::{CreateConfig, DeleteConfig},
+        BuildUrl,
+    },
+    utils::{cursor_resp, empty},
     ArangoResult, Connection, Cursor,
 };
 use async_trait::async_trait;
@@ -25,5 +29,10 @@ impl Cursor for Connection {
     {
         let url = config.build_url(BASE_CURSOR_SUFFIX, self)?;
         self.post(url, None, config, cursor_resp).await
+    }
+
+    async fn delete(&self, config: DeleteConfig) -> ArangoResult<()> {
+        let url = config.build_url(BASE_CURSOR_SUFFIX, self)?;
+        self.delete(url, None, EMPTY_BODY, empty).await
     }
 }
