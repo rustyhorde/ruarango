@@ -234,7 +234,7 @@ where
     T: DeserializeOwned,
 {
     match res.status() {
-        StatusCode::CREATED | StatusCode::ACCEPTED => Ok(handle_text(res).await?),
+        StatusCode::OK | StatusCode::CREATED => Ok(handle_text(res).await?),
         StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND => {
             let err: Option<BaseErr> = handle_text(res).await.ok();
             Err(Cursor { err }.into())

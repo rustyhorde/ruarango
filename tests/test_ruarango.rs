@@ -1029,7 +1029,10 @@ mod cursor {
     use getset::Getters;
     use ruarango::{
         cursor::{
-            input::{CreateConfigBuilder, DeleteConfigBuilder, OptionsBuilder, ProfileKind},
+            input::{
+                CreateConfigBuilder, DeleteConfigBuilder, NextConfigBuilder, OptionsBuilder,
+                ProfileKind,
+            },
             output::CursorMeta,
         },
         doc::{
@@ -1214,7 +1217,7 @@ mod cursor {
     }
 
     #[tokio::test]
-    async fn cursor_has_more() -> Result<()> {
+    async fn cursor_delete() -> Result<()> {
         let conn = conn_ruarango().await?;
         let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
 
@@ -1255,6 +1258,75 @@ mod cursor {
         let config = DeleteConfigBuilder::default().id(id).build()?;
         let res: ArangoEither<()> = Cursor::delete(&conn, config).await?;
         assert!(res.is_right());
+
+        // Delete the documents
+        let delete_config = DeletesConfigBuilder::default()
+            .collection("test_coll")
+            .documents(keys)
+            .return_old(true)
+            .build()?;
+        let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
+            conn.deletes(delete_config).await?;
+        assert!(delete_res.is_right());
+        let doc_meta_vec = delete_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
+
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            let doc_opt = doc_meta.old_doc();
+            assert!(doc_opt.is_some());
+            assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cursor_next() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
+
+        // Create some documents
+        let create_config = CreatesConfigBuilder::default()
+            .collection("test_coll")
+            .document(docs.clone())
+            .build()?;
+        let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> =
+            conn.creates(create_config).await?;
+        assert!(create_res.is_right());
+        let doc_meta_vec = create_res.right_safe()?;
+        assert_eq!(doc_meta_vec.len(), docs.len());
+
+        let mut keys = vec![];
+        for doc_meta_either in doc_meta_vec {
+            assert!(doc_meta_either.is_right());
+            let doc_meta = doc_meta_either.right_safe()?;
+            keys.push(doc_meta.key().clone());
+        }
+
+        assert_eq!(keys.len(), docs.len());
+
+        // Cursor
+        let config = CreateConfigBuilder::default()
+            .query("FOR d IN test_coll LIMIT 5 RETURN d")
+            .batch_size(2)
+            .count(true)
+            .build()?;
+        let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await?;
+        assert!(res.is_right());
+        let cursor_meta = res.right_safe()?;
+        assert!(cursor_meta.has_more());
+        assert!(cursor_meta.id().is_some());
+        let id = cursor_meta.id().as_ref().unwrap();
+        assert_eq!(cursor_meta.result().as_ref().unwrap().len(), 2);
+
+        // Get the next batch
+        let config = NextConfigBuilder::default().id(id).build()?;
+        let res: ArangoEither<CursorMeta<OutputDoc>> = conn.next(config).await?;
+        assert!(res.is_right());
+        assert!(cursor_meta.id().is_some());
+        assert_eq!(cursor_meta.result().as_ref().unwrap().len(), 2);
 
         // Delete the documents
         let delete_config = DeletesConfigBuilder::default()

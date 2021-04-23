@@ -12,7 +12,7 @@ use super::EMPTY_BODY;
 use crate::{
     cursor::{output::CursorMeta, BASE_CURSOR_SUFFIX},
     model::{
-        cursor::input::{CreateConfig, DeleteConfig},
+        cursor::input::{CreateConfig, DeleteConfig, NextConfig},
         BuildUrl,
     },
     utils::{cursor_resp, empty},
@@ -34,5 +34,13 @@ impl Cursor for Connection {
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()> {
         let url = config.build_url(BASE_CURSOR_SUFFIX, self)?;
         self.delete(url, None, EMPTY_BODY, empty).await
+    }
+
+    async fn next<T>(&self, config: NextConfig) -> ArangoResult<CursorMeta<T>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync,
+    {
+        let url = config.build_url(BASE_CURSOR_SUFFIX, self)?;
+        self.put(url, None, EMPTY_BODY, cursor_resp).await
     }
 }

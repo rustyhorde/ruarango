@@ -10,7 +10,7 @@
 
 use crate::{
     cursor::output::CursorMeta,
-    model::cursor::input::{CreateConfig, DeleteConfig},
+    model::cursor::input::{CreateConfig, DeleteConfig, NextConfig},
     ArangoResult,
 };
 use async_trait::async_trait;
@@ -26,4 +26,9 @@ pub trait Cursor {
 
     /// Delete a cursor
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()>;
+
+    /// Grab the next batch from an open cursor
+    async fn next<T>(&self, config: NextConfig) -> ArangoResult<CursorMeta<T>>
+    where
+        T: Serialize + DeserializeOwned + Send + Sync;
 }
