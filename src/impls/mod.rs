@@ -9,6 +9,7 @@
 //! Trait impls for `[Connection](crate::Connection)`
 
 mod coll;
+mod cursor;
 mod db;
 mod doc;
 mod job;

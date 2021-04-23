@@ -10,7 +10,10 @@
 
 use crate::{utils::prepend_sep, Connection};
 use anyhow::Result;
+use getset::Getters;
 use reqwest::{header::HeaderMap, Url};
+use serde_derive::{Deserialize, Serialize};
+use std::fmt;
 
 pub(crate) mod auth;
 pub mod coll;
@@ -134,5 +137,33 @@ where
         let _ = prepend_sep(url, *has_qp);
         url.push_str(&String::from(kind));
         *has_qp = true;
+    }
+}
+
+/// Base Error Output
+#[derive(Clone, Debug, Deserialize, Eq, Getters, PartialEq, Serialize)]
+#[getset(get = "pub")]
+pub struct BaseErr {
+    /// Is this an error?
+    error: bool,
+    /// The error code
+    code: u16,
+    /// The ArangoDB code
+    #[serde(rename = "errorNum")]
+    error_num: usize,
+    /// The error message
+    #[serde(rename = "errorMessage", skip_serializing_if = "Option::is_none")]
+    error_message: Option<String>,
+}
+
+impl fmt::Display for BaseErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "error: {}", self.error)?;
+        write!(f, ", code: {}", self.code)?;
+        write!(f, ", error_num: {}", self.error_num)?;
+        if let Some(error_message) = &self.error_message {
+            write!(f, ", error_message: {}", error_message)?;
+        }
+        Ok(())
     }
 }

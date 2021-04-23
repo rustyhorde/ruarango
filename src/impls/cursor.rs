@@ -6,17 +6,24 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Cursor operations trait
+//! Cursor trait implementation
 
-use crate::{cursor::output::CursorMeta, model::cursor::input::CreateConfig, ArangoResult};
+use crate::{
+    cursor::{output::CursorMeta, BASE_CURSOR_SUFFIX},
+    model::{cursor::input::CreateConfig, BuildUrl},
+    utils::cursor_resp,
+    ArangoResult, Connection, Cursor,
+};
 use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
-/// Cursor Operations
 #[async_trait]
-pub trait Cursor {
-    /// Create a cursor
+impl Cursor for Connection {
     async fn create<T>(&self, config: CreateConfig) -> ArangoResult<CursorMeta<T>>
     where
-        T: Serialize + DeserializeOwned + Send + Sync;
+        T: Serialize + DeserializeOwned + Send + Sync,
+    {
+        let url = config.build_url(BASE_CURSOR_SUFFIX, self)?;
+        self.post(url, None, config, cursor_resp).await
+    }
 }

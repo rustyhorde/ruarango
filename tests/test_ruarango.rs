@@ -772,7 +772,6 @@ mod doc {
         for doc_meta_either in doc_meta_vec {
             assert!(doc_meta_either.is_right());
             let doc_meta = doc_meta_either.right_safe()?;
-            println!("{:?}", doc_meta);
             keys.push(doc_meta.key().clone());
         }
 
@@ -990,7 +989,6 @@ mod doc {
         let doc_meta_vec = updates_res.right_safe()?;
         assert_eq!(doc_meta_vec.len(), len);
         for doc_meta_either in doc_meta_vec {
-            println!("{:?}", doc_meta_either);
             assert!(doc_meta_either.is_right());
             let doc_meta = doc_meta_either.right_safe()?;
             let old_doc_opt = doc_meta.old_doc();
@@ -1021,6 +1019,172 @@ mod doc {
             assert_eq!(unwrap_doc(doc_opt)?.test(), "blah");
         }
 
+        Ok(())
+    }
+}
+
+mod cursor {
+    use crate::common::conn_ruarango;
+    use anyhow::Result;
+    use getset::Getters;
+    use ruarango::{
+        cursor::{
+            input::{CreateConfigBuilder, OptionsBuilder, ProfileKind},
+            output::CursorMeta,
+        },
+        ArangoEither, ArangoResult, Cursor,
+        Error::{self, Cursor as CursorError},
+    };
+    use serde_derive::{Deserialize, Serialize};
+
+    #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+    #[getset(get)]
+    struct OutputDoc {
+        #[serde(rename = "_key")]
+        key: String,
+        #[serde(rename = "_id")]
+        id: String,
+        #[serde(rename = "_rev")]
+        rev: String,
+        test: String,
+    }
+
+    #[tokio::test]
+    async fn cursor_create() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let config = CreateConfigBuilder::default()
+            .query("FOR d IN test_coll RETURN d")
+            .count(true)
+            .build()?;
+        let res: ArangoEither<CursorMeta<OutputDoc>> = conn.create(config).await?;
+        assert!(res.is_right());
+        let cursor_meta = res.right_safe()?;
+        assert!(cursor_meta.result().is_some());
+        assert!(cursor_meta.result().as_ref().unwrap().len() >= 1);
+        assert!(cursor_meta.count().is_some());
+        assert_eq!(*cursor_meta.count().as_ref().unwrap(), 1);
+        assert!(cursor_meta.id().is_none());
+        assert!(!cursor_meta.has_more());
+        assert!(!cursor_meta.cached());
+        assert!(!cursor_meta.error());
+        assert_eq!(*cursor_meta.code(), 201);
+        assert!(cursor_meta.extra().is_some());
+        let extra = cursor_meta.extra().as_ref().unwrap();
+        assert_eq!(*extra.stats().writes_executed(), 0);
+        assert_eq!(*extra.stats().writes_ignored(), 0);
+        assert_eq!(*extra.stats().scanned_full(), 1);
+        assert_eq!(*extra.stats().scanned_index(), 0);
+        assert_eq!(*extra.stats().filtered(), 0);
+        assert_eq!(*extra.stats().http_requests(), 0);
+        assert!(*extra.stats().execution_time() > 0.);
+        assert!(*extra.stats().peak_memory_usage() > 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cursor_create_profile() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let options = OptionsBuilder::default()
+            .profile(ProfileKind::ProfileOnly)
+            .build()?;
+        let config = CreateConfigBuilder::default()
+            .query("FOR d IN test_coll RETURN d")
+            .count(true)
+            .options(options)
+            .build()?;
+        let res: ArangoEither<CursorMeta<OutputDoc>> = conn.create(config).await?;
+        assert!(res.is_right());
+        let cursor_meta = res.right_safe()?;
+        assert!(cursor_meta.result().is_some());
+        assert!(cursor_meta.result().as_ref().unwrap().len() >= 1);
+        assert!(cursor_meta.count().is_some());
+        assert_eq!(*cursor_meta.count().as_ref().unwrap(), 1);
+        assert!(cursor_meta.id().is_none());
+        assert!(!cursor_meta.has_more());
+        assert!(!cursor_meta.cached());
+        assert!(!cursor_meta.error());
+        assert_eq!(*cursor_meta.code(), 201);
+        assert!(cursor_meta.extra().is_some());
+        let extra = cursor_meta.extra().as_ref().unwrap();
+        assert_eq!(*extra.stats().writes_executed(), 0);
+        assert_eq!(*extra.stats().writes_ignored(), 0);
+        assert_eq!(*extra.stats().scanned_full(), 1);
+        assert_eq!(*extra.stats().scanned_index(), 0);
+        assert_eq!(*extra.stats().filtered(), 0);
+        assert_eq!(*extra.stats().http_requests(), 0);
+        assert!(*extra.stats().execution_time() > 0.);
+        assert!(*extra.stats().peak_memory_usage() > 0);
+        assert!(extra.warnings().is_empty());
+        assert!(extra.profile().is_some());
+        let profile = extra.profile().unwrap();
+        assert!(*profile.initializing() > 0.);
+        assert!(*profile.parsing() > 0.);
+        assert!(*profile.optimizing_ast() > 0.);
+        assert!(*profile.loading_collections() > 0.);
+        assert!(*profile.instantiating_plan() > 0.);
+        assert!(*profile.optimizing_plan() > 0.);
+        assert!(*profile.executing() > 0.);
+        assert!(*profile.finalizing() > 0.);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cursor_create_400() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let config = CreateConfigBuilder::default().query("YODA").build()?;
+        let res: ArangoResult<CursorMeta<OutputDoc>> = conn.create(config).await;
+        match res {
+            Ok(_) => panic!("This call should fail!"),
+            Err(e) => {
+                let opt_err = e.downcast_ref::<Error>();
+                assert!(opt_err.is_some());
+                let ruarango_err = opt_err.unwrap();
+                match ruarango_err {
+                    CursorError { err } => {
+                        assert!(err.is_some());
+                        let err = err.as_ref().unwrap();
+                        assert!(err.error());
+                        assert_eq!(*err.code(), 400);
+                        assert_eq!(*err.error_num(), 1501);
+                        assert!(err.error_message().is_some());
+                        let msg = err.error_message().as_ref().unwrap();
+                        assert_eq!(msg, "AQL: syntax error, unexpected identifier near 'YODA' at position 1:1 (while parsing)");
+                    }
+                    _ => panic!("This is the wrong error type!"),
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn cursor_create_404() -> Result<()> {
+        let conn = conn_ruarango().await?;
+        let config = CreateConfigBuilder::default()
+            .query("REMOVE 'yoda' IN test_coll")
+            .build()?;
+        let res: ArangoResult<CursorMeta<OutputDoc>> = conn.create(config).await;
+        match res {
+            Ok(_) => panic!("This call should fail!"),
+            Err(e) => {
+                let opt_err = e.downcast_ref::<Error>();
+                assert!(opt_err.is_some());
+                let ruarango_err = opt_err.unwrap();
+                match ruarango_err {
+                    CursorError { err } => {
+                        assert!(err.is_some());
+                        let err = err.as_ref().unwrap();
+                        assert!(err.error());
+                        assert_eq!(*err.code(), 404);
+                        assert_eq!(*err.error_num(), 1202);
+                        assert!(err.error_message().is_some());
+                        let msg = err.error_message().as_ref().unwrap();
+                        assert_eq!(msg, "AQL: document not found (while executing)");
+                    }
+                    _ => panic!("This is the wrong error type!"),
+                }
+            }
+        }
         Ok(())
     }
 }

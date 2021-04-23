@@ -10,10 +10,10 @@
 
 use crate::{
     error::RuarangoErr::{
-        Conflict, DocumentNotFound, InvalidBody, InvalidDocResponse, NotModified,
-        PreconditionFailed,
+        Conflict, Cursor, DocumentNotFound, InvalidBody, InvalidCursorResponse, InvalidDocResponse,
+        NotModified, PreconditionFailed,
     },
-    model::{common::output::ArangoErr, doc::output::DocErr},
+    model::{common::output::ArangoErr, doc::output::DocErr, BaseErr},
     JobInfo,
 };
 use anyhow::{anyhow, Result};
@@ -219,6 +219,30 @@ where
     T: DeserializeOwned,
 {
     res.map(to_docmeta_vec_json)?.await
+}
+
+async fn to_cursor_json<T>(res: reqwest::Response) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    match res.status() {
+        StatusCode::CREATED => Ok(handle_text(res).await?),
+        StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND => {
+            let err: Option<BaseErr> = handle_text(res).await.ok();
+            Err(Cursor { err }.into())
+        }
+        _ => {
+            let status = res.status().as_u16();
+            Err(InvalidCursorResponse { status }.into())
+        }
+    }
+}
+
+pub(crate) async fn cursor_resp<T>(res: std::result::Result<reqwest::Response, Error>) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    res.map(to_cursor_json)?.await
 }
 
 #[cfg(test)]

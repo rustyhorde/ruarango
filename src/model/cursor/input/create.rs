@@ -8,10 +8,15 @@
 
 //! Cursor Create Input Struct
 
+use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
+use reqwest::Url;
+use serde::{Serialize as Ser, Serializer};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use crate::{model::BuildUrl, Connection};
 
 const BATCH_SIZE_ZERO_ERR: &str = "batch_size cannot be 0!";
 
@@ -25,6 +30,7 @@ pub struct Config {
     query: String,
     /// key/value pairs representing the bind parameters.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "bindVars", skip_serializing_if = "Option::is_none")]
     bind_vars: Option<HashMap<String, String>>,
     /// Indicates whether the number of documents in the result set
     /// should be returned in the "count" attribute of the result.
@@ -32,12 +38,14 @@ pub struct Config {
     /// impact for some queries in the future so this option is
     /// turned off by default, and "count" is only returned when requested.
     #[builder(setter(strip_option), default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     count: Option<bool>,
     /// Maximum number of result documents to be transferred from
     /// the server to the client in one roundtrip. If this attribute is
     /// not set, a server-controlled default value will be used.
     /// A `batch_size` value of 0 is disallowed.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "batchSize", skip_serializing_if = "Option::is_none")]
     batch_size: Option<usize>,
     /// Flag to determine whether the AQL query results cache
     /// shall be used. If set to false, then any query cache lookup
@@ -45,12 +53,14 @@ pub struct Config {
     /// to the query cache being checked for the query if the query
     /// cache mode is either on or demand.
     #[builder(setter(strip_option), default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     cache: Option<bool>,
     /// The maximum amount of memory (measured in bytes) that the
     /// query is allowed to use. If set, then the query will fail
     /// with error "resource limit exceeded" in case it allocates too
     /// much memory. A value of 0 indicates that there is no memory limit.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "memoryLimit", skip_serializing_if = "Option::is_none")]
     memory_limit: Option<usize>,
     /// The time-to-live for the cursor (in seconds). The cursor will be
     /// removed on the server automatically after the specified amount of
@@ -58,13 +68,16 @@ pub struct Config {
     /// are not fully fetched by clients. If not set, a server-defined
     /// value will be used (default: 30 seconds).
     #[builder(setter(strip_option), default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     ttl: Option<usize>,
     /// Additional cursor options
+    #[builder(setter(strip_option), default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<Options>,
 }
 
 impl ConfigBuilder {
-    fn validate(&self) -> Result<(), String> {
+    fn validate(&self) -> std::result::Result<(), String> {
         self.batch_size.as_ref().map_or(Ok(()), |bs_opt| {
             if let Some(0) = bs_opt {
                 Err(BATCH_SIZE_ZERO_ERR.into())
@@ -75,13 +88,34 @@ impl ConfigBuilder {
     }
 }
 
+impl BuildUrl for Config {
+    fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
+        let suffix = base.to_string();
+        conn.db_url()
+            .join(&suffix)
+            .with_context(|| format!("Unable to build '{}' url", suffix))
+    }
+}
+
 /// The profile kind
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub enum ProfileKind {
     /// Generate the profiling data only
     ProfileOnly,
     /// Generate executions stats per query plan node
     WithStats,
+}
+
+impl Ser for ProfileKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ProfileKind::ProfileOnly => serializer.serialize_i8(1),
+            ProfileKind::WithStats => serializer.serialize_i8(2),
+        }
+    }
 }
 
 /// Cursor creation options
@@ -97,6 +131,7 @@ pub struct Options {
     /// default value for `fail_on_warning` so it does not need to be set
     /// on a per-query level.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "failOnWarning")]
     fail_on_warning: Option<bool>,
     /// If set to [`ProfileOnly`](ProfileKind::ProfileOnly), then the additional
     /// query profiling information will be returned in the sub-attribute
@@ -111,6 +146,7 @@ pub struct Options {
     /// Transaction size limit in bytes. Honored by the RocksDB storage
     /// engine only.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "maxTransactionSize")]
     max_txn_size: Option<usize>,
     /// Optimizer rules
     #[builder(setter(strip_option), default)]
@@ -141,26 +177,31 @@ pub struct Options {
     /// will be killed. The value is specified in seconds. The default
     /// value is 0 (no timeout).
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "maxRuntime")]
     max_runtime: Option<usize>,
     /// Limits the maximum number of warnings a query will return.
     /// The number of warnings a query will return is limited to 10 by
     /// default, but that number can be increased or decreased by setting
     /// this attribute.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "maxWarningCount")]
     max_warning_count: Option<usize>,
     /// Maximum number of operations after which an intermediate
     /// commit is performed automatically. Honored by the RocksDB
     /// storage engine only.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "intermediateCommitCount")]
     intermediate_commit_count: Option<usize>,
     /// Maximum total size of operations after which an intermediate
     /// commit is performed automatically. Honored by the RocksDB
     /// storage engine only.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "intermediateCommitSize")]
     intermediate_commit_size: Option<usize>,
     /// Limits the maximum number of plans that are created by
     /// the AQL query optimizer.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "maxPlans")]
     max_plans: Option<usize>,
     /// If set to true and the query contains a LIMIT clause, then the
     /// result will have an extra attribute with the sub-attributes
@@ -181,6 +222,7 @@ pub struct Options {
     /// the result if the query has a top-level LIMIT clause and the LIMIT
     /// clause is actually used in the query.
     #[builder(setter(strip_option), default)]
+    #[serde(rename = "fullCount")]
     full_count: Option<bool>,
 }
 

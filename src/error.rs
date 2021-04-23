@@ -8,7 +8,7 @@
 
 //! `ruarango` error
 
-use crate::model::doc::output::DocErr;
+use crate::model::{doc::output::DocErr, BaseErr};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::error::Error;
 #[cfg(test)]
@@ -42,6 +42,12 @@ pub enum RuarangoErr {
         status: u16,
     },
     ///
+    #[error("Invalid cursor response: {}", status)]
+    InvalidCursorResponse {
+        ///
+        status: u16,
+    },
+    ///
     #[error("The document you requested was not found")]
     DocumentNotFound,
     ///
@@ -58,6 +64,12 @@ pub enum RuarangoErr {
     Conflict {
         ///
         err: Option<DocErr>,
+    },
+    ///
+    #[error("A cursor request error has occurred: {}", base_err(err))]
+    Cursor {
+        ///
+        err: Option<BaseErr>,
     },
     #[cfg(test)]
     #[error("Unable to parse the given value")]
@@ -89,6 +101,11 @@ fn doc_err(err: &Option<DocErr>) -> String {
         || "No matching document found".to_string(),
         ToString::to_string,
     )
+}
+
+fn base_err(err: &Option<BaseErr>) -> String {
+    err.as_ref()
+        .map_or_else(|| "cursor error".to_string(), ToString::to_string)
 }
 
 #[cfg(test)]
