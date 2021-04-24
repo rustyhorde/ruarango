@@ -9,7 +9,6 @@
 //! `ruarango` integration tests
 use crate::{
     common::{process_async_result, process_sync_result},
-    conn::ConnKind,
     rand_util::rand_name,
 };
 use anyhow::Result;
@@ -39,13 +38,13 @@ int_test_sync_new!(res; collection_collections_ruarango_no_system, collections(t
     assert!(res.result().len() > 0);
 });
 
-int_test_async_new!(res; Response<Vec<Collections>>; ConnKind::RootAsync; collection_collections_root_no_system_async, collections(true) => {
+int_test_async_new!(res; Response<Vec<Collections>>; crate::pool::ROOT_ASYNC_POOL; collection_collections_root_no_system_async, collections(true) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.result().len(), 0);
 });
 
-int_test_sync_new!(res; ConnKind::Root; collection_collections_root_no_system, collections(true) => {
+int_test_sync_new!(res; crate::pool::ROOT_POOL; collection_collections_root_no_system, collections(true) => {
     assert_eq!(res.result().len(), 0);
 });
 
@@ -59,13 +58,13 @@ int_test_sync_new!(res; collection_collections_ruarango, collections(false) => {
     assert!(res.result().len() > 0);
 });
 
-int_test_async_new!(res; Response<Vec<Collections>>; ConnKind::RootAsync; collection_collections_root_async, collections(false) => {
+int_test_async_new!(res; Response<Vec<Collections>>; crate::pool::ROOT_ASYNC_POOL; collection_collections_root_async, collections(false) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(res.result().len() > 0);
 });
 
-int_test_sync_new!(res; ConnKind::Root; collection_collections, collections(false) => {
+int_test_sync_new!(res; crate::pool::ROOT_POOL; collection_collections, collections(false) => {
     assert!(res.result().len() > 0);
 });
 
@@ -126,7 +125,7 @@ fn create_config(kind: CreateKind) -> Result<Config> {
     })
 }
 
-int_test_async_new!(res; conn; Create; ConnKind::RuarangoAsync; collection_create_drop_async, create(&create_config(CreateKind::CollAsync)?) => {
+int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_create_drop_async, create(&create_config(CreateKind::CollAsync)?) => {
     assert_eq!(res.name(), &*COLL_NAME_ASYNC);
 
     let res = conn.drop(&*COLL_NAME_ASYNC, false).await?;
@@ -244,7 +243,7 @@ fn props_config(wait_for_sync: bool) -> Result<Props> {
         .build()?)
 }
 
-int_test_async_new!(res; conn; ModifyProps; ConnKind::RuarangoAsync; collection_modify_props_async, modify_props(TEST_COLL, props_config(true)?) => {
+int_test_async_new!(res; conn; ModifyProps; crate::pool::RUARANGO_ASYNC_POOL; collection_modify_props_async, modify_props(TEST_COLL, props_config(true)?) => {
     assert!(res.wait_for_sync());
     let either = conn.modify_props(TEST_COLL, props_config(false)?).await?;
     let res = process_async_result(either, &conn).await?;
@@ -273,7 +272,7 @@ int_test_sync_new!(res; collection_recalculate_count, recalculate_count(TEST_COL
     assert!(*res.count() >= 1);
 });
 
-int_test_async_new!(res; conn; Create; ConnKind::RuarangoAsync; collection_rename_async, create(&create_config(CreateKind::RenameAsync)?) => {
+int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_rename_async, create(&create_config(CreateKind::RenameAsync)?) => {
     assert_eq!(res.name(), &*RENAME_NAME_ASYNC);
 
     let either = conn.rename(&*RENAME_NAME_ASYNC, &RENAME_NEW_NAME_ASYNC).await?;
@@ -303,7 +302,7 @@ int_test_sync_new!(res; conn; collection_rename, create(&create_config(CreateKin
     assert_eq!(*res.code(), 200);
 });
 
-int_test_async_new!(res; conn; Create; ConnKind::RuarangoAsync; collection_truncate_async, create(&create_config(CreateKind::TruncateAsync)?) => {
+int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_truncate_async, create(&create_config(CreateKind::TruncateAsync)?) => {
     assert_eq!(res.name(), &*TRUNCATE_NAME_ASYNC);
 
     let either = conn.truncate(&*TRUNCATE_NAME_ASYNC).await?;
@@ -331,7 +330,7 @@ int_test_sync_new!(res; conn; collection_truncate, create(&create_config(CreateK
     assert_eq!(*res.code(), 200);
 });
 
-int_test_async_new!(res; conn; Create; ConnKind::RuarangoAsync; collection_unload_async, create(&create_config(CreateKind::UnloadAsync)?) => {
+int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_unload_async, create(&create_config(CreateKind::UnloadAsync)?) => {
     assert_eq!(res.name(), &*UNLOAD_NAME_ASYNC);
 
     let either = conn.unload(&*UNLOAD_NAME_ASYNC).await?;

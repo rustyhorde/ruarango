@@ -1,7 +1,7 @@
 use anyhow::Result;
 use ruarango::{AsyncKind, Connection, ConnectionBuilder};
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ConnKind {
     Ruarango,
     RuarangoAsync,

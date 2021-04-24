@@ -1,6 +1,5 @@
 use crate::{
     common::{process_async_result, process_sync_result},
-    conn::ConnKind,
     rand_util::rand_name,
 };
 use anyhow::Result;
@@ -48,12 +47,12 @@ int_test_sync_new!(res; database_user, user() => {
     assert_eq!(res.result()[0], "ruarango");
 });
 
-int_test_async_new!(res; Response<Vec<String>>; ConnKind::RootAsync; database_list_async, list() => {
+int_test_async_new!(res; Response<Vec<String>>; crate::pool::ROOT_ASYNC_POOL; database_list_async, list() => {
     assert!(res.result().len() > 0);
     assert!(res.result().contains(&"ruarango".to_string()));
 });
 
-int_test_sync_new!(res; ConnKind::Root; database_list, list() => {
+int_test_sync_new!(res; crate::pool::ROOT_POOL; database_list, list() => {
     assert!(res.result().len() > 0);
     assert!(res.result().contains(&"ruarango".to_string()));
 });
@@ -75,7 +74,7 @@ fn create_config(kind: CreateKind) -> Result<Create> {
     }
 }
 
-int_test_sync_new!(res; conn; 201; ConnKind::Root; database_create_drop, create(&create_config(CreateKind::Sync)?) => {
+int_test_sync_new!(res; conn; 201; crate::pool::ROOT_POOL; database_create_drop, create(&create_config(CreateKind::Sync)?) => {
     assert!(res.result());
 
     let either = conn.drop(&*DB_NAME).await?;
@@ -85,7 +84,7 @@ int_test_sync_new!(res; conn; 201; ConnKind::Root; database_create_drop, create(
     assert!(res.result());
 });
 
-int_test_async_new!(res; conn; Response<bool>; ConnKind::RootAsync; database_create_drop_async, create(&create_config(CreateKind::Async)?) => {
+int_test_async_new!(res; conn; Response<bool>; crate::pool::ROOT_ASYNC_POOL; database_create_drop_async, create(&create_config(CreateKind::Async)?) => {
     assert!(res.result());
 
     let res = conn.drop(&*DB_NAME_ASYNC).await?;
