@@ -10,96 +10,11 @@
 
 use anyhow::{anyhow, Result};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use ruarango::{ArangoEither, AsyncKind, Connection, ConnectionBuilder, Job};
+use ruarango::{ArangoEither, Connection, Job};
 use serde::{de::DeserializeOwned, Serialize};
 use std::iter;
 
-macro_rules! int_test_sync {
-    () => {};
-    ($res:ident; $conn:ident; $code:literal; $name:ident, $conn_ty:ident, $api:ident($($args:expr),*) => $asserts: block) => {
-        #[tokio::test]
-        async fn $name() -> Result<()> {
-            let $conn = $conn_ty().await?;
-            let res = $conn.$api($($args),*).await?;
-            let $res = super::common::process_sync_result(res)?;
-            $asserts
-
-            Ok(())
-        }
-    };
-    ($res:ident; $conn:ident; $code:literal; $($tail:tt)*) => {
-        int_test_sync!($res; $conn; $code; $($tail)*);
-    };
-    ($res:ident; $conn:ident; $($tail:tt)*) => {
-        int_test_sync!($res; $conn; 200; $($tail)*);
-    };
-    ($res:ident; $($tail:tt)*) => {
-        int_test_sync!($res; conn; 200; $($tail)*);
-    };
-}
-
-macro_rules! int_test_async {
-    () => {};
-    ($res:ident; $conn:ident; $kind:ty; $name:ident, $conn_ty:ident, $api:ident($($args:expr),*) => $asserts: block) => {
-        #[tokio::test]
-        async fn $name() -> Result<()> {
-            let $conn = $conn_ty().await?;
-            let res = $conn.$api($($args),*).await?;
-            let $res: $kind = super::common::process_async_result(res, &$conn).await?;
-            $asserts
-
-            Ok(())
-        }
-    };
-    ($res:ident; $conn:ident; $kind:ty; $($tail:tt)*) => {
-        int_test_async!($res; $conn; $kind; $($tail)*);
-    };
-    ($res:ident; $kind:ty; $($tail:tt)*) => {
-        int_test_async!($res; conn; $kind; $($tail)*);
-    };
-}
-
-pub(crate) async fn conn_ruarango() -> Result<Connection> {
-    ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("ruarango")
-        .password(env!("ARANGODB_RUARANGO_PASSWORD"))
-        .database("ruarango")
-        .build()
-        .await
-}
-
-pub(crate) async fn conn_ruarango_async() -> Result<Connection> {
-    ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("ruarango")
-        .password(env!("ARANGODB_RUARANGO_PASSWORD"))
-        .database("ruarango")
-        .async_kind(AsyncKind::Store)
-        .build()
-        .await
-}
-
-pub(crate) async fn conn_root_system() -> Result<Connection> {
-    ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("root")
-        .password(env!("ARANGODB_ROOT_PASSWORD"))
-        .build()
-        .await
-}
-
-pub(crate) async fn conn_root_system_async() -> Result<Connection> {
-    ConnectionBuilder::default()
-        .url(env!("ARANGODB_URL"))
-        .username("root")
-        .password(env!("ARANGODB_ROOT_PASSWORD"))
-        .async_kind(AsyncKind::Store)
-        .build()
-        .await
-}
-
-pub(crate) fn rand_name() -> String {
+pub fn rand_name() -> String {
     // Setup a random name so CI testing won't cause collisions
     let mut rng = thread_rng();
     let mut name = String::from("ruarango-");
@@ -112,7 +27,7 @@ pub(crate) fn rand_name() -> String {
     name
 }
 
-pub(crate) fn process_sync_result<T>(res: ArangoEither<T>) -> Result<T>
+pub fn process_sync_result<T>(res: ArangoEither<T>) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
@@ -120,7 +35,7 @@ where
     Ok(res.right_safe()?)
 }
 
-pub(crate) async fn process_async_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
+pub async fn process_async_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
@@ -143,10 +58,7 @@ where
     Ok(conn.fetch(id).await?)
 }
 
-pub(crate) async fn process_async_doc_result<T>(
-    res: ArangoEither<T>,
-    conn: &Connection,
-) -> Result<T>
+pub async fn process_async_doc_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
