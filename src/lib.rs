@@ -342,7 +342,7 @@
 #![cfg_attr(nightly_lints, deny(rustdoc::bare_urls))]
 
 #[cfg(test)]
-use {lazy_static as _, rand as _, tokio_test as _};
+use {lazy_static as _, r2d2 as _, rand as _, tokio_test as _};
 
 #[macro_use]
 mod impls;

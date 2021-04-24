@@ -9,25 +9,10 @@
 //! Common functionality for Integration Tests
 
 use anyhow::{anyhow, Result};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ruarango::{ArangoEither, Connection, Job};
 use serde::{de::DeserializeOwned, Serialize};
-use std::iter;
 
-pub fn rand_name() -> String {
-    // Setup a random name so CI testing won't cause collisions
-    let mut rng = thread_rng();
-    let mut name = String::from("ruarango-");
-    let name_ext: String = iter::repeat(())
-        .map(|()| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(10)
-        .collect();
-    name.push_str(&name_ext);
-    name
-}
-
-pub fn process_sync_result<T>(res: ArangoEither<T>) -> Result<T>
+pub(crate) fn process_sync_result<T>(res: ArangoEither<T>) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
@@ -35,7 +20,7 @@ where
     Ok(res.right_safe()?)
 }
 
-pub async fn process_async_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
+pub(crate) async fn process_async_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {
@@ -58,7 +43,10 @@ where
     Ok(conn.fetch(id).await?)
 }
 
-pub async fn process_async_doc_result<T>(res: ArangoEither<T>, conn: &Connection) -> Result<T>
+pub(crate) async fn process_async_doc_result<T>(
+    res: ArangoEither<T>,
+    conn: &Connection,
+) -> Result<T>
 where
     T: DeserializeOwned + Serialize + Send + Sync,
 {

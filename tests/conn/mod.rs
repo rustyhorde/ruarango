@@ -10,28 +10,28 @@ pub enum ConnKind {
 }
 
 impl ConnKind {
-    fn username(&self) -> &'static str {
+    pub(crate) fn username(&self) -> &'static str {
         match self {
             Self::Ruarango | Self::RuarangoAsync => "ruarango",
             Self::Root | Self::RootAsync => "root",
         }
     }
 
-    fn password(&self) -> &'static str {
+    pub(crate) fn password(&self) -> &'static str {
         match self {
             Self::Ruarango | Self::RuarangoAsync => env!("ARANGODB_RUARANGO_PASSWORD"),
             Self::Root | Self::RootAsync => env!("ARANGODB_ROOT_PASSWORD"),
         }
     }
 
-    fn database(&self) -> Option<&'static str> {
+    pub(crate) fn database(&self) -> Option<&'static str> {
         match self {
             Self::Ruarango | Self::RuarangoAsync => Some("ruarango"),
             Self::Root | Self::RootAsync => None,
         }
     }
 
-    fn is_async(&self) -> bool {
+    pub(crate) fn is_async(&self) -> bool {
         *self == Self::RuarangoAsync || *self == Self::RootAsync
     }
 }

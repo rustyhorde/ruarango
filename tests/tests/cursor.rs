@@ -1,11 +1,8 @@
-mod conn;
-mod model;
-
-pub use conn::ConnKind::Root as _;
-
+use crate::{
+    model::{unwrap_doc, OutputDoc, TestDoc},
+    pool::RUARANGO_POOL,
+};
 use anyhow::Result;
-use conn::{conn, ConnKind};
-use model::{unwrap_doc, OutputDoc, TestDoc};
 use ruarango::{
     cursor::{
         input::{
@@ -24,12 +21,12 @@ use ruarango::{
 
 #[tokio::test]
 async fn cursor_create() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let config = CreateConfigBuilder::default()
         .query("FOR d IN test_coll RETURN d")
         .count(true)
         .build()?;
-    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await?;
+    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await?;
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.result().is_some());
@@ -56,7 +53,7 @@ async fn cursor_create() -> Result<()> {
 
 #[tokio::test]
 async fn cursor_create_profile() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let options = OptionsBuilder::default()
         .profile(ProfileKind::ProfileOnly)
         .build()?;
@@ -65,7 +62,7 @@ async fn cursor_create_profile() -> Result<()> {
         .count(true)
         .options(options)
         .build()?;
-    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await?;
+    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await?;
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.result().is_some());
@@ -103,9 +100,9 @@ async fn cursor_create_profile() -> Result<()> {
 
 #[tokio::test]
 async fn cursor_create_400() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let config = CreateConfigBuilder::default().query("YODA").build()?;
-    let res: ArangoResult<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await;
+    let res: ArangoResult<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await;
     match res {
         Ok(_) => panic!("This call should fail!"),
         Err(e) => {
@@ -132,11 +129,11 @@ async fn cursor_create_400() -> Result<()> {
 
 #[tokio::test]
 async fn cursor_create_404() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let config = CreateConfigBuilder::default()
         .query("REMOVE 'yoda' IN test_coll")
         .build()?;
-    let res: ArangoResult<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await;
+    let res: ArangoResult<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await;
     match res {
         Ok(_) => panic!("This call should fail!"),
         Err(e) => {
@@ -163,7 +160,7 @@ async fn cursor_create_404() -> Result<()> {
 
 #[tokio::test]
 async fn cursor_delete() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
 
     // Create some documents
@@ -191,7 +188,7 @@ async fn cursor_delete() -> Result<()> {
         .batch_size(2)
         .count(true)
         .build()?;
-    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await?;
+    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await?;
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.has_more());
@@ -200,7 +197,7 @@ async fn cursor_delete() -> Result<()> {
 
     // Delete the cursor
     let config = DeleteConfigBuilder::default().id(id).build()?;
-    let res: ArangoEither<()> = Cursor::delete(&conn, config).await?;
+    let res: ArangoEither<()> = Cursor::delete(conn, config).await?;
     assert!(res.is_right());
 
     // Delete the documents
@@ -228,7 +225,7 @@ async fn cursor_delete() -> Result<()> {
 
 #[tokio::test]
 async fn cursor_next() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
 
     // Create some documents
@@ -256,7 +253,7 @@ async fn cursor_next() -> Result<()> {
         .batch_size(2)
         .count(true)
         .build()?;
-    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(&conn, config).await?;
+    let res: ArangoEither<CursorMeta<OutputDoc>> = Cursor::create(conn, config).await?;
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.has_more());

@@ -1,17 +1,9 @@
-mod common;
-mod conn;
-mod model;
-
-pub use common::process_async_result as _;
-pub use common::process_sync_result as _;
-pub use common::rand_name as _;
-pub use conn::ConnKind::Root as _;
-
+use crate::{
+    common::process_async_doc_result,
+    model::{unwrap_doc, OutputDoc, SearchDoc, TestDoc},
+    pool::{RUARANGO_ASYNC_POOL, RUARANGO_POOL},
+};
 use anyhow::Result;
-use common::process_async_doc_result;
-use conn::{conn, ConnKind};
-use getset::Getters;
-use model::{unwrap_doc, OutputDoc, TestDoc};
 use ruarango::{
     doc::{
         input::{
@@ -21,21 +13,14 @@ use ruarango::{
         },
         output::DocMeta,
     },
-    ArangoEither, ArangoResult, ArangoVec, Document,
+    ArangoEither, ArangoResult, ArangoVec, Connection, Document,
     Error::{self, DocumentNotFound, PreconditionFailed},
 };
-use serde_derive::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
-struct SearchDoc {
-    #[serde(rename = "_key")]
-    key: String,
-}
 
 #[ignore = "This seems to give back a 304 Not Modified rather than the result"]
 #[tokio::test]
 async fn doc_read_async() -> Result<()> {
-    let conn = conn(ConnKind::RuarangoAsync).await?;
+    let conn = &*RUARANGO_ASYNC_POOL.get()?;
     let config = ReadConfigBuilder::default()
         .collection("test_coll")
         .key("51210")
@@ -49,7 +34,7 @@ async fn doc_read_async() -> Result<()> {
 
 #[tokio::test]
 async fn doc_read() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let config = ReadConfigBuilder::default()
         .collection("test_coll")
         .key("51210")
@@ -63,14 +48,10 @@ async fn doc_read() -> Result<()> {
 
 #[tokio::test]
 async fn doc_reads() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let mut search_docs = vec![];
-    search_docs.push(SearchDoc {
-        key: "51210".to_string(),
-    });
-    search_docs.push(SearchDoc {
-        key: "abcd".to_string(),
-    });
+    search_docs.push(SearchDoc::new("51210"));
+    search_docs.push(SearchDoc::new("abcd"));
     let config = ReadsConfigBuilder::default()
         .collection("test_coll")
         .documents(search_docs)
@@ -115,7 +96,7 @@ fn if_none_match_config(kind: IfNoneMatchKind) -> Result<ReadConfig> {
 #[ignore = "upstream call is flaky for some reason"]
 #[tokio::test]
 async fn doc_read_if_none_match_matches_async() -> Result<()> {
-    let conn = conn(ConnKind::RuarangoAsync).await?;
+    let conn = &*RUARANGO_ASYNC_POOL.get()?;
     let res: ArangoEither<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::Match)?)
         .await?;
@@ -126,7 +107,7 @@ async fn doc_read_if_none_match_matches_async() -> Result<()> {
 
 #[tokio::test]
 async fn doc_read_if_none_match_matches() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let res: ArangoResult<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::Match)?)
         .await;
@@ -137,7 +118,7 @@ async fn doc_read_if_none_match_matches() -> Result<()> {
 #[ignore = "upstream call is flaky for some reason"]
 #[tokio::test]
 async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
-    let conn = conn(ConnKind::RuarangoAsync).await?;
+    let conn = &*RUARANGO_ASYNC_POOL.get()?;
     let res: ArangoEither<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
         .await?;
@@ -148,7 +129,7 @@ async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
 
 #[tokio::test]
 async fn doc_read_if_none_match_doesnt_match() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let either: ArangoEither<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
         .await?;
@@ -180,7 +161,7 @@ fn if_match_config(kind: IfMatchKind) -> Result<ReadConfig> {
 
 #[tokio::test]
 async fn doc_read_if_match_matches() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let either: ArangoEither<OutputDoc> = conn.read(if_match_config(IfMatchKind::Match)?).await?;
     assert!(either.is_right());
     let doc = either.right_safe()?;
@@ -190,7 +171,7 @@ async fn doc_read_if_match_matches() -> Result<()> {
 
 #[tokio::test]
 async fn doc_read_if_match_doesnt_match() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let res: ArangoResult<OutputDoc> = conn.read(if_match_config(IfMatchKind::NoneMatch)?).await;
     match res {
         Ok(_) => panic!("This should be an error!"),
@@ -214,7 +195,7 @@ async fn doc_read_if_match_doesnt_match() -> Result<()> {
 
 #[tokio::test]
 async fn doc_read_not_found() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+    let conn = &*RUARANGO_POOL.get()?;
     let res: ArangoResult<OutputDoc> = conn
         .read(
             ReadConfigBuilder::default()
@@ -233,10 +214,7 @@ async fn doc_read_not_found() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn create_delete_basic() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
-
+pub async fn create_doc(conn: &Connection) -> Result<String> {
     // Create a document
     let create_config = CreateConfigBuilder::default()
         .collection("test_coll")
@@ -245,9 +223,30 @@ async fn create_delete_basic() -> Result<()> {
     let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
     assert!(create_res.is_right());
     let doc_meta = create_res.right_safe()?;
-    let key = doc_meta.key();
+    Ok(doc_meta.key().clone())
+}
 
-    // Delete that document
+pub async fn create_docs(conn: &Connection, count: usize) -> Result<Vec<String>> {
+    let docs: Vec<TestDoc> = (0..count).map(|_| TestDoc::default()).collect();
+    let create_config = CreatesConfigBuilder::default()
+        .collection("test_coll")
+        .document(docs)
+        .build()?;
+    let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> = conn.creates(create_config).await?;
+    assert!(create_res.is_right());
+    let doc_meta_vec = create_res.right_safe()?;
+    assert_eq!(doc_meta_vec.len(), count);
+
+    let mut keys = vec![];
+    for doc_meta_either in doc_meta_vec {
+        assert!(doc_meta_either.is_right());
+        let doc_meta = doc_meta_either.right_safe()?;
+        keys.push(doc_meta.key().clone());
+    }
+    Ok(keys)
+}
+
+pub async fn delete_doc(conn: &Connection, key: &str, val: &str) -> Result<()> {
     let delete_config = DeleteConfigBuilder::default()
         .collection("test_coll")
         .key(key)
@@ -258,34 +257,12 @@ async fn create_delete_basic() -> Result<()> {
     let doc_meta = delete_res.right_safe()?;
     let doc_opt = doc_meta.old_doc();
     assert!(doc_opt.is_some());
-    assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
-
+    assert_eq!(unwrap_doc(doc_opt)?.test(), val);
     Ok(())
 }
 
-#[tokio::test]
-async fn creates_deletes_basic() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
-    let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
-
-    // Create some documents
-    let create_config = CreatesConfigBuilder::default()
-        .collection("test_coll")
-        .document(docs.clone())
-        .build()?;
-    let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> = conn.creates(create_config).await?;
-    assert!(create_res.is_right());
-    let doc_meta_vec = create_res.right_safe()?;
-    assert_eq!(doc_meta_vec.len(), docs.len());
-
-    let mut keys = vec![];
-    for doc_meta_either in doc_meta_vec {
-        assert!(doc_meta_either.is_right());
-        let doc_meta = doc_meta_either.right_safe()?;
-        keys.push(doc_meta.key().clone());
-    }
-
-    // Delete the documents
+pub async fn delete_docs(conn: &Connection, keys: Vec<String>, val: &str) -> Result<()> {
+    let len = keys.len();
     let delete_config = DeletesConfigBuilder::default()
         .collection("test_coll")
         .documents(keys)
@@ -295,32 +272,38 @@ async fn creates_deletes_basic() -> Result<()> {
         conn.deletes(delete_config).await?;
     assert!(delete_res.is_right());
     let doc_meta_vec = delete_res.right_safe()?;
-    assert_eq!(doc_meta_vec.len(), docs.len());
+    assert_eq!(doc_meta_vec.len(), len);
 
     for doc_meta_either in doc_meta_vec {
         assert!(doc_meta_either.is_right());
         let doc_meta = doc_meta_either.right_safe()?;
         let doc_opt = doc_meta.old_doc();
         assert!(doc_opt.is_some());
-        assert_eq!(unwrap_doc(doc_opt)?.test(), "test");
+        assert_eq!(unwrap_doc(doc_opt)?.test(), val);
     }
-
     Ok(())
 }
 
 #[tokio::test]
-async fn create_overwrite_replace_delete() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+async fn doc_create_delete_basic() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let key = create_doc(&conn).await?;
+    delete_doc(&conn, &key, "test").await
+}
+
+#[tokio::test]
+async fn doc_creates_deletes_basic() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let keys = create_docs(&conn, 3).await?;
+    delete_docs(&conn, keys, "test").await
+}
+
+#[tokio::test]
+async fn doc_create_overwrite_replace_delete() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let create_config = CreateConfigBuilder::default()
-        .collection("test_coll")
-        .document(TestDoc::default())
-        .build()?;
-    let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
-    assert!(create_res.is_right());
-    let doc_meta = create_res.right_safe()?;
-    let key = doc_meta.key();
+    let key = create_doc(&conn).await?;
 
     // Overwrite with replace
     let mut new_doc = TestDoc::default();
@@ -337,34 +320,15 @@ async fn create_overwrite_replace_delete() -> Result<()> {
     let key = doc_meta.key();
 
     // Delete that document
-    let delete_config = DeleteConfigBuilder::default()
-        .collection("test_coll")
-        .key(key)
-        .return_old(true)
-        .build()?;
-    let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
-    assert!(delete_res.is_right());
-    let doc_meta = delete_res.right_safe()?;
-    let doc_opt = doc_meta.old_doc();
-    assert!(doc_opt.is_some());
-    assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
-
-    Ok(())
+    delete_doc(&conn, &key, "testing").await
 }
 
 #[tokio::test]
-async fn create_replace_delete() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+async fn doc_create_replace_delete() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let create_config = CreateConfigBuilder::default()
-        .collection("test_coll")
-        .document(TestDoc::default())
-        .build()?;
-    let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
-    assert!(create_res.is_right());
-    let doc_meta = create_res.right_safe()?;
-    let key = doc_meta.key();
+    let key = create_doc(&conn).await?;
 
     // Replace
     let mut new_doc = TestDoc::default();
@@ -384,34 +348,15 @@ async fn create_replace_delete() -> Result<()> {
     assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
 
     // Delete that document
-    let delete_config = DeleteConfigBuilder::default()
-        .collection("test_coll")
-        .key(key)
-        .return_old(true)
-        .build()?;
-    let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
-    assert!(delete_res.is_right());
-    let doc_meta = delete_res.right_safe()?;
-    let doc_opt = doc_meta.old_doc();
-    assert!(doc_opt.is_some());
-    assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
-
-    Ok(())
+    delete_doc(&conn, &key, "testing").await
 }
 
 #[tokio::test]
-async fn create_update_delete() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
+async fn doc_create_update_delete() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let create_config = CreateConfigBuilder::default()
-        .collection("test_coll")
-        .document(TestDoc::default())
-        .build()?;
-    let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
-    assert!(create_res.is_right());
-    let doc_meta = create_res.right_safe()?;
-    let key = doc_meta.key();
+    let key = create_doc(&conn).await?;
 
     // Update
     let mut new_doc = TestDoc::default();
@@ -435,50 +380,21 @@ async fn create_update_delete() -> Result<()> {
     assert_eq!(unwrap_doc(old_doc_opt)?.test(), "test");
 
     // Delete that document
-    let delete_config = DeleteConfigBuilder::default()
-        .collection("test_coll")
-        .key(key)
-        .return_old(true)
-        .build()?;
-    let delete_res: ArangoEither<DocMeta<(), TestDoc>> = conn.delete(delete_config).await?;
-    assert!(delete_res.is_right());
-    let doc_meta = delete_res.right_safe()?;
-    let doc_opt = doc_meta.old_doc();
-    assert!(doc_opt.is_some());
-    assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
-
-    Ok(())
+    delete_doc(&conn, &key, "testing").await
 }
 
 #[tokio::test]
-async fn creates_updates_deletes_basic() -> Result<()> {
-    let conn = conn(ConnKind::Ruarango).await?;
-    let docs = vec![TestDoc::default(), TestDoc::default(), TestDoc::default()];
+async fn doc_creates_updates_deletes_basic() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
 
     // Create some documents
-    let create_config = CreatesConfigBuilder::default()
-        .collection("test_coll")
-        .document(docs.clone())
-        .build()?;
-    let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> = conn.creates(create_config).await?;
-    assert!(create_res.is_right());
-    let doc_meta_vec = create_res.right_safe()?;
-    assert_eq!(doc_meta_vec.len(), docs.len());
-
-    let mut keys = vec![];
-    for doc_meta_either in doc_meta_vec {
-        assert!(doc_meta_either.is_right());
-        let doc_meta = doc_meta_either.right_safe()?;
-        keys.push(doc_meta.key().clone());
-    }
-    assert_eq!(keys.len(), docs.len());
+    let keys = create_docs(&conn, 3).await?;
 
     // Update the documents
-    let update_docs: Vec<TestDoc> = docs
+    let update_docs: Vec<TestDoc> = keys
         .iter()
-        .zip(keys.clone())
-        .map(|(doc, key)| {
-            let mut new_doc = doc.clone();
+        .map(|key| {
+            let mut new_doc = TestDoc::default();
             *new_doc.key_mut() = Some(key.clone());
             *new_doc.test_mut() = "blah".to_string();
             new_doc
@@ -509,24 +425,5 @@ async fn creates_updates_deletes_basic() -> Result<()> {
     }
 
     // Delete the documents
-    let delete_config = DeletesConfigBuilder::default()
-        .collection("test_coll")
-        .documents(keys)
-        .return_old(true)
-        .build()?;
-    let delete_res: ArangoEither<ArangoVec<DocMeta<(), TestDoc>>> =
-        conn.deletes(delete_config).await?;
-    assert!(delete_res.is_right());
-    let doc_meta_vec = delete_res.right_safe()?;
-    assert_eq!(doc_meta_vec.len(), docs.len());
-
-    for doc_meta_either in doc_meta_vec {
-        assert!(doc_meta_either.is_right());
-        let doc_meta = doc_meta_either.right_safe()?;
-        let doc_opt = doc_meta.old_doc();
-        assert!(doc_opt.is_some());
-        assert_eq!(unwrap_doc(doc_opt)?.test(), "blah");
-    }
-
-    Ok(())
+    delete_docs(&conn, keys, "blah").await
 }

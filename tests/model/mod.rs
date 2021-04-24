@@ -34,3 +34,18 @@ impl Default for TestDoc {
 pub(crate) fn unwrap_doc<'a>(doc_opt: &'a Option<TestDoc>) -> Result<&TestDoc> {
     Ok(doc_opt.as_ref().ok_or_else(|| anyhow!("bad"))?)
 }
+
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+pub(crate) struct SearchDoc {
+    #[serde(rename = "_key")]
+    key: String,
+}
+
+impl SearchDoc {
+    pub(crate) fn new<S>(key: S) -> Self
+    where
+        S: Into<String>,
+    {
+        SearchDoc { key: key.into() }
+    }
+}

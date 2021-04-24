@@ -1,15 +1,9 @@
-#[macro_use]
-mod macros;
-
-mod common;
-mod conn;
-
-// Here to get rid of unused warnings
-pub use common::process_async_doc_result as _;
-
+use crate::{
+    common::{process_async_result, process_sync_result},
+    conn::ConnKind,
+    rand_util::rand_name,
+};
 use anyhow::Result;
-use common::{process_async_result, process_sync_result, rand_name};
-use conn::ConnKind;
 use lazy_static::lazy_static;
 use ruarango::{
     common::output::Response,
