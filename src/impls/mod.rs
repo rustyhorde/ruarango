@@ -12,6 +12,7 @@ mod coll;
 mod cursor;
 mod db;
 mod doc;
+mod graph;
 mod job;
 
 pub(crate) const EMPTY_BODY: Option<String> = None;

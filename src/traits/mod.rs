@@ -15,12 +15,14 @@ mod coll;
 mod cursor;
 mod db;
 mod doc;
+mod graph;
 mod job;
 
 pub use coll::Collection;
 pub use cursor::Cursor;
 pub use db::Database;
 pub use doc::Document;
+pub use graph::Graph;
 pub use job::Job;
 
 /// Job Information from an asynchronous invocation

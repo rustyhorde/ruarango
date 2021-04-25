@@ -21,6 +21,7 @@ pub mod common;
 pub mod cursor;
 pub mod db;
 pub mod doc;
+pub mod graph;
 
 pub(crate) trait BuildUrl {
     fn build_url(&self, base: &str, conn: &Connection) -> Result<Url>;
