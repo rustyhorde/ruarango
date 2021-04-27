@@ -7,3 +7,16 @@
 // modified, or distributed except according to those terms.
 
 //! Graph Input Structs
+
+mod create;
+mod delete;
+
+pub use create::{
+    Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
+    ConfigBuilderError as CreateConfigBuilderError, GraphMeta, GraphMetaBuilder,
+    GraphMetaBuilderError,
+};
+pub use delete::{
+    Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
+    ConfigBuilderError as DeleteConfigBuilderError,
+};

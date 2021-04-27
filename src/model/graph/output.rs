@@ -8,6 +8,7 @@
 
 //! Graph Output Structs
 
+use super::EdgeDefinition;
 use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 
@@ -21,6 +22,18 @@ pub struct List {
     code: u16,
     /// An array of graph data
     graphs: Vec<Graph>,
+}
+
+/// Output for [`create`](crate::Graph::create)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct Create {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// An array of graph data
+    graph: Graph,
 }
 
 /// Graph data
@@ -45,20 +58,4 @@ pub struct Graph {
     /// An array of definitions for the relations of the graph.
     #[serde(rename = "edgeDefinitions")]
     edge_definitions: Vec<EdgeDefinition>,
-}
-
-/// Edge Definition Data
-#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
-#[getset(get = "pub")]
-pub struct EdgeDefinition {
-    /// Name of the edge collection, where the edge are stored in.
-    collection: String,
-    /// List of vertex collection names.
-    /// Edges in collection can only be inserted if their `_to` is in
-    /// any of the collections here.
-    to: Vec<String>,
-    /// List of vertex collection names.
-    /// Edges in collection can only be inserted if their `_to` is in
-    /// any of the collections here.
-    from: Vec<String>,
 }

@@ -8,7 +8,13 @@
 
 //! `ruarango` graph trait
 
-use crate::{graph::output::List, ArangoResult};
+use crate::{
+    graph::{
+        input::{CreateConfig, DeleteConfig},
+        output::{Create, List},
+    },
+    ArangoResult,
+};
 use async_trait::async_trait;
 
 /// Database Operations
@@ -16,4 +22,8 @@ use async_trait::async_trait;
 pub trait Graph {
     /// List all graphs
     async fn list(&self) -> ArangoResult<List>;
+    /// Create a graph
+    async fn create(&self, config: CreateConfig) -> ArangoResult<Create>;
+    /// Delete a graph
+    async fn delete(&self, config: DeleteConfig) -> ArangoResult<()>;
 }

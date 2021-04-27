@@ -10,9 +10,14 @@
 
 use crate::{
     cursor::BASE_CURSOR_SUFFIX,
-    graph::{output::List, BASE_GRAPH_SUFFIX},
+    graph::{
+        input::{CreateConfig, DeleteConfig},
+        output::{Create, List},
+        BASE_GRAPH_SUFFIX,
+    },
+    model::BuildUrl,
     traits::Graph,
-    utils::handle_response,
+    utils::{empty, handle_response},
     ArangoResult, Connection,
 };
 use anyhow::Context;
@@ -28,5 +33,15 @@ impl Graph for Connection {
             .join(BASE_GRAPH_SUFFIX)
             .with_context(|| format!("Unable to build '{}' url", BASE_CURSOR_SUFFIX))?;
         self.get(url, None, EMPTY_BODY, handle_response).await
+    }
+
+    async fn create(&self, config: CreateConfig) -> ArangoResult<Create> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.post(url, None, config.graph(), handle_response).await
+    }
+
+    async fn delete(&self, config: DeleteConfig) -> ArangoResult<()> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.delete(url, None, EMPTY_BODY, empty).await
     }
 }

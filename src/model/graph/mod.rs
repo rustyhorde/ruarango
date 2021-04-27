@@ -12,3 +12,24 @@ pub mod input;
 pub mod output;
 
 pub(crate) const BASE_GRAPH_SUFFIX: &str = "_api/gharial";
+
+use derive_builder::Builder;
+use getset::Getters;
+use serde_derive::{Deserialize, Serialize};
+
+/// Edge Definition Data
+#[derive(Builder, Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct EdgeDefinition {
+    /// Name of the edge collection, where the edge are stored in.
+    #[builder(setter(into))]
+    collection: String,
+    /// List of vertex collection names.
+    /// Edges in collection can only be inserted if their `_to` is in
+    /// any of the collections here.
+    to: Vec<String>,
+    /// List of vertex collection names.
+    /// Edges in collection can only be inserted if their `_to` is in
+    /// any of the collections here.
+    from: Vec<String>,
+}

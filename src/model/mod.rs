@@ -37,6 +37,8 @@ pub(crate) trait AddHeaders {
 pub(crate) const TEST_COLL: &str = "test_coll";
 #[cfg(test)]
 pub(crate) const TEST_KEY: &str = "test_key";
+pub(crate) const DROP_COLLECTIONS_QP: &str = "dropCollections=true";
+pub(crate) const DROP_COLLECTIONS_FALSE_QP: &str = "dropCollections=false";
 pub(crate) const IGNORE_REVS_QP: &str = "ignoreRevs=true";
 pub(crate) const IGNORE_REVS_FALSE_QP: &str = "ignoreRevs=false";
 pub(crate) const KEEP_NULL_QP: &str = "keepNull=true";
@@ -58,6 +60,7 @@ pub(crate) const WAIT_FOR_SYNC_FALSE_QP: &str = "waitForSync=false";
 
 #[allow(variant_size_differences)]
 pub(crate) enum QueryParam {
+    DropCollections(bool),
     IgnoreRevs(bool),
     KeepNull(bool),
     MergeObjects(bool),
@@ -73,6 +76,12 @@ pub(crate) enum QueryParam {
 impl From<QueryParam> for String {
     fn from(qp: QueryParam) -> String {
         match qp {
+            QueryParam::DropCollections(v) => if v {
+                DROP_COLLECTIONS_QP
+            } else {
+                DROP_COLLECTIONS_FALSE_QP
+            }
+            .to_string(),
             QueryParam::IgnoreRevs(v) => if v {
                 IGNORE_REVS_QP
             } else {

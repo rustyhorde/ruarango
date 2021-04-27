@@ -1,6 +1,13 @@
-use crate::pool::RUARANGO_POOL;
+use crate::{pool::RUARANGO_POOL, rand_util::rand_name};
 use anyhow::Result;
-use ruarango::{graph::output::List, ArangoEither, Graph};
+use ruarango::{
+    graph::{
+        input::{CreateConfigBuilder, GraphMetaBuilder},
+        output::{Create, List},
+        EdgeDefinition, EdgeDefinitionBuilder,
+    },
+    ArangoEither, Graph,
+};
 
 #[tokio::test]
 async fn graph_list_all() -> Result<()> {
@@ -27,5 +34,31 @@ async fn graph_list_all() -> Result<()> {
             assert_eq!(ed.from().len(), 1);
         }
     }
+    Ok(())
+}
+
+fn ve(vec: Vec<&str>) -> Vec<String> {
+    vec.into_iter().map(str::to_string).collect()
+}
+
+fn edge_definition() -> Result<Vec<EdgeDefinition>> {
+    let ed = EdgeDefinitionBuilder::default()
+        .collection("test_edge")
+        .from(ve(vec!["test_coll"]))
+        .to(ve(vec!["test_coll"]))
+        .build()?;
+    Ok(vec![ed])
+}
+
+#[tokio::test]
+async fn graph_create_delete() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let graph_meta = GraphMetaBuilder::default()
+        .name(rand_name())
+        .edge_definitions(edge_definition()?)
+        .build()?;
+    let config = CreateConfigBuilder::default().graph(graph_meta).build()?;
+    let res: ArangoEither<Create> = conn.create(config).await?;
+    assert!(res.is_right());
     Ok(())
 }
