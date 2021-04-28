@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph Read Input Structs
+//! Graph List Edge Input Structs
 
 use crate::{model::BuildUrl, Connection};
 use anyhow::{Context, Result};
@@ -15,18 +15,18 @@ use getset::Getters;
 use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
 
-/// Graph read configuration
+/// Graph list edge configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct Config {
-    /// The name of the graph to read
+    /// The name of the graph to list edges from
     #[builder(setter(into))]
     name: String,
 }
 
 impl Config {
     fn build_suffix(&self, base: &str) -> String {
-        format!("{}/{}", base, self.name)
+        format!("{}/{}/edge", base, self.name)
     }
 }
 

@@ -11,8 +11,8 @@
 use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
-        input::{CreateConfig, DeleteConfig, ReadConfig},
-        output::{GraphMeta, List},
+        input::{CreateConfig, DeleteConfig, ListEdgesConfig, ReadConfig},
+        output::{EdgeMeta, GraphMeta, List},
         BASE_GRAPH_SUFFIX,
     },
     model::BuildUrl,
@@ -47,5 +47,10 @@ impl Graph for Connection {
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.delete(url, None, EMPTY_BODY, empty).await
+    }
+
+    async fn list_edges(&self, config: ListEdgesConfig) -> ArangoResult<EdgeMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.get(url, None, EMPTY_BODY, handle_response).await
     }
 }

@@ -59,3 +59,16 @@ pub struct Graph {
     #[serde(rename = "edgeDefinitions")]
     edge_definitions: Vec<EdgeDefinition>,
 }
+
+/// Output for [`list_edges`](crate::Graph::list_edges)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct EdgeMeta {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The list of all vertex collections within this graph.
+    /// Includes collections in edge definitions as well as orphans.
+    collections: Vec<String>,
+}

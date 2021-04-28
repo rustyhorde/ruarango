@@ -2,8 +2,11 @@ use crate::{pool::RUARANGO_POOL, rand_util::rand_name};
 use anyhow::Result;
 use ruarango::{
     graph::{
-        input::{CreateConfigBuilder, DeleteConfigBuilder, GraphMetaBuilder, ReadConfigBuilder},
-        output::{GraphMeta, List},
+        input::{
+            CreateConfigBuilder, DeleteConfigBuilder, GraphMetaBuilder, ListEdgesConfigBuilder,
+            ReadConfigBuilder,
+        },
+        output::{EdgeMeta, GraphMeta, List},
         EdgeDefinition, EdgeDefinitionBuilder,
     },
     ArangoEither, Graph,
@@ -95,6 +98,22 @@ async fn graph_read() -> Result<()> {
     assert_eq!(ed.collection(), "test_edge");
     assert_eq!(ed.to().len(), 1);
     assert_eq!(ed.from().len(), 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn graph_list_edges() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let config = ListEdgesConfigBuilder::default()
+        .name("test_graph")
+        .build()?;
+    let res: ArangoEither<EdgeMeta> = conn.list_edges(config).await?;
+    assert!(res.is_right());
+    let graph_meta = res.right_safe()?;
+    assert!(!graph_meta.error());
+    assert_eq!(*graph_meta.code(), 200);
+    assert!(graph_meta.collections().len() >= 1);
 
     Ok(())
 }
