@@ -10,8 +10,8 @@
 
 use crate::{
     graph::{
-        input::{CreateConfig, DeleteConfig},
-        output::{Create, List},
+        input::{CreateConfig, DeleteConfig, ReadConfig},
+        output::{GraphMeta, List},
     },
     ArangoResult,
 };
@@ -23,7 +23,9 @@ pub trait Graph {
     /// List all graphs
     async fn list(&self) -> ArangoResult<List>;
     /// Create a graph
-    async fn create(&self, config: CreateConfig) -> ArangoResult<Create>;
+    async fn create(&self, config: CreateConfig) -> ArangoResult<GraphMeta>;
+    /// Read a graph
+    async fn read(&self, config: ReadConfig) -> ArangoResult<GraphMeta>;
     /// Delete a graph
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()>;
 }

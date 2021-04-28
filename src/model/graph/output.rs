@@ -24,10 +24,10 @@ pub struct List {
     graphs: Vec<Graph>,
 }
 
-/// Output for [`create`](crate::Graph::create)
+/// Output for [`create`](crate::Graph::create), [`read`](crate::Graph::read)
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
-pub struct Create {
+pub struct GraphMeta {
     /// A flag to indicate that an error occurred
     error: bool,
     /// The HTTP repsponse code

@@ -10,6 +10,7 @@
 
 mod create;
 mod delete;
+mod read;
 
 pub use create::{
     Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
@@ -19,4 +20,8 @@ pub use create::{
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
     ConfigBuilderError as DeleteConfigBuilderError,
+};
+pub use read::{
+    Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,
+    ConfigBuilderError as ReadConfigBuilderError,
 };

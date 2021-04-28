@@ -11,8 +11,8 @@
 use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
-        input::{CreateConfig, DeleteConfig},
-        output::{Create, List},
+        input::{CreateConfig, DeleteConfig, ReadConfig},
+        output::{GraphMeta, List},
         BASE_GRAPH_SUFFIX,
     },
     model::BuildUrl,
@@ -35,11 +35,15 @@ impl Graph for Connection {
         self.get(url, None, EMPTY_BODY, handle_response).await
     }
 
-    async fn create(&self, config: CreateConfig) -> ArangoResult<Create> {
+    async fn create(&self, config: CreateConfig) -> ArangoResult<GraphMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.post(url, None, config.graph(), handle_response).await
     }
 
+    async fn read(&self, config: ReadConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.get(url, None, EMPTY_BODY, handle_response).await
+    }
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.delete(url, None, EMPTY_BODY, empty).await
