@@ -63,7 +63,7 @@ pub struct Graph {
 /// Output for [`list_edges`](crate::Graph::list_edges)
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
-pub struct EdgeMeta {
+pub struct EdgesMeta {
     /// A flag to indicate that an error occurred
     error: bool,
     /// The HTTP repsponse code
@@ -71,4 +71,40 @@ pub struct EdgeMeta {
     /// The list of all vertex collections within this graph.
     /// Includes collections in edge definitions as well as orphans.
     collections: Vec<String>,
+}
+
+/// Output for [`create_edge`](crate::Graph::list_edges)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct CreateEdge {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The edge meta
+    edge: EdgeMeta,
+    /// The new edge meta
+    #[serde(skip_serializing_if = "Option::is_none")]
+    new: Option<EdgeMeta>,
+}
+
+/// Edge meta data
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct EdgeMeta {
+    /// Contains the graph identifier
+    #[serde(rename = "_id")]
+    id: String,
+    /// Contains the graph key
+    #[serde(rename = "_key")]
+    key: String,
+    /// Contains the graph revision
+    #[serde(rename = "_rev")]
+    rev: String,
+    /// Contains the graph revision
+    #[serde(rename = "_from", skip_serializing_if = "Option::is_none")]
+    from: Option<String>,
+    /// Contains the graph revision
+    #[serde(rename = "_to", skip_serializing_if = "Option::is_none")]
+    to: Option<String>,
 }

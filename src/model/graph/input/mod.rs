@@ -10,6 +10,7 @@
 
 mod create;
 mod delete;
+mod edge;
 mod list_edges;
 mod read;
 
@@ -21,6 +22,10 @@ pub use create::{
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
     ConfigBuilderError as DeleteConfigBuilderError,
+};
+pub use edge::create::{
+    Config as EdgeCreateConfig, ConfigBuilder as EdgeCreateConfigBuilder,
+    ConfigBuilderError as EdgeCreateConfigBuilderError, FromTo, FromToBuilder, FromToBuilderError,
 };
 pub use list_edges::{
     Config as ListEdgesConfig, ConfigBuilder as ListEdgesConfigBuilder,

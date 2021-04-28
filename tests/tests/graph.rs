@@ -3,10 +3,10 @@ use anyhow::Result;
 use ruarango::{
     graph::{
         input::{
-            CreateConfigBuilder, DeleteConfigBuilder, GraphMetaBuilder, ListEdgesConfigBuilder,
-            ReadConfigBuilder,
+            CreateConfigBuilder, DeleteConfigBuilder, EdgeCreateConfigBuilder, FromToBuilder,
+            GraphMetaBuilder, ListEdgesConfigBuilder, ReadConfigBuilder,
         },
-        output::{EdgeMeta, GraphMeta, List},
+        output::{CreateEdge, EdgesMeta, GraphMeta, List},
         EdgeDefinition, EdgeDefinitionBuilder,
     },
     ArangoEither, Graph,
@@ -108,12 +108,45 @@ async fn graph_list_edges() -> Result<()> {
     let config = ListEdgesConfigBuilder::default()
         .name("test_graph")
         .build()?;
-    let res: ArangoEither<EdgeMeta> = conn.list_edges(config).await?;
+    let res: ArangoEither<EdgesMeta> = conn.list_edges(config).await?;
     assert!(res.is_right());
     let graph_meta = res.right_safe()?;
     assert!(!graph_meta.error());
     assert_eq!(*graph_meta.code(), 200);
     assert!(graph_meta.collections().len() >= 1);
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn graph_create_edge() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let from_to = FromToBuilder::default()
+        .from("test_coll/1637032")
+        .to("test_coll/1637052")
+        .build()?;
+    let config = EdgeCreateConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .mapping(from_to)
+        .return_new(true)
+        .build()?;
+    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    assert!(res.is_right());
+    let create_edge = res.right_safe()?;
+    assert!(!create_edge.error());
+    assert_eq!(*create_edge.code(), 202);
+    let edge = create_edge.edge();
+    assert!(!edge.id().is_empty());
+    assert!(!edge.key().is_empty());
+    assert!(!edge.rev().is_empty());
+    assert!(edge.from().is_none());
+    assert!(edge.to().is_none());
+    let new = create_edge.new().as_ref().unwrap();
+    assert!(!new.id().is_empty());
+    assert!(!new.key().is_empty());
+    assert!(!new.rev().is_empty());
+    assert!(new.from().is_some());
+    assert!(new.to().is_some());
     Ok(())
 }
