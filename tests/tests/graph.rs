@@ -2,7 +2,7 @@ use crate::{pool::RUARANGO_POOL, rand_util::rand_name};
 use anyhow::Result;
 use ruarango::{
     graph::{
-        input::{CreateConfigBuilder, GraphMetaBuilder},
+        input::{CreateConfigBuilder, DeleteConfigBuilder, GraphMetaBuilder},
         output::{Create, List},
         EdgeDefinition, EdgeDefinitionBuilder,
     },
@@ -59,6 +59,17 @@ async fn graph_create_delete() -> Result<()> {
         .build()?;
     let config = CreateConfigBuilder::default().graph(graph_meta).build()?;
     let res: ArangoEither<Create> = conn.create(config).await?;
+    assert!(res.is_right());
+    let create = res.right_safe()?;
+    assert!(!create.error());
+    let graph_meta = create.graph();
+    let name = graph_meta.name();
+
+    let delete_config = DeleteConfigBuilder::default()
+        .name(name)
+        .drop_collections(true)
+        .build()?;
+    let res: ArangoEither<()> = conn.delete(delete_config).await?;
     assert!(res.is_right());
     Ok(())
 }

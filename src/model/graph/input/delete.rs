@@ -19,9 +19,12 @@ use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
 
 /// Graph delete configuration
-#[derive(Builder, Clone, Copy, Debug, Default, Deserialize, Getters, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct Config {
+    /// The name of the graph to delete
+    #[builder(setter(into))]
+    name: String,
     /// Drop collections of this graph as well. Collections will only be
     /// dropped if they are not used in other graphs.
     #[builder(setter(strip_option), default)]
@@ -30,8 +33,8 @@ pub struct Config {
 }
 
 impl Config {
-    fn build_suffix(self, base: &str) -> String {
-        let mut url = base.to_string();
+    fn build_suffix(&self, base: &str) -> String {
+        let mut url = format!("{}/{}", base, self.name);
         let mut has_qp = false;
 
         add_qp(
