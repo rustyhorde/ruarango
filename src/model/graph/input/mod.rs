@@ -27,6 +27,10 @@ pub use edge::create::{
     Config as EdgeCreateConfig, ConfigBuilder as EdgeCreateConfigBuilder,
     ConfigBuilderError as EdgeCreateConfigBuilderError, FromTo, FromToBuilder, FromToBuilderError,
 };
+pub use edge::delete::{
+    Config as EdgeDeleteConfig, ConfigBuilder as EdgeDeleteConfigBuilder,
+    ConfigBuilderError as EdgeDeleteConfigBuilderError,
+};
 pub use list_edges::{
     Config as ListEdgesConfig, ConfigBuilder as ListEdgesConfigBuilder,
     ConfigBuilderError as ListEdgesConfigBuilderError,

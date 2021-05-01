@@ -73,7 +73,7 @@ pub struct EdgesMeta {
     collections: Vec<String>,
 }
 
-/// Output for [`create_edge`](crate::Graph::list_edges)
+/// Output for [`create_edge`](crate::Graph::create_edge)
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct CreateEdge {
@@ -107,4 +107,19 @@ pub struct EdgeMeta {
     /// Contains the graph revision
     #[serde(rename = "_to", skip_serializing_if = "Option::is_none")]
     to: Option<String>,
+}
+
+/// Output for [`delete_edge`](crate::Graph::delete_edge)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct DeleteEdge {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// If set to true, the delete was successful
+    removed: bool,
+    /// The old edge meta
+    #[serde(skip_serializing_if = "Option::is_none")]
+    old: Option<EdgeMeta>,
 }

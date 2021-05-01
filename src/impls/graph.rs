@@ -11,11 +11,14 @@
 use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
-        input::{CreateConfig, DeleteConfig, EdgeCreateConfig, ListEdgesConfig, ReadConfig},
-        output::{CreateEdge, EdgesMeta, GraphMeta, List},
+        input::{
+            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, ListEdgesConfig,
+            ReadConfig,
+        },
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List},
         BASE_GRAPH_SUFFIX,
     },
-    model::BuildUrl,
+    model::{AddHeaders, BuildUrl},
     traits::Graph,
     utils::{empty, handle_response},
     ArangoResult, Connection,
@@ -58,5 +61,11 @@ impl Graph for Connection {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.post(url, None, config.mapping(), handle_response)
             .await
+    }
+
+    async fn delete_edge(&self, config: EdgeDeleteConfig) -> ArangoResult<DeleteEdge> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.delete(url, headers, EMPTY_BODY, handle_response).await
     }
 }

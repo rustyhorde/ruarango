@@ -3,10 +3,11 @@ use anyhow::Result;
 use ruarango::{
     graph::{
         input::{
-            CreateConfigBuilder, DeleteConfigBuilder, EdgeCreateConfigBuilder, FromToBuilder,
-            GraphMetaBuilder, ListEdgesConfigBuilder, ReadConfigBuilder,
+            CreateConfigBuilder, DeleteConfigBuilder, EdgeCreateConfigBuilder,
+            EdgeDeleteConfigBuilder, FromToBuilder, GraphMetaBuilder, ListEdgesConfigBuilder,
+            ReadConfigBuilder,
         },
-        output::{CreateEdge, EdgesMeta, GraphMeta, List},
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List},
         EdgeDefinition, EdgeDefinitionBuilder,
     },
     ArangoEither, Graph,
@@ -119,7 +120,7 @@ async fn graph_list_edges() -> Result<()> {
 }
 
 #[tokio::test]
-async fn graph_create_edge() -> Result<()> {
+async fn graph_create_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
     let from_to = FromToBuilder::default()
         .from("test_coll/1637032")
@@ -142,11 +143,25 @@ async fn graph_create_edge() -> Result<()> {
     assert!(!edge.rev().is_empty());
     assert!(edge.from().is_none());
     assert!(edge.to().is_none());
+    let key = edge.key();
     let new = create_edge.new().as_ref().unwrap();
     assert!(!new.id().is_empty());
     assert!(!new.key().is_empty());
     assert!(!new.rev().is_empty());
     assert!(new.from().is_some());
     assert!(new.to().is_some());
+
+    let delete_config = EdgeDeleteConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .key(key)
+        .build()?;
+    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    assert!(res.is_right());
+    let delete_edge = res.right_safe()?;
+    assert!(!delete_edge.error());
+    assert_eq!(*delete_edge.code(), 202);
+    assert!(delete_edge.removed());
+    assert!(delete_edge.old().is_none());
     Ok(())
 }

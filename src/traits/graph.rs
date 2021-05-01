@@ -10,8 +10,11 @@
 
 use crate::{
     graph::{
-        input::{CreateConfig, DeleteConfig, EdgeCreateConfig, ListEdgesConfig, ReadConfig},
-        output::{CreateEdge, EdgesMeta, GraphMeta, List},
+        input::{
+            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, ListEdgesConfig,
+            ReadConfig,
+        },
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List},
     },
     ArangoResult,
 };
@@ -32,4 +35,6 @@ pub trait Graph {
     async fn list_edges(&self, config: ListEdgesConfig) -> ArangoResult<EdgesMeta>;
     /// Create an edge for a graph
     async fn create_edge(&self, config: EdgeCreateConfig) -> ArangoResult<CreateEdge>;
+    /// Delete an edge from a graph
+    async fn delete_edge(&self, config: EdgeDeleteConfig) -> ArangoResult<DeleteEdge>;
 }
