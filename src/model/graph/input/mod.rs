@@ -31,6 +31,10 @@ pub use edge::delete::{
     Config as EdgeDeleteConfig, ConfigBuilder as EdgeDeleteConfigBuilder,
     ConfigBuilderError as EdgeDeleteConfigBuilderError,
 };
+pub use edge::read::{
+    Config as EdgeReadConfig, ConfigBuilder as EdgeReadConfigBuilder,
+    ConfigBuilderError as EdgeReadConfigBuilderError,
+};
 pub use list_edges::{
     Config as ListEdgesConfig, ConfigBuilder as ListEdgesConfigBuilder,
     ConfigBuilderError as ListEdgesConfigBuilderError,

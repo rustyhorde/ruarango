@@ -6,7 +6,7 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph Create Input Structs
+//! Edge Create Input Structs
 
 use crate::{
     model::{

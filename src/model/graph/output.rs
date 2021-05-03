@@ -123,3 +123,15 @@ pub struct DeleteEdge {
     #[serde(skip_serializing_if = "Option::is_none")]
     old: Option<EdgeMeta>,
 }
+
+/// Output for [`read_edge`](crate::Graph::read_edge)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct ReadEdge {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The edge meta
+    edge: EdgeMeta,
+}

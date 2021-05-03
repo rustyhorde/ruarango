@@ -12,10 +12,10 @@ use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
         input::{
-            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, ListEdgesConfig,
-            ReadConfig,
+            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
+            ListEdgesConfig, ReadConfig,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List},
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge},
         BASE_GRAPH_SUFFIX,
     },
     model::{AddHeaders, BuildUrl},
@@ -67,5 +67,11 @@ impl Graph for Connection {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.delete(url, headers, EMPTY_BODY, handle_response).await
+    }
+
+    async fn read_edge(&self, config: EdgeReadConfig) -> ArangoResult<ReadEdge> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.get(url, headers, EMPTY_BODY, handle_response).await
     }
 }
