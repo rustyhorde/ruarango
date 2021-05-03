@@ -8,14 +8,15 @@
 
 //! Graph trait implementation
 
+use super::EMPTY_BODY;
 use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
         input::{
             CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            ListEdgesConfig, ReadConfig,
+            EdgeUpdateConfig, ListEdgesConfig, ReadConfig,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge},
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
         BASE_GRAPH_SUFFIX,
     },
     model::{AddHeaders, BuildUrl},
@@ -25,8 +26,7 @@ use crate::{
 };
 use anyhow::Context;
 use async_trait::async_trait;
-
-use super::EMPTY_BODY;
+use serde::Serialize;
 
 #[async_trait]
 impl Graph for Connection {
@@ -73,5 +73,15 @@ impl Graph for Connection {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.get(url, headers, EMPTY_BODY, handle_response).await
+    }
+
+    async fn update_edge<T>(&self, config: EdgeUpdateConfig<T>) -> ArangoResult<UpdateEdge>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.patch(url, headers, config.edge(), handle_response)
+            .await
     }
 }

@@ -4,14 +4,15 @@ use ruarango::{
     graph::{
         input::{
             CreateConfigBuilder, DeleteConfigBuilder, EdgeCreateConfigBuilder,
-            EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, FromToBuilder, GraphMetaBuilder,
-            ListEdgesConfigBuilder, ReadConfigBuilder,
+            EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeUpdateConfigBuilder, FromToBuilder,
+            GraphMetaBuilder, ListEdgesConfigBuilder, ReadConfigBuilder,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge},
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
         EdgeDefinition, EdgeDefinitionBuilder,
     },
     ArangoEither, Graph,
 };
+use serde_derive::Serialize;
 
 #[tokio::test]
 async fn graph_list_all() -> Result<()> {
@@ -196,6 +197,57 @@ async fn graph_create_get_delete_edge() -> Result<()> {
     assert!(res.is_right());
     let read_edge = res.right_safe()?;
     assert!(!read_edge.error());
+
+    let delete_config = EdgeDeleteConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .key(key)
+        .build()?;
+    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    assert!(res.is_right());
+    let delete_edge = res.right_safe()?;
+    assert!(!delete_edge.error());
+    assert_eq!(*delete_edge.code(), 202);
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+struct EdgeStuff {
+    name: &'static str,
+}
+
+#[tokio::test]
+async fn graph_create_update_delete_edge() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let from_to = FromToBuilder::default()
+        .from("test_coll/1637032")
+        .to("test_coll/1637052")
+        .build()?;
+    let config = EdgeCreateConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .mapping(from_to)
+        .return_new(true)
+        .build()?;
+    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    assert!(res.is_right());
+    let create_edge = res.right_safe()?;
+    assert!(!create_edge.error());
+    assert_eq!(*create_edge.code(), 202);
+    let edge = create_edge.edge();
+    let key = edge.key();
+
+    let update_config = EdgeUpdateConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .key(key)
+        .edge(EdgeStuff { name: "yoda" })
+        .build()?;
+    let res: ArangoEither<UpdateEdge> = conn.update_edge(update_config).await?;
+    assert!(res.is_right());
+    let update_edge = res.right_safe()?;
+    assert!(!update_edge.error());
+    assert_eq!(*update_edge.code(), 202);
 
     let delete_config = EdgeDeleteConfigBuilder::default()
         .graph("test_graph")

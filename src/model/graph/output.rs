@@ -135,3 +135,19 @@ pub struct ReadEdge {
     /// The edge meta
     edge: EdgeMeta,
 }
+
+/// Output for [`update_edge`](crate::Graph::update_edge)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct UpdateEdge {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The edge meta
+    edge: EdgeMeta,
+    /// The old edge meta
+    old: Option<EdgeMeta>,
+    /// The new edge meta
+    new: Option<EdgeMeta>,
+}

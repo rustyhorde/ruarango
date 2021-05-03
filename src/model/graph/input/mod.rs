@@ -35,6 +35,10 @@ pub use edge::read::{
     Config as EdgeReadConfig, ConfigBuilder as EdgeReadConfigBuilder,
     ConfigBuilderError as EdgeReadConfigBuilderError,
 };
+pub use edge::update::{
+    Config as EdgeUpdateConfig, ConfigBuilder as EdgeUpdateConfigBuilder,
+    ConfigBuilderError as EdgeUpdateConfigBuilderError,
+};
 pub use list_edges::{
     Config as ListEdgesConfig, ConfigBuilder as ListEdgesConfigBuilder,
     ConfigBuilderError as ListEdgesConfigBuilderError,

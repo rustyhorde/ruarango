@@ -12,13 +12,14 @@ use crate::{
     graph::{
         input::{
             CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            ListEdgesConfig, ReadConfig,
+            EdgeUpdateConfig, ListEdgesConfig, ReadConfig,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge},
+        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
     },
     ArangoResult,
 };
 use async_trait::async_trait;
+use serde::Serialize;
 
 /// Database Operations
 #[async_trait]
@@ -39,4 +40,8 @@ pub trait Graph {
     async fn delete_edge(&self, config: EdgeDeleteConfig) -> ArangoResult<DeleteEdge>;
     /// Read an edge from a graph
     async fn read_edge(&self, config: EdgeReadConfig) -> ArangoResult<ReadEdge>;
+    /// Update an edge from a graph
+    async fn update_edge<T>(&self, config: EdgeUpdateConfig<T>) -> ArangoResult<UpdateEdge>
+    where
+        T: Serialize + Send + Sync;
 }
