@@ -11,7 +11,7 @@
 mod create;
 mod delete;
 mod edge;
-mod list_edges;
+mod edge_def;
 mod read;
 
 pub use create::{
@@ -35,13 +35,25 @@ pub use edge::read::{
     Config as EdgeReadConfig, ConfigBuilder as EdgeReadConfigBuilder,
     ConfigBuilderError as EdgeReadConfigBuilderError,
 };
+pub use edge::replace::{
+    Config as EdgeReplaceConfig, ConfigBuilder as EdgeReplaceConfigBuilder,
+    ConfigBuilderError as EdgeReplaceConfigBuilderError,
+};
 pub use edge::update::{
     Config as EdgeUpdateConfig, ConfigBuilder as EdgeUpdateConfigBuilder,
     ConfigBuilderError as EdgeUpdateConfigBuilderError,
 };
-pub use list_edges::{
-    Config as ListEdgesConfig, ConfigBuilder as ListEdgesConfigBuilder,
-    ConfigBuilderError as ListEdgesConfigBuilderError,
+pub use edge_def::create::{
+    Config as CreateEdgeDefConfig, ConfigBuilder as CreateEdgeDefConfigBuilder,
+    ConfigBuilderError as CreateEdgeDefConfigBuilderError,
+};
+pub use edge_def::delete::{
+    Config as DeleteEdgeDefConfig, ConfigBuilder as DeleteEdgeDefConfigBuilder,
+    ConfigBuilderError as DeleteEdgeDefConfigBuilderError,
+};
+pub use edge_def::read::{
+    Config as ReadEdgeDefsConfig, ConfigBuilder as ReadEdgeDefsConfigBuilder,
+    ConfigBuilderError as ReadEdgeDefsConfigBuilderError,
 };
 pub use read::{
     Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,

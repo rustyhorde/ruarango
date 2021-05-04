@@ -6,10 +6,8 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph Edge Input Structs
+//! Graph Edge Definition Input Structs
 
 pub(crate) mod create;
 pub(crate) mod delete;
 pub(crate) mod read;
-pub(crate) mod replace;
-pub(crate) mod update;

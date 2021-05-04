@@ -6,27 +6,32 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph List Edge Input Structs
+//! Graph Create Edge Defs Input Structs
 
-use crate::{model::BuildUrl, Connection};
+use crate::{
+    model::{graph::EdgeDefinition, BuildUrl},
+    Connection,
+};
 use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
 use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
 
-/// Graph list edge configuration
+/// Graph create edge defs configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct Config {
-    /// The name of the graph to list edges from
+    /// The graph to create the edge definitions in
     #[builder(setter(into))]
-    name: String,
+    graph: String,
+    /// The edge definition
+    edge_def: EdgeDefinition,
 }
 
 impl Config {
     fn build_suffix(&self, base: &str) -> String {
-        format!("{}/{}/edge", base, self.name)
+        format!("{}/{}/edge", base, self.graph)
     }
 }
 

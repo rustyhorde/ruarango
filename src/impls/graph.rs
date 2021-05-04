@@ -13,10 +13,13 @@ use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
         input::{
-            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            EdgeUpdateConfig, ListEdgesConfig, ReadConfig,
+            CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
+            EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
+            ReadEdgeDefsConfig,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
+        output::{
+            CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
+        },
         BASE_GRAPH_SUFFIX,
     },
     model::{AddHeaders, BuildUrl},
@@ -52,7 +55,18 @@ impl Graph for Connection {
         self.delete(url, None, EMPTY_BODY, empty).await
     }
 
-    async fn list_edges(&self, config: ListEdgesConfig) -> ArangoResult<EdgesMeta> {
+    async fn create_edge_def(&self, config: CreateEdgeDefConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.post(url, None, config.edge_def(), handle_response)
+            .await
+    }
+
+    async fn delete_edge_def(&self, config: DeleteEdgeDefConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.delete(url, None, EMPTY_BODY, handle_response).await
+    }
+
+    async fn read_edge_defs(&self, config: ReadEdgeDefsConfig) -> ArangoResult<EdgesMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.get(url, None, EMPTY_BODY, handle_response).await
     }
@@ -83,5 +97,14 @@ impl Graph for Connection {
         let headers = config.add_headers()?;
         self.patch(url, headers, config.edge(), handle_response)
             .await
+    }
+
+    async fn replace_edge<T>(&self, config: EdgeReplaceConfig<T>) -> ArangoResult<ReplaceEdge>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.put(url, headers, config.edge(), handle_response).await
     }
 }

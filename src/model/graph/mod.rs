@@ -18,7 +18,7 @@ use getset::Getters;
 use serde_derive::{Deserialize, Serialize};
 
 /// Edge Definition Data
-#[derive(Builder, Clone, Debug, Deserialize, Getters, Serialize)]
+#[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct EdgeDefinition {
     /// Name of the edge collection, where the edge are stored in.
@@ -27,6 +27,7 @@ pub struct EdgeDefinition {
     /// List of vertex collection names.
     /// Edges in collection can only be inserted if their `_to` is in
     /// any of the collections here.
+    #[builder(setter(into))]
     to: Vec<String>,
     /// List of vertex collection names.
     /// Edges in collection can only be inserted if their `_to` is in

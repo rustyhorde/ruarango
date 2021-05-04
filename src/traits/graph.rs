@@ -11,10 +11,13 @@
 use crate::{
     graph::{
         input::{
-            CreateConfig, DeleteConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            EdgeUpdateConfig, ListEdgesConfig, ReadConfig,
+            CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
+            EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
+            ReadEdgeDefsConfig,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
+        output::{
+            CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
+        },
     },
     ArangoResult,
 };
@@ -32,8 +35,12 @@ pub trait Graph {
     async fn read(&self, config: ReadConfig) -> ArangoResult<GraphMeta>;
     /// Delete a graph
     async fn delete(&self, config: DeleteConfig) -> ArangoResult<()>;
-    /// List the edge definitions for the given graph
-    async fn list_edges(&self, config: ListEdgesConfig) -> ArangoResult<EdgesMeta>;
+    /// Create an edge definition
+    async fn create_edge_def(&self, config: CreateEdgeDefConfig) -> ArangoResult<GraphMeta>;
+    /// Read the edge definitions for the given graph
+    async fn read_edge_defs(&self, config: ReadEdgeDefsConfig) -> ArangoResult<EdgesMeta>;
+    /// Delete an edge definition
+    async fn delete_edge_def(&self, config: DeleteEdgeDefConfig) -> ArangoResult<GraphMeta>;
     /// Create an edge for a graph
     async fn create_edge(&self, config: EdgeCreateConfig) -> ArangoResult<CreateEdge>;
     /// Delete an edge from a graph
@@ -42,6 +49,10 @@ pub trait Graph {
     async fn read_edge(&self, config: EdgeReadConfig) -> ArangoResult<ReadEdge>;
     /// Update an edge from a graph
     async fn update_edge<T>(&self, config: EdgeUpdateConfig<T>) -> ArangoResult<UpdateEdge>
+    where
+        T: Serialize + Send + Sync;
+    /// Replace an edge from a graph
+    async fn replace_edge<T>(&self, config: EdgeReplaceConfig<T>) -> ArangoResult<ReplaceEdge>
     where
         T: Serialize + Send + Sync;
 }

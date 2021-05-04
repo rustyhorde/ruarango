@@ -25,7 +25,7 @@ use reqwest::{
 };
 use serde_derive::{Deserialize, Serialize};
 
-/// Graph create configuration
+/// Graph edge replace configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct Config<T> {
@@ -55,11 +55,11 @@ pub struct Config<T> {
     /// version of the edge.
     #[builder(setter(strip_option), default)]
     return_new: Option<bool>,
-    /// The edge will only be updated if the edge has a revision
+    /// The edge will only be replaced if the edge has a revision
     /// matching the revision given here
     #[builder(setter(strip_option, into), default)]
     if_match: Option<String>,
-    /// The edge update document
+    /// The edge replace document
     edge: T,
 }
 

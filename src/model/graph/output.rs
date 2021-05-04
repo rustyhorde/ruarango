@@ -60,7 +60,7 @@ pub struct Graph {
     edge_definitions: Vec<EdgeDefinition>,
 }
 
-/// Output for [`list_edges`](crate::Graph::list_edges)
+/// Output for [`read_edge_defs`](crate::Graph::read_edge_defs)
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct EdgesMeta {
@@ -140,6 +140,22 @@ pub struct ReadEdge {
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct UpdateEdge {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The edge meta
+    edge: EdgeMeta,
+    /// The old edge meta
+    old: Option<EdgeMeta>,
+    /// The new edge meta
+    new: Option<EdgeMeta>,
+}
+
+/// Output for [`replace_edge`](crate::Graph::replace_edge)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct ReplaceEdge {
     /// A flag to indicate that an error occurred
     error: bool,
     /// The HTTP repsponse code

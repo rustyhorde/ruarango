@@ -3,11 +3,14 @@ use anyhow::Result;
 use ruarango::{
     graph::{
         input::{
-            CreateConfigBuilder, DeleteConfigBuilder, EdgeCreateConfigBuilder,
-            EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeUpdateConfigBuilder, FromToBuilder,
-            GraphMetaBuilder, ListEdgesConfigBuilder, ReadConfigBuilder,
+            CreateConfigBuilder, CreateEdgeDefConfigBuilder, DeleteConfigBuilder,
+            DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder, EdgeDeleteConfigBuilder,
+            EdgeReadConfigBuilder, EdgeReplaceConfigBuilder, EdgeUpdateConfigBuilder,
+            FromToBuilder, GraphMetaBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
         },
-        output::{CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, UpdateEdge},
+        output::{
+            CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
+        },
         EdgeDefinition, EdgeDefinitionBuilder,
     },
     ArangoEither, Graph,
@@ -29,12 +32,10 @@ async fn graph_list_all() -> Result<()> {
         assert!(!graph.key().is_empty());
         assert!(!graph.rev().is_empty());
         assert!(!graph.name().is_empty());
-        assert_eq!(graph.orphan_collections().len(), 0);
 
         if graph.name() == "test_graph" {
-            assert_eq!(graph.edge_definitions().len(), 1);
+            assert!(graph.edge_definitions().len() >= 1);
             let ed = graph.edge_definitions().get(0).unwrap();
-            assert_eq!(ed.collection(), "test_edge");
             assert_eq!(ed.to().len(), 1);
             assert_eq!(ed.from().len(), 1);
         }
@@ -94,28 +95,10 @@ async fn graph_read() -> Result<()> {
     assert!(!graph.key().is_empty());
     assert!(!graph.rev().is_empty());
     assert_eq!(graph.name(), "test_graph");
-    assert_eq!(graph.orphan_collections().len(), 0);
-    assert_eq!(graph.edge_definitions().len(), 1);
+    assert!(graph.edge_definitions().len() >= 1);
     let ed = graph.edge_definitions().get(0).unwrap();
-    assert_eq!(ed.collection(), "test_edge");
     assert_eq!(ed.to().len(), 1);
     assert_eq!(ed.from().len(), 1);
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn graph_list_edges() -> Result<()> {
-    let conn = &*RUARANGO_POOL.get()?;
-    let config = ListEdgesConfigBuilder::default()
-        .name("test_graph")
-        .build()?;
-    let res: ArangoEither<EdgesMeta> = conn.list_edges(config).await?;
-    assert!(res.is_right());
-    let graph_meta = res.right_safe()?;
-    assert!(!graph_meta.error());
-    assert_eq!(*graph_meta.code(), 200);
-    assert!(graph_meta.collections().len() >= 1);
 
     Ok(())
 }
@@ -259,5 +242,104 @@ async fn graph_create_update_delete_edge() -> Result<()> {
     let delete_edge = res.right_safe()?;
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
+    Ok(())
+}
+
+#[tokio::test]
+async fn graph_create_replace_delete_edge() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let from_to = FromToBuilder::default()
+        .from("test_coll/1637032")
+        .to("test_coll/1637052")
+        .build()?;
+    let config = EdgeCreateConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .mapping(from_to)
+        .return_new(true)
+        .build()?;
+    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    assert!(res.is_right());
+    let create_edge = res.right_safe()?;
+    assert!(!create_edge.error());
+    assert_eq!(*create_edge.code(), 202);
+    let edge = create_edge.edge();
+    let key = edge.key();
+
+    let from_to_new = FromToBuilder::default()
+        .to("test_coll/1637032")
+        .from("test_coll/1637052")
+        .build()?;
+    let replace_config = EdgeReplaceConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .key(key)
+        .edge(from_to_new)
+        .build()?;
+    let res: ArangoEither<ReplaceEdge> = conn.replace_edge(replace_config).await?;
+    assert!(res.is_right());
+    let replace_edge = res.right_safe()?;
+    assert!(!replace_edge.error());
+    assert_eq!(*replace_edge.code(), 202);
+
+    let delete_config = EdgeDeleteConfigBuilder::default()
+        .graph("test_graph")
+        .collection("test_edge")
+        .key(key)
+        .build()?;
+    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    assert!(res.is_right());
+    let delete_edge = res.right_safe()?;
+    assert!(!delete_edge.error());
+    assert_eq!(*delete_edge.code(), 202);
+    Ok(())
+}
+
+#[tokio::test]
+async fn graph_create_delete_edge_def() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let edge_def = EdgeDefinitionBuilder::default()
+        .collection("test_city_state")
+        .from(vec!["test_city".to_string()])
+        .to(vec!["test_state".to_string()])
+        .build()?;
+    let config = CreateEdgeDefConfigBuilder::default()
+        .graph("test_graph")
+        .edge_def(edge_def)
+        .build()?;
+    let res: ArangoEither<GraphMeta> = conn.create_edge_def(config).await?;
+    assert!(res.is_right());
+    let create_edge_def = res.right_safe()?;
+    assert!(!create_edge_def.error());
+    assert_eq!(*create_edge_def.code(), 202);
+    let graph = create_edge_def.graph();
+    assert_eq!(graph.name(), "test_graph");
+
+    let delete_config = DeleteEdgeDefConfigBuilder::default()
+        .graph("test_graph")
+        .edge_def("test_city_state")
+        .build()?;
+    let res: ArangoEither<GraphMeta> = conn.delete_edge_def(delete_config).await?;
+    assert!(res.is_right());
+    let delete_edge_def = res.right_safe()?;
+    assert!(!delete_edge_def.error());
+    assert_eq!(*delete_edge_def.code(), 202);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn graph_read_edge_defs() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let config = ReadEdgeDefsConfigBuilder::default()
+        .name("test_graph")
+        .build()?;
+    let res: ArangoEither<EdgesMeta> = conn.read_edge_defs(config).await?;
+    assert!(res.is_right());
+    let graph_meta = res.right_safe()?;
+    assert!(!graph_meta.error());
+    assert_eq!(*graph_meta.code(), 200);
+    assert!(graph_meta.collections().len() >= 1);
+
     Ok(())
 }
