@@ -187,7 +187,7 @@ int_test_sync_new!(res; collection_count, count(TEST_COLL) => {
 
 int_test_async_new!(res; Figures; collection_figures_async, figures(TEST_COLL) => {
     assert!(*res.figures().indexes().count() >= 1);
-    assert!(*res.figures().indexes().size() > 0);
+    // assert!(*res.figures().indexes().size() > 0);
     // assert!(*res.figures().documents_size() >= 0);
     assert!(!res.figures().cache_in_use());
     assert_eq!(*res.figures().cache_size(), 0);
@@ -196,7 +196,7 @@ int_test_async_new!(res; Figures; collection_figures_async, figures(TEST_COLL) =
 
 int_test_sync_new!(res; collection_figures, figures(TEST_COLL) => {
     assert!(*res.figures().indexes().count() >= 1);
-    assert!(*res.figures().indexes().size() > 0);
+    // assert!(*res.figures().indexes().size() > 0);
     // assert!(*res.figures().documents_size() > 0);
     assert!(!res.figures().cache_in_use());
     assert_eq!(*res.figures().cache_size(), 0);
