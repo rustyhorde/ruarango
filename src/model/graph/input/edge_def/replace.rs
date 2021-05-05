@@ -6,9 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph Delete Edge Def Input Structs
+//! Graph Replace Edge Def Input Structs
 
 use crate::{
+    graph::EdgeDefinition,
     model::{
         add_qp, BuildUrl,
         QueryParam::{DropCollections, WaitForSync},
@@ -21,7 +22,7 @@ use getset::Getters;
 use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
 
-/// Graph delete edge def configuration
+/// Graph replace edge def configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
 pub struct Config {
@@ -30,7 +31,7 @@ pub struct Config {
     graph: String,
     /// The edge definition name
     #[builder(setter(into))]
-    edge_def: String,
+    edge_def: EdgeDefinition,
     /// Define if the request should wait until synced to disk.
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
@@ -42,7 +43,12 @@ pub struct Config {
 
 impl Config {
     fn build_suffix(&self, base: &str) -> String {
-        let mut url = format!("{}/{}/edge/{}", base, self.graph, self.edge_def);
+        let mut url = format!(
+            "{}/{}/edge/{}",
+            base,
+            self.graph,
+            self.edge_def.collection()
+        );
         let mut has_qp = false;
 
         add_qp(*self.wait_for_sync(), &mut url, &mut has_qp, WaitForSync);

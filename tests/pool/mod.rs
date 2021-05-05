@@ -11,7 +11,7 @@ lazy_static! {
         let manager = RuarangoPool {
             kind: ConnKind::Ruarango,
         };
-        Pool::builder().max_size(15).build(manager).unwrap()
+        Pool::builder().max_size(30).build(manager).unwrap()
     };
     pub(crate) static ref RUARANGO_ASYNC_POOL: Pool<RuarangoPool> = {
         let manager = RuarangoPool {

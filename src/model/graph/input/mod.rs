@@ -55,6 +55,10 @@ pub use edge_def::read::{
     Config as ReadEdgeDefsConfig, ConfigBuilder as ReadEdgeDefsConfigBuilder,
     ConfigBuilderError as ReadEdgeDefsConfigBuilderError,
 };
+pub use edge_def::replace::{
+    Config as ReplaceEdgeDefConfig, ConfigBuilder as ReplaceEdgeDefConfigBuilder,
+    ConfigBuilderError as ReplaceEdgeDefConfigBuilderError,
+};
 pub use read::{
     Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,
     ConfigBuilderError as ReadConfigBuilderError,

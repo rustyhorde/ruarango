@@ -17,18 +17,24 @@ use ruarango::{
     Error::{self, DocumentNotFound, PreconditionFailed},
 };
 
+const TEST_COLL: &str = "test_coll";
+const DOC_KEY: &str = "2916385";
+const ACTUAL_REV: &str = r#""_cRwlNbO---""#;
+const FAKE_REV: &str = r#""_cJG9Tz1---""#;
+const TEST_FIELD_VAL: &str = "tester";
+
 #[ignore = "This seems to give back a 304 Not Modified rather than the result"]
 #[tokio::test]
 async fn doc_read_async() -> Result<()> {
     let conn = &*RUARANGO_ASYNC_POOL.get()?;
     let config = ReadConfigBuilder::default()
-        .collection("test_coll")
-        .key("51210")
+        .collection(TEST_COLL)
+        .key(DOC_KEY)
         .build()?;
     let res: ArangoEither<OutputDoc> = conn.read(config).await?;
     assert!(res.is_left());
     let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
 
@@ -36,13 +42,13 @@ async fn doc_read_async() -> Result<()> {
 async fn doc_read() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
     let config = ReadConfigBuilder::default()
-        .collection("test_coll")
-        .key("51210")
+        .collection(TEST_COLL)
+        .key(DOC_KEY)
         .build()?;
     let res: ArangoEither<OutputDoc> = conn.read(config).await?;
     assert!(res.is_right());
     let doc = res.right_safe()?;
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
 
@@ -50,10 +56,10 @@ async fn doc_read() -> Result<()> {
 async fn doc_reads() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
     let mut search_docs = vec![];
-    search_docs.push(SearchDoc::new("51210"));
+    search_docs.push(SearchDoc::new(DOC_KEY));
     search_docs.push(SearchDoc::new("abcd"));
     let config = ReadsConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .documents(search_docs)
         .build()?;
     let res: ArangoEither<ArangoVec<OutputDoc>> = conn.reads(config).await?;
@@ -63,8 +69,8 @@ async fn doc_reads() -> Result<()> {
     let output_doc = docs.get(0).unwrap().clone();
     assert!(output_doc.is_right());
     let doc = output_doc.right_safe()?;
-    assert_eq!(doc.key(), "51210");
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.key(), DOC_KEY);
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     let err_doc = docs.get(1).unwrap().clone();
     assert!(err_doc.is_left());
     let err = err_doc.left_safe()?;
@@ -81,14 +87,14 @@ enum IfNoneMatchKind {
 fn if_none_match_config(kind: IfNoneMatchKind) -> Result<ReadConfig> {
     Ok(match kind {
         IfNoneMatchKind::Match => ReadConfigBuilder::default()
-            .collection("test_coll")
-            .key("51210")
-            .if_none_match(r#""_cM7mafK---""#)
+            .collection(TEST_COLL)
+            .key(DOC_KEY)
+            .if_none_match(ACTUAL_REV)
             .build()?,
         IfNoneMatchKind::NoneMatch => ReadConfigBuilder::default()
-            .collection("test_coll")
-            .key("51210")
-            .if_none_match(r#""_cJG9Tz1---""#)
+            .collection(TEST_COLL)
+            .key(DOC_KEY)
+            .if_none_match(FAKE_REV)
             .build()?,
     })
 }
@@ -123,7 +129,7 @@ async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
         .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
         .await?;
     let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
 
@@ -135,7 +141,7 @@ async fn doc_read_if_none_match_doesnt_match() -> Result<()> {
         .await?;
     assert!(either.is_right());
     let doc = either.right_safe()?;
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
 
@@ -147,14 +153,14 @@ enum IfMatchKind {
 fn if_match_config(kind: IfMatchKind) -> Result<ReadConfig> {
     Ok(match kind {
         IfMatchKind::Match => ReadConfigBuilder::default()
-            .collection("test_coll")
-            .key("51210")
-            .if_match(r#""_cM7mafK---""#)
+            .collection(TEST_COLL)
+            .key(DOC_KEY)
+            .if_match(ACTUAL_REV)
             .build()?,
         IfMatchKind::NoneMatch => ReadConfigBuilder::default()
-            .collection("test_coll")
-            .key("51210")
-            .if_match(r#""_cJG9Tz1---""#)
+            .collection(TEST_COLL)
+            .key(DOC_KEY)
+            .if_match(FAKE_REV)
             .build()?,
     })
 }
@@ -165,7 +171,7 @@ async fn doc_read_if_match_matches() -> Result<()> {
     let either: ArangoEither<OutputDoc> = conn.read(if_match_config(IfMatchKind::Match)?).await?;
     assert!(either.is_right());
     let doc = either.right_safe()?;
-    assert_eq!(doc.test(), "tester");
+    assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
 
@@ -199,7 +205,7 @@ async fn doc_read_not_found() -> Result<()> {
     let res: ArangoResult<OutputDoc> = conn
         .read(
             ReadConfigBuilder::default()
-                .collection("test_coll")
+                .collection(TEST_COLL)
                 .key("yoda")
                 .build()?,
         )
@@ -217,7 +223,7 @@ async fn doc_read_not_found() -> Result<()> {
 pub async fn create_doc(conn: &Connection) -> Result<String> {
     // Create a document
     let create_config = CreateConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .document(TestDoc::default())
         .build()?;
     let create_res: ArangoEither<DocMeta<(), ()>> = conn.create(create_config).await?;
@@ -229,7 +235,7 @@ pub async fn create_doc(conn: &Connection) -> Result<String> {
 pub async fn create_docs(conn: &Connection, count: usize) -> Result<Vec<String>> {
     let docs: Vec<TestDoc> = (0..count).map(|_| TestDoc::default()).collect();
     let create_config = CreatesConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .document(docs)
         .build()?;
     let create_res: ArangoEither<ArangoVec<DocMeta<(), ()>>> = conn.creates(create_config).await?;
@@ -248,7 +254,7 @@ pub async fn create_docs(conn: &Connection, count: usize) -> Result<Vec<String>>
 
 pub async fn delete_doc(conn: &Connection, key: &str, val: &str) -> Result<()> {
     let delete_config = DeleteConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .key(key)
         .return_old(true)
         .build()?;
@@ -264,7 +270,7 @@ pub async fn delete_doc(conn: &Connection, key: &str, val: &str) -> Result<()> {
 pub async fn delete_docs(conn: &Connection, keys: Vec<String>, val: &str) -> Result<()> {
     let len = keys.len();
     let delete_config = DeletesConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .documents(keys)
         .return_old(true)
         .build()?;
@@ -310,7 +316,7 @@ async fn doc_create_overwrite_replace_delete() -> Result<()> {
     *new_doc.key_mut() = Some(key.clone());
     *new_doc.test_mut() = "testing".to_string();
     let overwrite = CreateConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .document(new_doc)
         .overwrite(true)
         .build()?;
@@ -334,7 +340,7 @@ async fn doc_create_replace_delete() -> Result<()> {
     let mut new_doc = TestDoc::default();
     *new_doc.test_mut() = "testing".to_string();
     let replace = ReplaceConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .key(key)
         .document(new_doc)
         .return_new(true)
@@ -362,7 +368,7 @@ async fn doc_create_update_delete() -> Result<()> {
     let mut new_doc = TestDoc::default();
     *new_doc.test_mut() = "testing".to_string();
     let update = UpdateConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .key(key)
         .document(new_doc)
         .return_old(true)
@@ -403,7 +409,7 @@ async fn doc_creates_updates_deletes_basic() -> Result<()> {
     assert_eq!(update_docs.len(), 3);
     let len = update_docs.len();
     let updates_config = UpdatesConfigBuilder::default()
-        .collection("test_coll")
+        .collection(TEST_COLL)
         .documents(update_docs)
         .return_old(true)
         .return_new(true)

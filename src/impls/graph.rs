@@ -15,7 +15,7 @@ use crate::{
         input::{
             CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
             EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
-            ReadEdgeDefsConfig,
+            ReadEdgeDefsConfig, ReplaceEdgeDefConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
@@ -69,6 +69,12 @@ impl Graph for Connection {
     async fn read_edge_defs(&self, config: ReadEdgeDefsConfig) -> ArangoResult<EdgesMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.get(url, None, EMPTY_BODY, handle_response).await
+    }
+
+    async fn replace_edge_def(&self, config: ReplaceEdgeDefConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.put(url, None, config.edge_def(), handle_response)
+            .await
     }
 
     async fn create_edge(&self, config: EdgeCreateConfig) -> ArangoResult<CreateEdge> {

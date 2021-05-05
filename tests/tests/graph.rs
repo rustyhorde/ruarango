@@ -1,26 +1,32 @@
-use crate::{pool::RUARANGO_POOL, rand_util::rand_name};
+use crate::{
+    model::TestDoc,
+    pool::RUARANGO_POOL,
+    rand_util::{
+        create_random_collection, create_random_document, create_random_graph,
+        delete_random_collection, delete_random_graph, CollKind,
+    },
+};
 use anyhow::Result;
 use ruarango::{
     graph::{
         input::{
-            CreateConfigBuilder, CreateEdgeDefConfigBuilder, DeleteConfigBuilder,
-            DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder, EdgeDeleteConfigBuilder,
-            EdgeReadConfigBuilder, EdgeReplaceConfigBuilder, EdgeUpdateConfigBuilder,
-            FromToBuilder, GraphMetaBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
+            CreateEdgeDefConfigBuilder, DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder,
+            EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeReplaceConfigBuilder,
+            EdgeUpdateConfigBuilder, FromToBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
+            ReplaceEdgeDefConfigBuilder,
         },
-        output::{
-            CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
-        },
-        EdgeDefinition, EdgeDefinitionBuilder,
+        EdgeDefinitionBuilder,
     },
-    ArangoEither, Graph,
+    Graph,
 };
 use serde_derive::Serialize;
 
 #[tokio::test]
 async fn graph_list_all() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let res: ArangoEither<List> = conn.list().await?;
+    let graph_meta = create_random_graph(&conn).await?;
+
+    let res = conn.list().await?;
     assert!(res.is_right());
     let list = res.right_safe()?;
     assert!(!list.error());
@@ -32,59 +38,31 @@ async fn graph_list_all() -> Result<()> {
         assert!(!graph.key().is_empty());
         assert!(!graph.rev().is_empty());
         assert!(!graph.name().is_empty());
-
-        if graph.name() == "test_graph" {
-            assert!(graph.edge_definitions().len() >= 1);
-            let ed = graph.edge_definitions().get(0).unwrap();
-            assert_eq!(ed.to().len(), 1);
-            assert_eq!(ed.from().len(), 1);
-        }
+        assert_eq!(graph.edge_definitions().len(), 1);
+        let ed = graph.edge_definitions().get(0).unwrap();
+        assert_eq!(ed.to().len(), 1);
+        assert_eq!(ed.from().len(), 1);
     }
-    Ok(())
-}
 
-fn ve(vec: Vec<&str>) -> Vec<String> {
-    vec.into_iter().map(str::to_string).collect()
-}
-
-fn edge_definition() -> Result<Vec<EdgeDefinition>> {
-    let ed = EdgeDefinitionBuilder::default()
-        .collection("test_edge")
-        .from(ve(vec!["test_coll"]))
-        .to(ve(vec!["test_coll"]))
-        .build()?;
-    Ok(vec![ed])
+    delete_random_graph(&conn, graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let graph_meta = GraphMetaBuilder::default()
-        .name(rand_name())
-        .edge_definitions(edge_definition()?)
-        .build()?;
-    let config = CreateConfigBuilder::default().graph(graph_meta).build()?;
-    let res: ArangoEither<GraphMeta> = conn.create(config).await?;
-    assert!(res.is_right());
-    let create = res.right_safe()?;
-    assert!(!create.error());
-    let graph_meta = create.graph();
-    let name = graph_meta.name();
-
-    let delete_config = DeleteConfigBuilder::default()
-        .name(name)
-        .drop_collections(true)
-        .build()?;
-    let res: ArangoEither<()> = conn.delete(delete_config).await?;
-    assert!(res.is_right());
-    Ok(())
+    let graph_meta = create_random_graph(&conn).await?;
+    delete_random_graph(&conn, graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_read() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let config = ReadConfigBuilder::default().name("test_graph").build()?;
-    let res: ArangoEither<GraphMeta> = conn.read(config).await?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+
+    let config = ReadConfigBuilder::default()
+        .name(rand_graph_meta.graph())
+        .build()?;
+    let res = conn.read(config).await?;
     assert!(res.is_right());
     let graph_meta = res.right_safe()?;
     assert!(!graph_meta.error());
@@ -94,29 +72,37 @@ async fn graph_read() -> Result<()> {
     assert!(!graph.id().is_empty());
     assert!(!graph.key().is_empty());
     assert!(!graph.rev().is_empty());
-    assert_eq!(graph.name(), "test_graph");
-    assert!(graph.edge_definitions().len() >= 1);
+    assert_eq!(graph.name(), rand_graph_meta.graph());
+    assert_eq!(graph.edge_definitions().len(), 1);
     let ed = graph.edge_definitions().get(0).unwrap();
     assert_eq!(ed.to().len(), 1);
     assert_eq!(ed.from().len(), 1);
 
-    Ok(())
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let edge_coll = rand_graph_meta.edge_coll();
+    let from_coll = rand_graph_meta.from_coll();
+    let to_coll = rand_graph_meta.to_coll();
+    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+
     let from_to = FromToBuilder::default()
-        .from("test_coll/1637032")
-        .to("test_coll/1637052")
+        .from(from_doc.id())
+        .to(to_doc.id())
         .build()?;
     let config = EdgeCreateConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .mapping(from_to)
         .return_new(true)
         .build()?;
-    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    let res = conn.create_edge(config).await?;
     assert!(res.is_right());
     let create_edge = res.right_safe()?;
     assert!(!create_edge.error());
@@ -136,34 +122,43 @@ async fn graph_create_delete_edge() -> Result<()> {
     assert!(new.to().is_some());
 
     let delete_config = EdgeDeleteConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .build()?;
-    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    let res = conn.delete_edge(delete_config).await?;
     assert!(res.is_right());
     let delete_edge = res.right_safe()?;
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
     assert!(delete_edge.removed());
     assert!(delete_edge.old().is_none());
-    Ok(())
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[tokio::test]
-async fn graph_create_get_delete_edge() -> Result<()> {
+async fn graph_create_read_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let edge_coll = rand_graph_meta.edge_coll();
+    let from_coll = rand_graph_meta.from_coll();
+    let to_coll = rand_graph_meta.to_coll();
+    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+
     let from_to = FromToBuilder::default()
-        .from("test_coll/1637032")
-        .to("test_coll/1637052")
+        .from(from_doc.id())
+        .to(to_doc.id())
         .build()?;
     let config = EdgeCreateConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .mapping(from_to)
         .return_new(true)
         .build()?;
-    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    let res = conn.create_edge(config).await?;
     assert!(res.is_right());
     let create_edge = res.right_safe()?;
     assert!(!create_edge.error());
@@ -172,26 +167,27 @@ async fn graph_create_get_delete_edge() -> Result<()> {
     let key = edge.key();
 
     let read_config = EdgeReadConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .build()?;
-    let res: ArangoEither<ReadEdge> = conn.read_edge(read_config).await?;
+    let res = conn.read_edge(read_config).await?;
     assert!(res.is_right());
     let read_edge = res.right_safe()?;
     assert!(!read_edge.error());
 
     let delete_config = EdgeDeleteConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .build()?;
-    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    let res = conn.delete_edge(delete_config).await?;
     assert!(res.is_right());
     let delete_edge = res.right_safe()?;
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
-    Ok(())
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -202,17 +198,25 @@ struct EdgeStuff {
 #[tokio::test]
 async fn graph_create_update_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let edge_coll = rand_graph_meta.edge_coll();
+    let from_coll = rand_graph_meta.from_coll();
+    let to_coll = rand_graph_meta.to_coll();
+    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+
     let from_to = FromToBuilder::default()
-        .from("test_coll/1637032")
-        .to("test_coll/1637052")
+        .from(from_doc.id())
+        .to(to_doc.id())
         .build()?;
     let config = EdgeCreateConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .mapping(from_to)
         .return_new(true)
         .build()?;
-    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    let res = conn.create_edge(config).await?;
     assert!(res.is_right());
     let create_edge = res.right_safe()?;
     assert!(!create_edge.error());
@@ -221,44 +225,53 @@ async fn graph_create_update_delete_edge() -> Result<()> {
     let key = edge.key();
 
     let update_config = EdgeUpdateConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .edge(EdgeStuff { name: "yoda" })
         .build()?;
-    let res: ArangoEither<UpdateEdge> = conn.update_edge(update_config).await?;
+    let res = conn.update_edge(update_config).await?;
     assert!(res.is_right());
     let update_edge = res.right_safe()?;
     assert!(!update_edge.error());
     assert_eq!(*update_edge.code(), 202);
 
     let delete_config = EdgeDeleteConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .build()?;
-    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    let res = conn.delete_edge(delete_config).await?;
     assert!(res.is_right());
     let delete_edge = res.right_safe()?;
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
-    Ok(())
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_replace_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let edge_coll = rand_graph_meta.edge_coll();
+    let from_coll = rand_graph_meta.from_coll();
+    let to_coll = rand_graph_meta.to_coll();
+    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+
     let from_to = FromToBuilder::default()
-        .from("test_coll/1637032")
-        .to("test_coll/1637052")
+        .from(from_doc.id())
+        .to(to_doc.id())
         .build()?;
     let config = EdgeCreateConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .mapping(from_to)
         .return_new(true)
         .build()?;
-    let res: ArangoEither<CreateEdge> = conn.create_edge(config).await?;
+    let res = conn.create_edge(config).await?;
     assert!(res.is_right());
     let create_edge = res.right_safe()?;
     assert!(!create_edge.error());
@@ -266,80 +279,153 @@ async fn graph_create_replace_delete_edge() -> Result<()> {
     let edge = create_edge.edge();
     let key = edge.key();
 
+    let new_from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
+    let new_to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
     let from_to_new = FromToBuilder::default()
-        .to("test_coll/1637032")
-        .from("test_coll/1637052")
+        .to(new_to_doc.id())
+        .from(new_from_doc.id())
         .build()?;
     let replace_config = EdgeReplaceConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .edge(from_to_new)
         .build()?;
-    let res: ArangoEither<ReplaceEdge> = conn.replace_edge(replace_config).await?;
+    let res = conn.replace_edge(replace_config).await?;
     assert!(res.is_right());
     let replace_edge = res.right_safe()?;
     assert!(!replace_edge.error());
     assert_eq!(*replace_edge.code(), 202);
 
     let delete_config = EdgeDeleteConfigBuilder::default()
-        .graph("test_graph")
-        .collection("test_edge")
+        .graph(graph_name)
+        .collection(edge_coll)
         .key(key)
         .build()?;
-    let res: ArangoEither<DeleteEdge> = conn.delete_edge(delete_config).await?;
+    let res = conn.delete_edge(delete_config).await?;
     assert!(res.is_right());
     let delete_edge = res.right_safe()?;
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
-    Ok(())
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete_edge_def() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let (edge_coll, _) = create_random_collection(&conn, CollKind::Edge).await?;
+    let (from_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+    let (to_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+
     let edge_def = EdgeDefinitionBuilder::default()
-        .collection("test_city_state")
-        .from(vec!["test_city".to_string()])
-        .to(vec!["test_state".to_string()])
+        .collection(&edge_coll)
+        .from(vec![from_coll.clone()])
+        .to(vec![to_coll.clone()])
         .build()?;
     let config = CreateEdgeDefConfigBuilder::default()
-        .graph("test_graph")
+        .graph(graph_name)
         .edge_def(edge_def)
         .build()?;
-    let res: ArangoEither<GraphMeta> = conn.create_edge_def(config).await?;
+    let res = conn.create_edge_def(config).await?;
     assert!(res.is_right());
     let create_edge_def = res.right_safe()?;
     assert!(!create_edge_def.error());
     assert_eq!(*create_edge_def.code(), 202);
     let graph = create_edge_def.graph();
-    assert_eq!(graph.name(), "test_graph");
+    assert_eq!(graph.name(), graph_name);
 
     let delete_config = DeleteEdgeDefConfigBuilder::default()
-        .graph("test_graph")
-        .edge_def("test_city_state")
+        .graph(graph_name)
+        .edge_def(&edge_coll)
         .build()?;
-    let res: ArangoEither<GraphMeta> = conn.delete_edge_def(delete_config).await?;
+    let res = conn.delete_edge_def(delete_config).await?;
     assert!(res.is_right());
     let delete_edge_def = res.right_safe()?;
     assert!(!delete_edge_def.error());
     assert_eq!(*delete_edge_def.code(), 202);
 
-    Ok(())
+    let _ = delete_random_collection(&conn, &to_coll).await?;
+    let _ = delete_random_collection(&conn, &from_coll).await?;
+    let _ = delete_random_collection(&conn, &edge_coll).await?;
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_read_edge_defs() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+
     let config = ReadEdgeDefsConfigBuilder::default()
-        .name("test_graph")
+        .name(rand_graph_meta.graph())
         .build()?;
-    let res: ArangoEither<EdgesMeta> = conn.read_edge_defs(config).await?;
+    let res = conn.read_edge_defs(config).await?;
     assert!(res.is_right());
     let graph_meta = res.right_safe()?;
     assert!(!graph_meta.error());
     assert_eq!(*graph_meta.code(), 200);
     assert!(graph_meta.collections().len() >= 1);
 
-    Ok(())
+    delete_random_graph(&conn, rand_graph_meta).await
+}
+
+#[tokio::test]
+async fn graph_create_replace_delete_edge_def() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let (edge_coll, _) = create_random_collection(&conn, CollKind::Edge).await?;
+    let (from_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+    let (to_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+
+    let edge_def = EdgeDefinitionBuilder::default()
+        .collection(&edge_coll)
+        .from(vec![from_coll.clone()])
+        .to(vec![to_coll.clone()])
+        .build()?;
+    let config = CreateEdgeDefConfigBuilder::default()
+        .graph(graph_name)
+        .edge_def(edge_def)
+        .build()?;
+    let res = conn.create_edge_def(config).await?;
+    assert!(res.is_right());
+    let create_edge_def = res.right_safe()?;
+    assert!(!create_edge_def.error());
+    assert_eq!(*create_edge_def.code(), 202);
+    let graph = create_edge_def.graph();
+    assert_eq!(graph.name(), graph_name);
+
+    let edge_def = EdgeDefinitionBuilder::default()
+        .collection(&edge_coll)
+        .from(vec![to_coll.clone()])
+        .to(vec![from_coll.clone()])
+        .build()?;
+    let replace_config = ReplaceEdgeDefConfigBuilder::default()
+        .graph(graph_name)
+        .edge_def(edge_def)
+        .build()?;
+    let res = conn.replace_edge_def(replace_config).await?;
+    assert!(res.is_right());
+    let replace_edge_def = res.right_safe()?;
+    assert!(!replace_edge_def.error());
+    assert_eq!(*replace_edge_def.code(), 202);
+
+    let delete_config = DeleteEdgeDefConfigBuilder::default()
+        .graph(graph_name)
+        .edge_def(&edge_coll)
+        .build()?;
+    let res = conn.delete_edge_def(delete_config).await?;
+    assert!(res.is_right());
+    let delete_edge_def = res.right_safe()?;
+    assert!(!delete_edge_def.error());
+    assert_eq!(*delete_edge_def.code(), 202);
+
+    let _ = delete_random_collection(&conn, &to_coll).await?;
+    let _ = delete_random_collection(&conn, &from_coll).await?;
+    let _ = delete_random_collection(&conn, &edge_coll).await?;
+
+    delete_random_graph(&conn, rand_graph_meta).await
 }
