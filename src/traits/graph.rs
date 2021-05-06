@@ -13,10 +13,11 @@ use crate::{
         input::{
             CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
             EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
-            ReadEdgeDefsConfig, ReplaceEdgeDefConfig,
+            ReadEdgeDefsConfig, ReadVertexCollsConfig, ReplaceEdgeDefConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
+            VertexColls,
         },
     },
     ArangoResult,
@@ -57,4 +58,7 @@ pub trait Graph {
     async fn replace_edge<T>(&self, config: EdgeReplaceConfig<T>) -> ArangoResult<ReplaceEdge>
     where
         T: Serialize + Send + Sync;
+
+    /// Read the vertex collections from a graph
+    async fn read_vertex_colls(&self, config: ReadVertexCollsConfig) -> ArangoResult<VertexColls>;
 }

@@ -15,10 +15,11 @@ use crate::{
         input::{
             CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
             EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
-            ReadEdgeDefsConfig, ReplaceEdgeDefConfig,
+            ReadEdgeDefsConfig, ReadVertexCollsConfig, ReplaceEdgeDefConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
+            VertexColls,
         },
         BASE_GRAPH_SUFFIX,
     },
@@ -61,14 +62,14 @@ impl Graph for Connection {
             .await
     }
 
-    async fn delete_edge_def(&self, config: DeleteEdgeDefConfig) -> ArangoResult<GraphMeta> {
-        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
-        self.delete(url, None, EMPTY_BODY, handle_response).await
-    }
-
     async fn read_edge_defs(&self, config: ReadEdgeDefsConfig) -> ArangoResult<EdgesMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.get(url, None, EMPTY_BODY, handle_response).await
+    }
+
+    async fn delete_edge_def(&self, config: DeleteEdgeDefConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.delete(url, None, EMPTY_BODY, handle_response).await
     }
 
     async fn replace_edge_def(&self, config: ReplaceEdgeDefConfig) -> ArangoResult<GraphMeta> {
@@ -112,5 +113,10 @@ impl Graph for Connection {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.put(url, headers, config.edge(), handle_response).await
+    }
+
+    async fn read_vertex_colls(&self, config: ReadVertexCollsConfig) -> ArangoResult<VertexColls> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.get(url, None, EMPTY_BODY, handle_response).await
     }
 }

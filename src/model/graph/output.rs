@@ -167,3 +167,15 @@ pub struct ReplaceEdge {
     /// The new edge meta
     new: Option<EdgeMeta>,
 }
+
+/// Output for [`read_vertex_colls`](crate::Graph::read_vertex_colls)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct VertexColls {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The list of vertex collections
+    collections: Vec<String>,
+}

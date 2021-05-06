@@ -13,6 +13,7 @@ mod delete;
 mod edge;
 mod edge_def;
 mod read;
+mod vertex;
 
 pub use create::{
     Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
@@ -62,4 +63,8 @@ pub use edge_def::replace::{
 pub use read::{
     Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,
     ConfigBuilderError as ReadConfigBuilderError,
+};
+pub use vertex::read::{
+    Config as ReadVertexCollsConfig, ConfigBuilder as ReadVertexCollsConfigBuilder,
+    ConfigBuilderError as ReadVertexCollsConfigBuilderError,
 };
