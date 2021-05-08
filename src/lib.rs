@@ -306,8 +306,6 @@
         unaligned_references,
     )
 )]
-// beta or stable only lints
-#![cfg_attr(any(beta_lints, stable_lints), deny(safe_packed_borrows))]
 // stable only lints
 #![cfg_attr(
     stable_lints,
@@ -320,6 +318,7 @@
         non_autolinks,
         // private_doc_tests,
         private_intra_doc_links,
+        safe_packed_borrows,
     )
 )]
 // clippy lints
