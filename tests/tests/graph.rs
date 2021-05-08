@@ -3,14 +3,15 @@ use crate::{
     pool::RUARANGO_POOL,
     rand_util::{
         create_random_collection, create_random_document, create_random_graph,
-        delete_random_collection, delete_random_graph, CollKind,
+        delete_random_collection, delete_random_graph, rand_name, CollKind,
     },
 };
 use anyhow::Result;
 use ruarango::{
     graph::{
         input::{
-            CreateEdgeDefConfigBuilder, DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder,
+            CreateEdgeDefConfigBuilder, CreateVertexCollConfigBuilder,
+            CreateVertexCollectionBuilder, DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder,
             EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeReplaceConfigBuilder,
             EdgeUpdateConfigBuilder, FromToBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
             ReadVertexCollsConfigBuilder, ReplaceEdgeDefConfigBuilder,
@@ -444,6 +445,31 @@ async fn graph_read_vertex_colls() -> Result<()> {
     assert!(!vertex_colls.error());
     assert_eq!(*vertex_colls.code(), 200);
     assert!(vertex_colls.collections().len() >= 1);
+
+    delete_random_graph(&conn, rand_graph_meta).await
+}
+
+#[tokio::test]
+async fn graph_create_vertex_coll() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_coll_name = rand_name();
+
+    let coll = CreateVertexCollectionBuilder::default()
+        .collection(&rand_coll_name)
+        .build()?;
+    let config = CreateVertexCollConfigBuilder::default()
+        .name(rand_graph_meta.graph())
+        .collection(coll)
+        .build()?;
+    let res = conn.create_vertex_coll(config).await?;
+    assert!(res.is_right());
+    let graph_meta = res.right_safe()?;
+    assert!(!graph_meta.error());
+    assert_eq!(*graph_meta.code(), 202);
+    let graph = graph_meta.graph();
+    assert!(graph.orphan_collections().len() >= 1);
+    assert!(graph.orphan_collections().contains(&rand_coll_name));
 
     delete_random_graph(&conn, rand_graph_meta).await
 }

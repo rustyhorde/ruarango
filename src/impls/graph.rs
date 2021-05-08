@@ -13,9 +13,10 @@ use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
         input::{
-            CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
-            EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
-            ReadEdgeDefsConfig, ReadVertexCollsConfig, ReplaceEdgeDefConfig,
+            CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, DeleteConfig,
+            DeleteEdgeDefConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
+            EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
+            ReadVertexCollsConfig, ReplaceEdgeDefConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
@@ -25,7 +26,7 @@ use crate::{
     },
     model::{AddHeaders, BuildUrl},
     traits::Graph,
-    utils::{empty, handle_response},
+    utils::{empty, handle_response, map_resp},
     ArangoResult, Connection,
 };
 use anyhow::Context;
@@ -118,5 +119,10 @@ impl Graph for Connection {
     async fn read_vertex_colls(&self, config: ReadVertexCollsConfig) -> ArangoResult<VertexColls> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.get(url, None, EMPTY_BODY, handle_response).await
+    }
+
+    async fn create_vertex_coll(&self, config: CreateVertexCollConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.post(url, None, config.collection(), map_resp).await
     }
 }

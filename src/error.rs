@@ -36,10 +36,12 @@ pub enum RuarangoErr {
     #[error("You have supplied an invalid connection url")]
     InvalidConnectionUrl,
     ///
-    #[error("Invalid document response: {}", status)]
+    #[error("Invalid document response: {}\n{}", status, doc_err(err))]
     InvalidDocResponse {
         ///
         status: u16,
+        ///
+        err: Option<DocErr>,
     },
     ///
     #[error("Invalid cursor response: {}", status)]
@@ -48,14 +50,32 @@ pub enum RuarangoErr {
         status: u16,
     },
     ///
-    #[error("The document you requested was not found")]
-    DocumentNotFound,
+    #[error("You are not authorized to perform the request action")]
+    Forbidden {
+        ///
+        err: Option<DocErr>,
+    },
+    ///
+    #[error("The server can not find the requested resource.")]
+    NotFound {
+        ///
+        err: Option<DocErr>,
+    },
     ///
     #[error("The document you requested has not been modified")]
     NotModified,
     ///
     #[error("A precondition has failed: '{}'", doc_err(err))]
     PreconditionFailed {
+        ///
+        err: Option<DocErr>,
+    },
+    ///
+    #[error(
+        "The server could not understand the request due to invalid syntax.: '{}'",
+        doc_err(err)
+    )]
+    BadRequest {
         ///
         err: Option<DocErr>,
     },

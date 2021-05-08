@@ -64,6 +64,12 @@ pub use read::{
     Config as ReadConfig, ConfigBuilder as ReadConfigBuilder,
     ConfigBuilderError as ReadConfigBuilderError,
 };
+pub use vertex::create::{
+    Collection as CreateVertexCollection, CollectionBuilder as CreateVertexCollectionBuilder,
+    CollectionBuilderError as CreateVertexCollectionBuilderError, Config as CreateVertexCollConfig,
+    ConfigBuilder as CreateVertexCollConfigBuilder,
+    ConfigBuilderError as CreateVertexCollConfigBuilderError,
+};
 pub use vertex::read::{
     Config as ReadVertexCollsConfig, ConfigBuilder as ReadVertexCollsConfigBuilder,
     ConfigBuilderError as ReadVertexCollsConfigBuilderError,

@@ -11,9 +11,10 @@
 use crate::{
     graph::{
         input::{
-            CreateConfig, CreateEdgeDefConfig, DeleteConfig, DeleteEdgeDefConfig, EdgeCreateConfig,
-            EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig,
-            ReadEdgeDefsConfig, ReadVertexCollsConfig, ReplaceEdgeDefConfig,
+            CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, DeleteConfig,
+            DeleteEdgeDefConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
+            EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
+            ReadVertexCollsConfig, ReplaceEdgeDefConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
@@ -61,4 +62,6 @@ pub trait Graph {
 
     /// Read the vertex collections from a graph
     async fn read_vertex_colls(&self, config: ReadVertexCollsConfig) -> ArangoResult<VertexColls>;
+    /// Create vertex collection
+    async fn create_vertex_coll(&self, config: CreateVertexCollConfig) -> ArangoResult<GraphMeta>;
 }

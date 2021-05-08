@@ -10,8 +10,8 @@
 
 use crate::{
     error::RuarangoErr::{
-        Conflict, Cursor, DocumentNotFound, InvalidBody, InvalidCursorResponse, InvalidDocResponse,
-        NotModified, PreconditionFailed,
+        BadRequest, Conflict, Cursor, Forbidden, InvalidBody, InvalidCursorResponse,
+        InvalidDocResponse, NotFound, NotModified, PreconditionFailed,
     },
     model::{common::output::ArangoErr, doc::output::DocErr, BaseErr},
     JobInfo,
@@ -145,6 +145,42 @@ where
     res.map(to_json)?.await
 }
 
+async fn into_err(res: reqwest::Response) -> anyhow::Error {
+    let status = res.status();
+    let err: Option<DocErr> = handle_text(res).await.ok();
+
+    match status {
+        StatusCode::BAD_REQUEST => BadRequest { err }.into(),
+        StatusCode::FORBIDDEN => Forbidden { err }.into(),
+        StatusCode::NOT_FOUND => NotFound { err }.into(),
+        StatusCode::NOT_MODIFIED => NotModified.into(),
+        StatusCode::CONFLICT => Conflict { err }.into(),
+        StatusCode::PRECONDITION_FAILED => PreconditionFailed { err }.into(),
+        _ => InvalidDocResponse {
+            status: status.as_u16(),
+            err,
+        }
+        .into(),
+    }
+}
+
+pub(crate) async fn into_result<T>(res: reqwest::Response) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    match res.status() {
+        StatusCode::OK | StatusCode::CREATED | StatusCode::ACCEPTED => Ok(handle_text(res).await?),
+        _ => Err(into_err(res).await),
+    }
+}
+
+pub(crate) async fn map_resp<T>(res: Result<reqwest::Response, Error>) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    res.map(into_result)?.await
+}
+
 fn to_empty(res: reqwest::Response) -> Result<()> {
     res.error_for_status().map(|_| ()).map_err(Error::into)
 }
@@ -171,7 +207,10 @@ where
 {
     match res.status() {
         StatusCode::OK | StatusCode::CREATED | StatusCode::ACCEPTED => Ok(handle_text(res).await?),
-        StatusCode::NOT_FOUND => Err(DocumentNotFound.into()),
+        StatusCode::NOT_FOUND => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(NotFound { err }.into())
+        }
         StatusCode::NOT_MODIFIED => Err(NotModified.into()),
         StatusCode::CONFLICT => {
             let err: Option<DocErr> = handle_text(res).await.ok();
@@ -183,7 +222,7 @@ where
         }
         _ => {
             let status = res.status().as_u16();
-            Err(InvalidDocResponse { status }.into())
+            Err(InvalidDocResponse { status, err: None }.into())
         }
     }
 }
@@ -196,7 +235,10 @@ where
         StatusCode::OK | StatusCode::CREATED | StatusCode::ACCEPTED => {
             Ok(handle_text_vec(res).await?)
         }
-        StatusCode::NOT_FOUND => Err(DocumentNotFound.into()),
+        StatusCode::NOT_FOUND => {
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(NotFound { err }.into())
+        }
         StatusCode::NOT_MODIFIED => Err(NotModified.into()),
         StatusCode::CONFLICT => {
             let err: Option<DocErr> = handle_text(res).await.ok();
@@ -208,7 +250,7 @@ where
         }
         _ => {
             let status = res.status().as_u16();
-            Err(InvalidDocResponse { status }.into())
+            Err(InvalidDocResponse { status, err: None }.into())
         }
     }
 }

@@ -14,7 +14,7 @@ use ruarango::{
         output::DocMeta,
     },
     ArangoEither, ArangoResult, ArangoVec, Connection, Document,
-    Error::{self, DocumentNotFound, PreconditionFailed},
+    Error::{self, NotFound, PreconditionFailed},
 };
 
 const TEST_COLL: &str = "test_coll";
@@ -214,7 +214,12 @@ async fn doc_read_not_found() -> Result<()> {
         Ok(_) => panic!("This should be an error!"),
         Err(e) => {
             let err = e.downcast_ref::<Error>().expect("unanticipated error");
-            assert_eq!(err, &DocumentNotFound);
+            match err {
+                NotFound { err } => {
+                    assert!(err.is_some());
+                }
+                _ => panic!("Wrong error kind!"),
+            }
         }
     }
     Ok(())
