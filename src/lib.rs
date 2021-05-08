@@ -328,6 +328,7 @@
 #![cfg_attr(
     any(nightly_lints, beta_lints),
     deny(
+        rustdoc::bare_urls,
         rustdoc::broken_intra_doc_links,
         rustdoc::invalid_codeblock_attributes,
         rustdoc::invalid_html_tags,
@@ -337,8 +338,6 @@
         rustdoc::private_intra_doc_links,
     )
 )]
-#![cfg_attr(beta_lints, deny(rustdoc::non_autolinks))]
-#![cfg_attr(nightly_lints, deny(rustdoc::bare_urls))]
 
 #[cfg(test)]
 use {lazy_static as _, r2d2 as _, rand as _, tokio_test as _};
