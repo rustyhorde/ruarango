@@ -11,6 +11,22 @@
 use anyhow::{anyhow, Result};
 use ruarango::{ArangoEither, Connection, Job};
 use serde::{de::DeserializeOwned, Serialize};
+use std::panic;
+
+#[allow(dead_code)]
+fn run_test<S, T, U>(setup: S, test: T, teardown: U) -> Result<()>
+where
+    S: FnOnce() -> Result<()>,
+    T: FnOnce() -> Result<()> + panic::UnwindSafe,
+    U: FnOnce() -> Result<()>,
+{
+    setup()?;
+    let result = panic::catch_unwind(|| test());
+    teardown()?;
+    assert!(result.is_ok());
+    assert!(result.unwrap().is_ok());
+    Ok(())
+}
 
 pub(crate) fn process_sync_result<T>(res: ArangoEither<T>) -> Result<T>
 where

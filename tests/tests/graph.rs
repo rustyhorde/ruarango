@@ -471,5 +471,6 @@ async fn graph_create_vertex_coll() -> Result<()> {
     assert!(graph.orphan_collections().len() >= 1);
     assert!(graph.orphan_collections().contains(&rand_coll_name));
 
+    delete_random_collection(conn, rand_coll_name).await?;
     delete_random_graph(&conn, rand_graph_meta).await
 }
