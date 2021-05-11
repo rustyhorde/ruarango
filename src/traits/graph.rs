@@ -15,11 +15,11 @@ use crate::{
             DeleteConfig, DeleteEdgeDefConfig, DeleteVertexCollConfig, DeleteVertexConfig,
             EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig,
             EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig, ReadVertexCollsConfig,
-            ReadVertexConfig, ReplaceEdgeDefConfig,
+            ReadVertexConfig, ReplaceEdgeDefConfig, UpdateVertexConfig,
         },
         output::{
             CreateEdge, DeleteEdge, DeleteVertexMeta, EdgesMeta, GraphMeta, List, ReadEdge,
-            ReadVertexMeta, ReplaceEdge, UpdateEdge, VertexColls, VertexMeta,
+            ReadVertexMeta, ReplaceEdge, UpdateEdge, UpdateVertexMeta, VertexColls, VertexMeta,
         },
     },
     ArangoResult,
@@ -75,4 +75,11 @@ pub trait Graph {
     async fn read_vertex(&self, config: ReadVertexConfig) -> ArangoResult<ReadVertexMeta>;
     /// Delete a vertex
     async fn delete_vertex(&self, config: DeleteVertexConfig) -> ArangoResult<DeleteVertexMeta>;
+    /// Update vertex
+    async fn update_vertex<T>(
+        &self,
+        config: UpdateVertexConfig<T>,
+    ) -> ArangoResult<UpdateVertexMeta>
+    where
+        T: Serialize + Send + Sync;
 }

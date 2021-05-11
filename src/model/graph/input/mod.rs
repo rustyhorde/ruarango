@@ -77,6 +77,10 @@ pub use vertex::read::{
     Config as ReadVertexConfig, ConfigBuilder as ReadVertexConfigBuilder,
     ConfigBuilderError as ReadVertexConfigBuilderError,
 };
+pub use vertex::update::{
+    Config as UpdateVertexConfig, ConfigBuilder as UpdateVertexConfigBuilder,
+    ConfigBuilderError as UpdateVertexConfigBuilderError,
+};
 pub use vertex_coll::create::{
     Collection as CreateVertexCollection, CollectionBuilder as CreateVertexCollectionBuilder,
     CollectionBuilderError as CreateVertexCollectionBuilderError, Config as CreateVertexCollConfig,

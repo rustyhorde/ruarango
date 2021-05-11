@@ -16,6 +16,7 @@ use ruarango::{
             EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeReplaceConfigBuilder,
             EdgeUpdateConfigBuilder, FromToBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
             ReadVertexCollsConfigBuilder, ReadVertexConfigBuilder, ReplaceEdgeDefConfigBuilder,
+            UpdateVertexConfigBuilder,
         },
         EdgeDefinitionBuilder,
     },
@@ -525,6 +526,60 @@ async fn graph_create_read_delete_vertex() -> Result<()> {
     assert!(!read_vertex_meta.error());
     assert_eq!(*read_vertex_meta.code(), 200);
     let vertex = read_vertex_meta.vertex();
+    assert!(!vertex.id().is_empty());
+    assert!(!vertex.key().is_empty());
+    assert!(!vertex.rev().is_empty());
+
+    let delete_config = DeleteVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .key(key)
+        .build()?;
+    let res = conn.delete_vertex(delete_config).await?;
+    assert!(res.is_right());
+    let delete_vertex_meta = res.right_safe()?;
+    assert!(!delete_vertex_meta.error());
+    assert!(delete_vertex_meta.removed());
+    assert_eq!(*delete_vertex_meta.code(), 202);
+
+    delete_random_graph(&conn, rand_graph_meta).await
+}
+
+#[tokio::test]
+async fn graph_create_update_delete_vertex() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let from_coll = rand_graph_meta.from_coll();
+
+    let config = CreateVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .vertex(TestVertex { test: "test" })
+        .build()?;
+    let res = conn.create_vertex(config).await?;
+    assert!(res.is_right());
+    let vertex_meta = res.right_safe()?;
+    assert!(!vertex_meta.error());
+    assert_eq!(*vertex_meta.code(), 202);
+    let vertex = vertex_meta.vertex();
+    assert!(!vertex.id().is_empty());
+    assert!(!vertex.key().is_empty());
+    assert!(!vertex.rev().is_empty());
+    let key = vertex.key();
+
+    let update_config = UpdateVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .key(key)
+        .vertex(TestVertex { test: "testing" })
+        .build()?;
+    let res = conn.update_vertex(update_config).await?;
+    assert!(res.is_right());
+    let update_vertex_meta = res.right_safe()?;
+    assert!(!update_vertex_meta.error());
+    assert_eq!(*update_vertex_meta.code(), 202);
+    let vertex = update_vertex_meta.vertex();
     assert!(!vertex.id().is_empty());
     assert!(!vertex.key().is_empty());
     assert!(!vertex.rev().is_empty());

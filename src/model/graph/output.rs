@@ -236,3 +236,21 @@ pub struct ReadVertexMeta {
     /// The vertex data
     vertex: Vertex,
 }
+
+/// Output for [`update_vertex`](crate::Graph::update_vertex)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct UpdateVertexMeta {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The vertex data
+    vertex: Vertex,
+    /// Optional old vertex data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    old: Option<Vertex>,
+    /// Optional new vertex data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    new: Option<Vertex>,
+}

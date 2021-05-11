@@ -17,11 +17,11 @@ use crate::{
             DeleteConfig, DeleteEdgeDefConfig, DeleteVertexCollConfig, DeleteVertexConfig,
             EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig,
             EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig, ReadVertexCollsConfig,
-            ReadVertexConfig, ReplaceEdgeDefConfig,
+            ReadVertexConfig, ReplaceEdgeDefConfig, UpdateVertexConfig,
         },
         output::{
             CreateEdge, DeleteEdge, DeleteVertexMeta, EdgesMeta, GraphMeta, List, ReadEdge,
-            ReadVertexMeta, ReplaceEdge, UpdateEdge, VertexColls, VertexMeta,
+            ReadVertexMeta, ReplaceEdge, UpdateEdge, UpdateVertexMeta, VertexColls, VertexMeta,
         },
         BASE_GRAPH_SUFFIX,
     },
@@ -150,5 +150,17 @@ impl Graph for Connection {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         let headers = config.add_headers()?;
         self.get(url, headers, EMPTY_BODY, map_resp).await
+    }
+
+    async fn update_vertex<T>(
+        &self,
+        config: UpdateVertexConfig<T>,
+    ) -> ArangoResult<UpdateVertexMeta>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.patch(url, headers, config.vertex(), map_resp).await
     }
 }
