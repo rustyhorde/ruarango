@@ -10,8 +10,7 @@
 
 use crate::{
     model::{
-        add_qp,
-        BuildUrl,
+        add_qp, BuildUrl,
         QueryParam::{ReturnNew, WaitForSync},
     },
     Connection,
@@ -56,7 +55,7 @@ impl<T> Config<T> {
     }
 }
 
-impl <T> BuildUrl for Config<T> {
+impl<T> BuildUrl for Config<T> {
     fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
         let suffix = self.build_suffix(base);
         conn.db_url()

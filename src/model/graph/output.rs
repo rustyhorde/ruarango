@@ -191,6 +191,7 @@ pub struct VertexMeta {
     /// The vertex data
     vertex: Vertex,
     /// Optional new vertex data
+    #[serde(skip_serializing_if = "Option::is_none")]
     new: Option<Vertex>,
 }
 
@@ -207,4 +208,31 @@ pub struct Vertex {
     /// Contains the graph revision
     #[serde(rename = "_rev")]
     rev: String,
+}
+
+/// Output for [`delete_vertex`](crate::Graph::delete_vertex)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct DeleteVertexMeta {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// Set to true if the remove was successful
+    removed: bool,
+    /// Optional old vertex data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    old: Option<Vertex>,
+}
+
+/// Output for [`read_vertex`](crate::Graph::read_vertex)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct ReadVertexMeta {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The vertex data
+    vertex: Vertex,
 }

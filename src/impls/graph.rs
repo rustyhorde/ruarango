@@ -13,14 +13,15 @@ use crate::{
     cursor::BASE_CURSOR_SUFFIX,
     graph::{
         input::{
-            CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, DeleteConfig,
-            DeleteEdgeDefConfig, DeleteVertexCollConfig, EdgeCreateConfig, EdgeDeleteConfig,
-            EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
-            ReadVertexCollsConfig, ReplaceEdgeDefConfig,
+            CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, CreateVertexConfig,
+            DeleteConfig, DeleteEdgeDefConfig, DeleteVertexCollConfig, DeleteVertexConfig,
+            EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig, EdgeReplaceConfig,
+            EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig, ReadVertexCollsConfig,
+            ReadVertexConfig, ReplaceEdgeDefConfig,
         },
         output::{
-            CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
-            VertexColls,
+            CreateEdge, DeleteEdge, DeleteVertexMeta, EdgesMeta, GraphMeta, List, ReadEdge,
+            ReadVertexMeta, ReplaceEdge, UpdateEdge, VertexColls, VertexMeta,
         },
         BASE_GRAPH_SUFFIX,
     },
@@ -129,5 +130,25 @@ impl Graph for Connection {
     async fn delete_vertex_coll(&self, config: DeleteVertexCollConfig) -> ArangoResult<GraphMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.delete(url, None, EMPTY_BODY, map_resp).await
+    }
+
+    async fn create_vertex<T>(&self, config: CreateVertexConfig<T>) -> ArangoResult<VertexMeta>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.post(url, None, config.vertex(), map_resp).await
+    }
+
+    async fn delete_vertex(&self, config: DeleteVertexConfig) -> ArangoResult<DeleteVertexMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.delete(url, headers, EMPTY_BODY, map_resp).await
+    }
+
+    async fn read_vertex(&self, config: ReadVertexConfig) -> ArangoResult<ReadVertexMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.get(url, headers, EMPTY_BODY, map_resp).await
     }
 }

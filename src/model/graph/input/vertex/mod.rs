@@ -9,3 +9,5 @@
 //! Graph Vertex Input Structs
 
 pub(crate) mod create;
+pub(crate) mod delete;
+pub(crate) mod read;

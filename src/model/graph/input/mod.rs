@@ -69,6 +69,14 @@ pub use vertex::create::{
     Config as CreateVertexConfig, ConfigBuilder as CreateVertexConfigBuilder,
     ConfigBuilderError as CreateVertexConfigBuilderError,
 };
+pub use vertex::delete::{
+    Config as DeleteVertexConfig, ConfigBuilder as DeleteVertexConfigBuilder,
+    ConfigBuilderError as DeleteVertexConfigBuilderError,
+};
+pub use vertex::read::{
+    Config as ReadVertexConfig, ConfigBuilder as ReadVertexConfigBuilder,
+    ConfigBuilderError as ReadVertexConfigBuilderError,
+};
 pub use vertex_coll::create::{
     Collection as CreateVertexCollection, CollectionBuilder as CreateVertexCollectionBuilder,
     CollectionBuilderError as CreateVertexCollectionBuilderError, Config as CreateVertexCollConfig,
