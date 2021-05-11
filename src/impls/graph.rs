@@ -163,4 +163,16 @@ impl Graph for Connection {
         let headers = config.add_headers()?;
         self.patch(url, headers, config.vertex(), map_resp).await
     }
+
+    async fn replace_vertex<T>(
+        &self,
+        config: UpdateVertexConfig<T>,
+    ) -> ArangoResult<UpdateVertexMeta>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        let headers = config.add_headers()?;
+        self.put(url, headers, config.vertex(), map_resp).await
+    }
 }

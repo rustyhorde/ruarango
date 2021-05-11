@@ -82,4 +82,11 @@ pub trait Graph {
     ) -> ArangoResult<UpdateVertexMeta>
     where
         T: Serialize + Send + Sync;
+    /// Replace vertex
+    async fn replace_vertex<T>(
+        &self,
+        config: UpdateVertexConfig<T>,
+    ) -> ArangoResult<UpdateVertexMeta>
+    where
+        T: Serialize + Send + Sync;
 }

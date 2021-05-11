@@ -598,3 +598,59 @@ async fn graph_create_update_delete_vertex() -> Result<()> {
 
     delete_random_graph(&conn, rand_graph_meta).await
 }
+
+#[tokio::test]
+async fn graph_create_replace_delete_vertex() -> Result<()> {
+    let conn = &*RUARANGO_POOL.get()?;
+    let rand_graph_meta = create_random_graph(&conn).await?;
+    let graph_name = rand_graph_meta.graph();
+    let from_coll = rand_graph_meta.from_coll();
+
+    let config = CreateVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .vertex(TestVertex { test: "test" })
+        .build()?;
+    let res = conn.create_vertex(config).await?;
+    assert!(res.is_right());
+    let vertex_meta = res.right_safe()?;
+    assert!(!vertex_meta.error());
+    assert_eq!(*vertex_meta.code(), 202);
+    let vertex = vertex_meta.vertex();
+    assert!(!vertex.id().is_empty());
+    assert!(!vertex.key().is_empty());
+    assert!(!vertex.rev().is_empty());
+    let key = vertex.key();
+    let rev = vertex.rev();
+
+    let replace_config = UpdateVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .key(key)
+        .vertex(TestVertex { test: "yoda" })
+        .build()?;
+    let res = conn.replace_vertex(replace_config).await?;
+    assert!(res.is_right());
+    let replace_vertex_meta = res.right_safe()?;
+    assert!(!replace_vertex_meta.error());
+    assert_eq!(*replace_vertex_meta.code(), 202);
+    let vertex = replace_vertex_meta.vertex();
+    assert!(!vertex.id().is_empty());
+    assert!(!vertex.key().is_empty());
+    assert!(!vertex.rev().is_empty());
+    assert!(vertex.rev() != rev);
+
+    let delete_config = DeleteVertexConfigBuilder::default()
+        .name(graph_name)
+        .collection(from_coll)
+        .key(key)
+        .build()?;
+    let res = conn.delete_vertex(delete_config).await?;
+    assert!(res.is_right());
+    let delete_vertex_meta = res.right_safe()?;
+    assert!(!delete_vertex_meta.error());
+    assert!(delete_vertex_meta.removed());
+    assert_eq!(*delete_vertex_meta.code(), 202);
+
+    delete_random_graph(&conn, rand_graph_meta).await
+}
