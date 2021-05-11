@@ -14,6 +14,7 @@ mod edge;
 mod edge_def;
 mod read;
 mod vertex;
+mod vertex_coll;
 
 pub use create::{
     Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
@@ -65,12 +66,20 @@ pub use read::{
     ConfigBuilderError as ReadConfigBuilderError,
 };
 pub use vertex::create::{
+    Config as CreateVertexConfig, ConfigBuilder as CreateVertexConfigBuilder,
+    ConfigBuilderError as CreateVertexConfigBuilderError,
+};
+pub use vertex_coll::create::{
     Collection as CreateVertexCollection, CollectionBuilder as CreateVertexCollectionBuilder,
     CollectionBuilderError as CreateVertexCollectionBuilderError, Config as CreateVertexCollConfig,
     ConfigBuilder as CreateVertexCollConfigBuilder,
     ConfigBuilderError as CreateVertexCollConfigBuilderError,
 };
-pub use vertex::read::{
+pub use vertex_coll::delete::{
+    Config as DeleteVertexCollConfig, ConfigBuilder as DeleteVertexCollConfigBuilder,
+    ConfigBuilderError as DeleteVertexCollConfigBuilderError,
+};
+pub use vertex_coll::read::{
     Config as ReadVertexCollsConfig, ConfigBuilder as ReadVertexCollsConfigBuilder,
     ConfigBuilderError as ReadVertexCollsConfigBuilderError,
 };

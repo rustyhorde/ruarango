@@ -14,8 +14,8 @@ use crate::{
     graph::{
         input::{
             CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, DeleteConfig,
-            DeleteEdgeDefConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
+            DeleteEdgeDefConfig, DeleteVertexCollConfig, EdgeCreateConfig, EdgeDeleteConfig,
+            EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
             ReadVertexCollsConfig, ReplaceEdgeDefConfig,
         },
         output::{
@@ -124,5 +124,10 @@ impl Graph for Connection {
     async fn create_vertex_coll(&self, config: CreateVertexCollConfig) -> ArangoResult<GraphMeta> {
         let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
         self.post(url, None, config.collection(), map_resp).await
+    }
+
+    async fn delete_vertex_coll(&self, config: DeleteVertexCollConfig) -> ArangoResult<GraphMeta> {
+        let url = config.build_url(BASE_GRAPH_SUFFIX, self)?;
+        self.delete(url, None, EMPTY_BODY, map_resp).await
     }
 }

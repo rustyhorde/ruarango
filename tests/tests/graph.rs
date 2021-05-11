@@ -11,9 +11,10 @@ use ruarango::{
     graph::{
         input::{
             CreateEdgeDefConfigBuilder, CreateVertexCollConfigBuilder,
-            CreateVertexCollectionBuilder, DeleteEdgeDefConfigBuilder, EdgeCreateConfigBuilder,
-            EdgeDeleteConfigBuilder, EdgeReadConfigBuilder, EdgeReplaceConfigBuilder,
-            EdgeUpdateConfigBuilder, FromToBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
+            CreateVertexCollectionBuilder, DeleteEdgeDefConfigBuilder,
+            DeleteVertexCollConfigBuilder, EdgeCreateConfigBuilder, EdgeDeleteConfigBuilder,
+            EdgeReadConfigBuilder, EdgeReplaceConfigBuilder, EdgeUpdateConfigBuilder,
+            FromToBuilder, ReadConfigBuilder, ReadEdgeDefsConfigBuilder,
             ReadVertexCollsConfigBuilder, ReplaceEdgeDefConfigBuilder,
         },
         EdgeDefinitionBuilder,
@@ -450,7 +451,7 @@ async fn graph_read_vertex_colls() -> Result<()> {
 }
 
 #[tokio::test]
-async fn graph_create_vertex_coll() -> Result<()> {
+async fn graph_create_delete_vertex_coll() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
     let rand_graph_meta = create_random_graph(&conn).await?;
     let rand_coll_name = rand_name();
@@ -471,6 +472,16 @@ async fn graph_create_vertex_coll() -> Result<()> {
     assert!(graph.orphan_collections().len() >= 1);
     assert!(graph.orphan_collections().contains(&rand_coll_name));
 
-    delete_random_collection(conn, rand_coll_name).await?;
+    let delete_config = DeleteVertexCollConfigBuilder::default()
+        .name(rand_graph_meta.graph())
+        .collection(&rand_coll_name)
+        .drop_collection(true)
+        .build()?;
+    let res = conn.delete_vertex_coll(delete_config).await?;
+    assert!(res.is_right());
+    let graph_meta = res.right_safe()?;
+    assert!(!graph_meta.error());
+    assert_eq!(*graph_meta.code(), 202);
+
     delete_random_graph(&conn, rand_graph_meta).await
 }

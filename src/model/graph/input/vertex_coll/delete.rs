@@ -6,14 +6,10 @@
 // option. All files in the project carrying such notice may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Graph Create Vertex Input Structs
+//! Graph Delete Vertex Collection Input Structs
 
 use crate::{
-    model::{
-        add_qp,
-        BuildUrl,
-        QueryParam::{ReturnNew, WaitForSync},
-    },
+    model::{add_qp, BuildUrl, QueryParam::DropCollection},
     Connection,
 };
 use anyhow::{Context, Result};
@@ -22,41 +18,40 @@ use getset::Getters;
 use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
 
-/// Graph create vertex configuration
+/// Graph delete vertex collection configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]
-pub struct Config<T> {
-    /// The name of the graph to add the vertex to
+pub struct Config {
+    /// The name of the graph to delete the vertex collection from
     #[builder(setter(into))]
     name: String,
-    /// The name of the collection to add the vertex to
+    /// The name of the vertex collection to remove
     #[builder(setter(into))]
     collection: String,
-    /// Wait until the graph has been synced to disk
+    /// Drop the collection as well.
+    /// Collection will only be dropped if it is not used in other graphs.
     #[builder(setter(strip_option), default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    wait_for_sync: Option<bool>,
-    /// Return the new vertex in the response
-    #[builder(setter(strip_option), default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    return_new: Option<bool>,
-    /// The vertex to add
-    vertex: T,
+    drop_collection: Option<bool>,
 }
 
-impl<T> Config<T> {
+impl Config {
     fn build_suffix(&self, base: &str) -> String {
         let mut url = format!("{}/{}/vertex/{}", base, self.name, self.collection);
         let mut has_qp = false;
 
-        add_qp(*self.wait_for_sync(), &mut url, &mut has_qp, WaitForSync);
-        add_qp(*self.return_new(), &mut url, &mut has_qp, ReturnNew);
+        add_qp(
+            *self.drop_collection(),
+            &mut url,
+            &mut has_qp,
+            DropCollection,
+        );
 
         url
     }
 }
 
-impl <T> BuildUrl for Config<T> {
+impl BuildUrl for Config {
     fn build_url(&self, base: &str, conn: &Connection) -> Result<Url> {
         let suffix = self.build_suffix(base);
         conn.db_url()

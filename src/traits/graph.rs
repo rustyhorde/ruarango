@@ -12,13 +12,13 @@ use crate::{
     graph::{
         input::{
             CreateConfig, CreateEdgeDefConfig, CreateVertexCollConfig, DeleteConfig,
-            DeleteEdgeDefConfig, EdgeCreateConfig, EdgeDeleteConfig, EdgeReadConfig,
-            EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
-            ReadVertexCollsConfig, ReplaceEdgeDefConfig,
+            DeleteEdgeDefConfig, DeleteVertexCollConfig, EdgeCreateConfig, EdgeDeleteConfig,
+            EdgeReadConfig, EdgeReplaceConfig, EdgeUpdateConfig, ReadConfig, ReadEdgeDefsConfig,
+            ReadVertexCollsConfig, ReplaceEdgeDefConfig, CreateVertexConfig,
         },
         output::{
             CreateEdge, DeleteEdge, EdgesMeta, GraphMeta, List, ReadEdge, ReplaceEdge, UpdateEdge,
-            VertexColls,
+            VertexColls, VertexMeta,
         },
     },
     ArangoResult,
@@ -64,4 +64,10 @@ pub trait Graph {
     async fn read_vertex_colls(&self, config: ReadVertexCollsConfig) -> ArangoResult<VertexColls>;
     /// Create vertex collection
     async fn create_vertex_coll(&self, config: CreateVertexCollConfig) -> ArangoResult<GraphMeta>;
+    /// Delete vertex collection
+    async fn delete_vertex_coll(&self, config: DeleteVertexCollConfig) -> ArangoResult<GraphMeta>;
+    /// Create vertex
+    async fn create_vertex<T>(&self, config: CreateVertexConfig<T>) -> ArangoResult<VertexMeta>
+    where
+        T: Serialize + Send + Sync;
 }

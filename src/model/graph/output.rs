@@ -179,3 +179,32 @@ pub struct VertexColls {
     /// The list of vertex collections
     collections: Vec<String>,
 }
+
+/// Output for [`create_vertex`](crate::Graph::create_vertex)
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct VertexMeta {
+    /// A flag to indicate that an error occurred
+    error: bool,
+    /// The HTTP repsponse code
+    code: u16,
+    /// The vertex data
+    vertex: Vertex,
+    /// Optional new vertex data
+    new: Option<Vertex>,
+}
+
+/// Vertex data
+#[derive(Clone, Debug, Deserialize, Getters, Serialize)]
+#[getset(get = "pub")]
+pub struct Vertex {
+    /// Contains the graph identifier
+    #[serde(rename = "_id")]
+    id: String,
+    /// Contains the graph key
+    #[serde(rename = "_key")]
+    key: String,
+    /// Contains the graph revision
+    #[serde(rename = "_rev")]
+    rev: String,
+}
