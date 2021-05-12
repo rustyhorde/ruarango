@@ -133,6 +133,8 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml') }}
       - uses: actions-rs/toolchain@v1
         name: 🧰 Toolchain 🧰
+        env:
+          RUSTUP_UNPACK_RAM: 250000000
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
