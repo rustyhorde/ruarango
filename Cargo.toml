@@ -1,8 +1,16 @@
 [package]
-name = "ruarango"
-version = "0.1.0"
-authors = ["Jason Ozias <jason.ozias@kroger.com>"]
+authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
+categories = ["asynchronous", "database"]
+description = "ArangoDB Client Implementation"
+documentation = "http://docs.rs/ruarango"
 edition = "2018"
+homepage = "http://github.com/rustyhorde/ruarango"
+keywords = ["arangodb", "database"]
+license = "MIT OR Apache-2.0"
+name = "ruarango"
+readme = "README.md"
+repository = "https://github.com/rustyhorde/ruarango"
+version = "0.1.0"
 autotests = false
 
 [dependencies]
