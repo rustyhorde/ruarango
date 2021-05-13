@@ -133,8 +133,17 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml') }}
       - uses: actions-rs/toolchain@v1
         name: 🧰 Toolchain 🧰
+        if: matrix.os != 'windows-latest'
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions-rs/toolchain@v1
+        name: 🧰 Toolchain 🧰
+        if: matrix.os == 'windows-latest'
         env:
-          RUSTUP_UNPACK_RAM: 250000000
+          RUSTUP_UNPACK_RAM: 18000000
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
