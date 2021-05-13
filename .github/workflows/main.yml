@@ -67,42 +67,6 @@ jobs:
         - os: ubuntu-latest
           rust: nightly
           target: x86_64-unknown-linux-gnu
-        # - os: windows-latest
-        #   rust: stable-msvc
-        #   target: i686-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: stable-msvc
-        #   target: x86_64-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: beta-msvc
-        #   target: i686-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: beta-msvc
-        #   target: x86_64-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: nightly-msvc
-        #   target: i686-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: nightly-msvc
-        #   target: x86_64-pc-windows-msvc
-        # - os: windows-latest
-        #   rust: stable-gnu
-        #   target: i686-pc-windows-gnu
-        # - os: windows-latest
-        #   rust: stable-gnu
-        #   target: x86_64-pc-windows-gnu
-        # - os: windows-latest
-        #   rust: beta-gnu
-        #   target: i686-pc-windows-gnu
-        # - os: windows-latest
-        #   rust: beta-gnu
-        #   target: x86_64-pc-windows-gnu
-        # - os: windows-latest
-        #   rust: nightly-gnu
-        #   target: i686-pc-windows-gnu
-        # - os: windows-latest
-        #   rust: nightly-gnu
-        #   target: x86_64-pc-windows-gnu
     steps:
       - name: ✔️ Checkout ✔️
         uses: actions/checkout@v2
@@ -173,6 +137,80 @@ jobs:
         - os: macos-latest
           rust: nightly
           target: x86_64-apple-ios
+    steps:
+      - name: ✔️ Checkout ✔️
+        uses: actions/checkout@v2
+      - name: 💵 Cache 💵
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/cargo-tarpaulin*
+            ~/.cargo/bin/cargo-*-all-features*
+          key: ${{ runner.os }}-${{ matrix.rust }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml') }}
+      - uses: actions-rs/toolchain@v1
+        name: 🧰 Toolchain 🧰
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+      - name: 💾 Install (cargo-all-features) 💾
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-all-features
+          version: latest
+          use-tool-cache: true
+        continue-on-error: true
+      - name: 🧪 Test 🧪
+        run: cargo test-all-features
+  test-windows:
+    name: 🧪 Windows 🧪
+    if: ${{ false }}
+    needs: lints
+    env:
+      ARANGODB_URL: ${{ secrets.ARANGODB_URL }}
+      ARANGODB_ROOT_PASSWORD: ${{ secrets.ARANGODB_ROOT_PASSWORD }}
+      ARANGODB_RUARANGO_PASSWORD: ${{ secrets.ARANGODB_RUARANGO_PASSWORD }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+        - os: windows-latest
+          rust: stable-msvc
+          target: i686-pc-windows-msvc
+        - os: windows-latest
+          rust: stable-msvc
+          target: x86_64-pc-windows-msvc
+        - os: windows-latest
+          rust: beta-msvc
+          target: i686-pc-windows-msvc
+        - os: windows-latest
+          rust: beta-msvc
+          target: x86_64-pc-windows-msvc
+        - os: windows-latest
+          rust: nightly-msvc
+          target: i686-pc-windows-msvc
+        - os: windows-latest
+          rust: nightly-msvc
+          target: x86_64-pc-windows-msvc
+        - os: windows-latest
+          rust: stable-gnu
+          target: i686-pc-windows-gnu
+        - os: windows-latest
+          rust: stable-gnu
+          target: x86_64-pc-windows-gnu
+        - os: windows-latest
+          rust: beta-gnu
+          target: i686-pc-windows-gnu
+        - os: windows-latest
+          rust: beta-gnu
+          target: x86_64-pc-windows-gnu
+        - os: windows-latest
+          rust: nightly-gnu
+          target: i686-pc-windows-gnu
+        - os: windows-latest
+          rust: nightly-gnu
+          target: x86_64-pc-windows-gnu
     steps:
       - name: ✔️ Checkout ✔️
         uses: actions/checkout@v2
