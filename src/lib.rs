@@ -293,7 +293,7 @@
 // nightly only lints
 #![cfg_attr(
     nightly_lints,
-    deny(disjoint_capture_drop_reorder, or_patterns_back_compat)
+    deny(or_patterns_back_compat)
 )]
 // nightly or beta only lints
 #![cfg_attr(
