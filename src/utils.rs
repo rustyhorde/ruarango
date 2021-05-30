@@ -185,12 +185,12 @@ fn to_empty(res: reqwest::Response) -> Result<()> {
     res.error_for_status().map(|_| ()).map_err(Error::into)
 }
 
-#[allow(clippy::unused_async)]
+#[cfg_attr(nightly_lints, allow(clippy::unused_async))]
 pub(crate) async fn empty(res: Result<reqwest::Response, Error>) -> Result<()> {
     res.map(to_empty)?
 }
 
-#[allow(clippy::unused_async)]
+#[cfg_attr(nightly_lints, allow(clippy::unused_async))]
 pub(crate) async fn handle_job_response(res: Result<reqwest::Response, Error>) -> Result<JobInfo> {
     res.map(|res| {
         let status = res.status().as_u16();
