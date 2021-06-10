@@ -193,7 +193,7 @@ where
     }
 
     if let Some(json) = json {
-        rb = rb.json(&json)
+        rb = rb.json(&json);
     }
 
     rb.send()

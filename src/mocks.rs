@@ -17,7 +17,7 @@ pub async fn mock_auth(mock_server: &MockServer) {
         .and(body_string_contains("username"))
         .and(body_string_contains("password"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 
@@ -28,7 +28,7 @@ pub async fn mock_database_create(mock_server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/_db/test_db/_api/database/current"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 
@@ -38,7 +38,7 @@ pub async fn mock_async_database_create(mock_server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/_db/test_db/_api/database/current"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 
@@ -48,7 +48,7 @@ pub async fn mock_async_ff_database_create(mock_server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/_db/test_db/_api/database/current"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 
@@ -58,7 +58,7 @@ pub async fn mock_get_job(mock_server: &MockServer) {
     Mock::given(method("GET"))
         .and(path("/_db/test_db/_api/job/123456"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 
@@ -69,6 +69,6 @@ pub async fn mock_put_job(mock_server: &MockServer) {
     Mock::given(method("PUT"))
         .and(path("/_db/test_db/_api/job/123456"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
