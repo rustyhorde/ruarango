@@ -76,7 +76,15 @@ pub(crate) enum QueryParam {
     WaitForSync(bool),
 }
 
+/// # Example
+///
+/// ```
+/// ```
 impl From<QueryParam> for String {
+    /// # Example
+    ///
+    /// ```
+    /// ```
     fn from(qp: QueryParam) -> String {
         match qp {
             QueryParam::DropCollection(v) => if v {

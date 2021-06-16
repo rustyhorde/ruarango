@@ -131,7 +131,19 @@ impl<'de> Deserialize<'de> for OverwriteMode {
     }
 }
 
+/// # Example
+///
+/// ```
+/// # use ruarango::doc::input::OverwriteMode;
+/// let mode: String = OverwriteMode::Ignore.into();
+/// ```
 impl From<OverwriteMode> for String {
+    /// # Example
+    ///
+    /// ```
+    /// # use ruarango::doc::input::OverwriteMode;
+    /// let mode: String = OverwriteMode::Ignore.into();
+    /// ```
     fn from(mode: OverwriteMode) -> String {
         match mode {
             OverwriteMode::Ignore => "ignore",
