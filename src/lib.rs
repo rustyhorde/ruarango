@@ -320,7 +320,7 @@
 )]
 // clippy lints
 #![deny(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access)]
+#![allow(clippy::default_trait_access, clippy::nonstandard_macro_braces)]
 // rustdoc lints
 #![cfg_attr(
     any(nightly_lints, beta_lints),
