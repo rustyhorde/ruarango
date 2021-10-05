@@ -318,7 +318,7 @@
 #![cfg_attr(stable_lints, deny(disjoint_capture_drop_reorder))]
 // clippy lints
 #![deny(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access)]
+#![allow(clippy::default_trait_access, clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(nightly_lints, allow(clippy::nonstandard_macro_braces))]
 // rustdoc lints
 #![deny(
