@@ -319,7 +319,10 @@
 // clippy lints
 #![deny(clippy::all, clippy::pedantic)]
 #![allow(clippy::default_trait_access, clippy::semicolon_if_nothing_returned)]
-#![cfg_attr(nightly_lints, allow(clippy::nonstandard_macro_braces))]
+#![cfg_attr(
+    nightly_lints,
+    allow(clippy::nonstandard_macro_braces, clippy::no_effect_underscore_binding)
+)]
 // rustdoc lints
 #![deny(
     rustdoc::bare_urls,
