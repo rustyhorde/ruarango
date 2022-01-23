@@ -267,7 +267,6 @@
     unsafe_op_in_unsafe_fn,
     unstable_features,
     unstable_name_collisions,
-    unsupported_naked_functions,
     unused_allocation,
     unused_assignments,
     unused_attributes,
