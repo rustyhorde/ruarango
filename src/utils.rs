@@ -50,13 +50,13 @@ pub(crate) fn prepend_sep(url: &mut String, has_qp: bool) -> &mut String {
 macro_rules! add_qps {
     ($field:expr, $url:ident, $has_qp:ident, $val:expr => last) => {
         if $field.unwrap_or(false) {
-            let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+            let _ = $crate::utils::prepend_sep(&mut $url, $has_qp);
             $url += $val;
         }
     };
     ($field:expr, $url:ident, $has_qp:ident, $val:expr) => {
         if $field.unwrap_or(false) {
-            let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+            let _ = $crate::utils::prepend_sep(&mut $url, $has_qp);
             $url += $val;
             $has_qp = true;
         }
@@ -67,11 +67,11 @@ macro_rules! add_qps {
 #[macro_export]
 macro_rules! add_qp {
     ($url:ident, $has_qp:ident, $val:expr;) => {
-        let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+        let _ = $crate::utils::prepend_sep(&mut $url, $has_qp);
         $url += $val;
     };
     ($url:ident, $has_qp:ident, $val:expr) => {
-        let _ = crate::utils::prepend_sep(&mut $url, $has_qp);
+        let _ = $crate::utils::prepend_sep(&mut $url, $has_qp);
         $url += $val;
         $has_qp = true;
     };
