@@ -136,7 +136,7 @@ pub struct Options {
     /// query profiling information will be returned in the sub-attribute
     /// `profile` of the extra return attribute, if the query result is
     /// not served from the query cache.
-    /// If set to ['WithStats'](ProfileKind::WithStats) the query will include
+    /// If set to [`WithStats`](ProfileKind::WithStats) the query will include
     /// execution stats per query plan node in sub-attribute `stats.nodes` of
     /// the extra return attribute. Additionally the query plan is returned
     /// in the sub-attribute `extra.plan`.
