@@ -15,26 +15,26 @@ autotests = false
 
 [dependencies]
 anyhow = "1"
-async-trait = "0"
-const_format = "0"
-derive_builder = "0"
-futures = "0"
-getset = "0"
-libeither = "0"
-reqwest = { version = "0", features = [ "json" ] }
+async-trait = "0.1"
+const_format = "0.2"
+derive_builder = "0.11"
+futures = "0.3"
+getset = "0.1"
+libeither = "0.4"
+reqwest = { version = "0.11", features = [ "json" ] }
 serde = "1"
 serde_derive = "1"
 serde_json = "1"
 thiserror = "1"
-wiremock = "0"
+wiremock = "0.5"
 
 [dev-dependencies]
 lazy_static = "1"
-rand = "0"
-r2d2 = "0"
+rand = "0.8"
+r2d2 = "0.8"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
-tokio-test = "0"
-wiremock = "0"
+tokio-test = "0.4"
+wiremock = "0.5"
 
 [build-dependencies]
 rustversion = "1"
