@@ -316,7 +316,11 @@
 #![cfg_attr(stable_lints, deny(disjoint_capture_drop_reorder))]
 // clippy lints
 #![deny(clippy::all, clippy::pedantic)]
-#![allow(clippy::default_trait_access, clippy::semicolon_if_nothing_returned)]
+#![allow(
+    clippy::default_trait_access,
+    clippy::semicolon_if_nothing_returned,
+    clippy::uninlined_format_args
+)]
 #![cfg_attr(
     nightly_lints,
     allow(clippy::nonstandard_macro_braces, clippy::no_effect_underscore_binding)
