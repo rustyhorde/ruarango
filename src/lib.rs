@@ -241,7 +241,6 @@
     pointer_structural_match,
     private_in_public,
     proc_macro_back_compat,
-    proc_macro_derive_resolution_fallback,
     redundant_semicolons,
     renamed_and_removed_lints,
     semicolon_in_expressions_from_macros,
