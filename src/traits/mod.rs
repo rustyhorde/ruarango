@@ -9,7 +9,7 @@
 //! Database operation traits
 
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 mod coll;
 mod cursor;

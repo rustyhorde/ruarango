@@ -22,7 +22,7 @@ use ruarango::{
     },
     Graph,
 };
-use serde_derive::Serialize;
+use serde::Serialize;
 
 #[tokio::test]
 async fn graph_list_all() -> Result<()> {

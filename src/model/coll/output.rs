@@ -12,7 +12,7 @@ use super::{CollectionKind, Status};
 use getset::Getters;
 #[cfg(test)]
 use getset::Setters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 macro_rules! coll_output {
     ($(#[$sattr:meta])+ pub struct $name:ident {

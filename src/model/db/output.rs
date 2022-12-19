@@ -9,7 +9,7 @@
 //! Database Output Structs
 
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Output when [`current`](crate::Database::current) is called for a document
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]

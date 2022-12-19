@@ -152,7 +152,7 @@ mod test {
     use anyhow::Result;
     use getset::{Getters, Setters};
     use libeither::Either;
-    use serde_derive::{Deserialize, Serialize};
+    use serde::{Deserialize, Serialize};
     use wiremock::{
         matchers::{header_exists, method, path},
         Mock, MockServer, ResponseTemplate,

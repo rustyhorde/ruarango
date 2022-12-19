@@ -25,7 +25,7 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     Url,
 };
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Document update configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]

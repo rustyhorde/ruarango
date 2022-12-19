@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
 use reqwest::Url;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 const EMPTY_EDGE_DEFINITIONS_ERR: &str = "edge_definitions cannot be empty!";
 

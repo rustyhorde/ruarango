@@ -40,7 +40,7 @@
 //! # }
 //! ```
 use derive_builder::Builder;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Database creation configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Serialize)]

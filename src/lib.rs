@@ -25,7 +25,7 @@
 //! use ruarango::{ConnectionBuilder, Database};
 //! # use libeither::Either;
 //! # use ruarango::{JobInfo, common::output::Response, db::output::Current, mock_auth, mock_database_create, start_mock_server};
-//! # use serde_derive::{Deserialize, Serialize};
+//! # use serde::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #    matchers::{method, path, body_string_contains},
 //! #    Mock, MockServer, ResponseTemplate,
@@ -76,7 +76,7 @@
 //! #     common::output::Response,
 //! #     db::output::Current,
 //! # };
-//! # use serde_derive::{Deserialize, Serialize};
+//! # use serde::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #     matchers::{method, path, body_string_contains},
 //! #     Mock, MockServer, ResponseTemplate,
@@ -148,7 +148,7 @@
 //! #     common::output::Response,
 //! #     db::output::Current
 //! # };
-//! # use serde_derive::{Deserialize, Serialize};
+//! # use serde::{Deserialize, Serialize};
 //! # use wiremock::{
 //! #   matchers::{method, path, body_string_contains},
 //! #   Mock, MockServer, ResponseTemplate,
@@ -186,144 +186,174 @@
 //! ```
 //!
 // rustc lints
-#![deny(
-    absolute_paths_not_starting_with_crate,
-    anonymous_parameters,
-    array_into_iter,
-    asm_sub_register,
-    bare_trait_objects,
-    bindings_with_variant_name,
-    // box_pointers,
-    cenum_impl_drop_cast,
-    clashing_extern_declarations,
-    coherence_leak_check,
-    confusable_idents,
-    const_evaluatable_unchecked,
-    const_item_mutation,
-    dead_code,
-    deprecated,
-    deprecated_in_future,
-    drop_bounds,
-    elided_lifetimes_in_paths,
-    ellipsis_inclusive_range_patterns,
-    explicit_outlives_requirements,
-    exported_private_dependencies,
-    forbidden_lint_groups,
-    function_item_references,
-    illegal_floating_point_literal_pattern,
-    improper_ctypes,
-    improper_ctypes_definitions,
-    incomplete_features,
-    indirect_structural_match,
-    inline_no_sanitize,
-    invalid_value,
-    irrefutable_let_patterns,
-    keyword_idents,
-    late_bound_lifetime_arguments,
-    legacy_derive_helpers,
-    macro_use_extern_crate,
-    meta_variable_misuse,
-    missing_abi,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    missing_docs,
-    mixed_script_confusables,
-    no_mangle_generic_items,
-    non_ascii_idents,
-    non_camel_case_types,
-    non_shorthand_field_patterns,
-    non_snake_case,
-    non_upper_case_globals,
-    nontrivial_structural_match,
-    noop_method_call,
-    overlapping_range_endpoints,
-    path_statements,
-    pointer_structural_match,
-    private_in_public,
-    proc_macro_back_compat,
-    redundant_semicolons,
-    renamed_and_removed_lints,
-    semicolon_in_expressions_from_macros,
-    single_use_lifetimes,
-    stable_features,
-    temporary_cstring_as_ptr,
-    trivial_bounds,
-    trivial_casts,
-    trivial_numeric_casts,
-    type_alias_bounds,
-    tyvar_behind_raw_pointer,
-    unaligned_references,
-    uncommon_codepoints,
-    unconditional_recursion,
-    uninhabited_static,
-    unknown_lints,
-    unnameable_test_items,
-    unreachable_code,
-    unreachable_patterns,
-    unreachable_pub,
-    unsafe_code,
-    unsafe_op_in_unsafe_fn,
-    unstable_features,
-    unstable_name_collisions,
-    unused_allocation,
-    unused_assignments,
-    unused_attributes,
-    unused_braces,
-    unused_comparisons,
-    unused_crate_dependencies,
-    unused_doc_comments,
-    unused_extern_crates,
-    unused_features,
-    unused_import_braces,
-    unused_imports,
-    unused_labels,
-    unused_lifetimes,
-    unused_macros,
-    unused_must_use,
-    unused_mut,
-    unused_parens,
-    unused_qualifications,
-    unused_results,
-    unused_unsafe,
-    unused_variables,
-    variant_size_differences,
-    where_clauses_object_safety,
-    while_true
-)]
-// nightly only lints
 #![cfg_attr(
-    nightly_lints,
+    all(msrv, feature = "unstable", nightly),
+    feature(
+        c_unwind,
+        lint_reasons,
+        must_not_suspend,
+        non_exhaustive_omitted_patterns_lint,
+        strict_provenance
+    )
+)]
+#![cfg_attr(
+    msrv,
     deny(
+        absolute_paths_not_starting_with_crate,
+        anonymous_parameters,
+        array_into_iter,
+        asm_sub_register,
+        bad_asm_style,
+        bare_trait_objects,
+        bindings_with_variant_name,
+        // box_pointers,
+        break_with_label_and_loop,
+        clashing_extern_declarations,
+        coherence_leak_check,
+        confusable_idents,
+        const_evaluatable_unchecked,
+        const_item_mutation,
+        dead_code,
+        deprecated,
+        deprecated_in_future,
+        deprecated_where_clause_location,
+        deref_into_dyn_supertrait,
+        deref_nullptr,
+        drop_bounds,
+        duplicate_macro_attributes,
+        dyn_drop,
+        elided_lifetimes_in_paths,
+        ellipsis_inclusive_range_patterns,
+        explicit_outlives_requirements,
+        exported_private_dependencies,
+        forbidden_lint_groups,
+        function_item_references,
+        illegal_floating_point_literal_pattern,
+        improper_ctypes,
+        improper_ctypes_definitions,
+        incomplete_features,
+        indirect_structural_match,
+        inline_no_sanitize,
+        invalid_doc_attributes,
+        invalid_value,
+        irrefutable_let_patterns,
+        keyword_idents,
+        large_assignments,
+        late_bound_lifetime_arguments,
+        legacy_derive_helpers,
+        let_underscore_drop,
+        macro_use_extern_crate,
+        meta_variable_misuse,
+        missing_abi,
+        missing_copy_implementations,
+        missing_debug_implementations,
+        missing_docs,
+        mixed_script_confusables,
+        named_arguments_used_positionally,
+        no_mangle_generic_items,
+        non_ascii_idents,
+        non_camel_case_types,
         non_fmt_panics,
+        non_shorthand_field_patterns,
+        non_snake_case,
+        non_upper_case_globals,
+        nontrivial_structural_match,
+        noop_method_call,
+        overlapping_range_endpoints,
+        path_statements,
+        pointer_structural_match,
+        private_in_public,
+        redundant_semicolons,
+        renamed_and_removed_lints,
+        repr_transparent_external_private_fields,
         rust_2021_incompatible_closure_captures,
         rust_2021_incompatible_or_patterns,
         rust_2021_prefixes_incompatible_syntax,
         rust_2021_prelude_collisions,
+        semicolon_in_expressions_from_macros,
+        single_use_lifetimes,
+        special_module_name,
+        stable_features,
+        suspicious_auto_trait_impls,
+        temporary_cstring_as_ptr,
+        trivial_bounds,
+        trivial_casts,
+        trivial_numeric_casts,
+        type_alias_bounds,
+        tyvar_behind_raw_pointer,
+        uncommon_codepoints,
+        unconditional_recursion,
+        unexpected_cfgs,
+        uninhabited_static,
+        unknown_lints,
+        unnameable_test_items,
+        unreachable_code,
+        unreachable_patterns,
+        unreachable_pub,
+        unsafe_code,
+        unsafe_op_in_unsafe_fn,
+        unstable_name_collisions,
+        unstable_syntax_pre_expansion,
         unsupported_calling_conventions,
+        unused_allocation,
+        unused_assignments,
+        unused_attributes,
+        unused_braces,
+        unused_comparisons,
+        unused_crate_dependencies,
+        unused_doc_comments,
+        unused_extern_crates,
+        unused_features,
+        unused_import_braces,
+        unused_imports,
+        unused_labels,
+        unused_lifetimes,
+        unused_macro_rules,
+        unused_macros,
+        unused_must_use,
+        unused_mut,
+        unused_parens,
+        unused_qualifications,
+        unused_results,
+        unused_tuple_struct_fields,
+        unused_unsafe,
+        unused_variables,
+        variant_size_differences,
+        where_clauses_object_safety,
+        while_true,
+))]
+// If nightly and unstable, allow `unstable_features`
+#![cfg_attr(all(msrv, feature = "unstable", nightly), allow(unstable_features))]
+// The unstable lints
+#![cfg_attr(
+    all(msrv, feature = "unstable", nightly),
+    deny(
+        ffi_unwind_calls,
+        fuzzy_provenance_casts,
+        lossy_provenance_casts,
+        must_not_suspend,
+        non_exhaustive_omitted_patterns,
+        unfulfilled_lint_expectations,
     )
 )]
+// If nightly and not unstable, deny `unstable_features`
+#![cfg_attr(all(msrv, not(feature = "unstable"), nightly), deny(unstable_features))]
+// nightly only lints
+// #![cfg_attr(all(msrv, nightly),deny())]
 // nightly or beta only lints
-#![cfg_attr(any(beta_lints, nightly_lints), deny(invalid_doc_attributes))]
+#![cfg_attr(
+    all(msrv, any(beta, nightly)),
+    deny(for_loops_over_fallibles, opaque_hidden_inferred_bound)
+)]
 // beta only lints
-#![cfg_attr(beta_lints, deny(disjoint_capture_migration))]
+// #![cfg_attr( all(msrv, beta), deny())]
 // beta or stable only lints
-#![cfg_attr(
-    any(beta_lints, stable_lints),
-    deny(non_fmt_panic, or_patterns_back_compat)
-)]
+// #![cfg_attr(all(msrv, any(beta, stable)), deny())]
 // stable only lints
-#![cfg_attr(stable_lints, deny(disjoint_capture_drop_reorder))]
+// #![cfg_attr(all(msrv, stable), deny())]
 // clippy lints
-#![deny(clippy::all, clippy::pedantic)]
-#![allow(
-    clippy::default_trait_access,
-    clippy::semicolon_if_nothing_returned,
-    clippy::uninlined_format_args
-)]
-#![cfg_attr(
-    nightly_lints,
-    allow(clippy::nonstandard_macro_braces, clippy::no_effect_underscore_binding)
-)]
+#![cfg_attr(msrv, deny(clippy::all, clippy::pedantic))]
+// #![cfg_attr(msrv, allow())]
 // rustdoc lints
 #![deny(
     rustdoc::bare_urls,

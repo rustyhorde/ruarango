@@ -9,7 +9,7 @@
 //! Cursor Output Structs
 
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Cursor metadata output
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]

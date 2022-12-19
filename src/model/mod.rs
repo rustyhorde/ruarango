@@ -12,7 +12,7 @@ use crate::{utils::prepend_sep, Connection};
 use anyhow::Result;
 use getset::Getters;
 use reqwest::{header::HeaderMap, Url};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub(crate) mod auth;

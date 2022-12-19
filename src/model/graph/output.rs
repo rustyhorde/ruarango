@@ -10,7 +10,7 @@
 
 use super::EdgeDefinition;
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Output for [`list`](crate::Graph::list)
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]

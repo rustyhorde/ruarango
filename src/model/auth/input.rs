@@ -10,7 +10,7 @@
 
 use derive_builder::Builder;
 use getset::Getters;
-use serde_derive::Serialize;
+use serde::Serialize;
 
 #[derive(Builder, Clone, Debug, Getters, Serialize)]
 #[getset(get = "pub(crate)")]

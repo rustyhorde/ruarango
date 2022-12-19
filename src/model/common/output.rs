@@ -10,7 +10,7 @@
 
 use crate::db::output::Current;
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use {crate::coll::output::Collections, getset::Setters};
 

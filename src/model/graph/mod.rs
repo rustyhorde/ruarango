@@ -15,7 +15,7 @@ pub(crate) const BASE_GRAPH_SUFFIX: &str = "_api/gharial";
 
 use derive_builder::Builder;
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Edge Definition Data
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]

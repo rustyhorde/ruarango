@@ -10,7 +10,7 @@
 
 use derive_builder::Builder;
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Configuration used when creating a collection
 #[derive(Builder, Clone, Debug, Deserialize, Getters, Serialize)]

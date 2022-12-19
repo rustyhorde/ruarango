@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use getset::{Getters, MutGetters};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]

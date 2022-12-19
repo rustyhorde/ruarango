@@ -9,7 +9,7 @@
 //! Document Output Structs
 
 use getset::Getters;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 #[cfg(test)]
 use {

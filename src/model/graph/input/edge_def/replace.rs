@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
 use reqwest::Url;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Graph replace edge def configuration
 #[derive(Builder, Clone, Debug, Default, Deserialize, Getters, Serialize)]
