@@ -13,8 +13,8 @@ use anyhow::{Context, Result};
 use derive_builder::Builder;
 use getset::Getters;
 use reqwest::Url;
-use serde::{Serialize as Ser, Serializer};
 use serde::{Deserialize, Serialize};
+use serde::{Serialize as Ser, Serializer};
 use std::collections::HashMap;
 
 const BATCH_SIZE_ZERO_ERR: &str = "batch_size cannot be 0!";

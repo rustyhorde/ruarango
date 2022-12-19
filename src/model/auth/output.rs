@@ -9,7 +9,7 @@
 //! Auth Output Structs
 
 use getset::Getters;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Getters, Serialize)]
 #[getset(get = "pub(crate)")]

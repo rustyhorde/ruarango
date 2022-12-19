@@ -353,7 +353,7 @@
 // #![cfg_attr(all(msrv, stable), deny())]
 // clippy lints
 #![cfg_attr(msrv, deny(clippy::all, clippy::pedantic))]
-// #![cfg_attr(msrv, allow())]
+#![cfg_attr(msrv, allow(clippy::uninlined_format_args))]
 // rustdoc lints
 #![deny(
     rustdoc::bare_urls,
