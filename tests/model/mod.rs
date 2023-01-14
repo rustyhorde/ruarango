@@ -31,8 +31,8 @@ impl Default for TestDoc {
     }
 }
 
-pub(crate) fn unwrap_doc<'a>(doc_opt: &'a Option<TestDoc>) -> Result<&TestDoc> {
-    Ok(doc_opt.as_ref().ok_or_else(|| anyhow!("bad"))?)
+pub(crate) fn unwrap_doc(doc_opt: &Option<TestDoc>) -> Result<&TestDoc> {
+    doc_opt.as_ref().ok_or_else(|| anyhow!("bad"))
 }
 
 #[derive(Clone, Debug, Deserialize, Getters, Serialize)]

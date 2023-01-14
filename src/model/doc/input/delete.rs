@@ -123,9 +123,8 @@ mod test {
         concatcp!(BASIC_ACTUAL, "?", WAIT_FOR_SYNC_QP, "&", RETURN_OLD_QP);
     const WAIT_SILENT_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", WAIT_FOR_SYNC_QP, "&", SILENT_QP);
 
-    fn check_url(config: Config, actual: &str) -> Result<()> {
+    fn check_url(config: &Config, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
-        Ok(())
     }
 
     #[test]
@@ -134,7 +133,8 @@ mod test {
             .collection(TEST_COLL)
             .key(TEST_KEY)
             .build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -144,7 +144,8 @@ mod test {
             .key(TEST_KEY)
             .wait_for_sync(true)
             .build()?;
-        check_url(config, WAIT_FOR_SYNC_ACTUAL)
+        check_url(&config, WAIT_FOR_SYNC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -154,7 +155,8 @@ mod test {
             .key(TEST_KEY)
             .silent(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -165,7 +167,8 @@ mod test {
             .silent(true)
             .return_old(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -175,7 +178,8 @@ mod test {
             .key(TEST_KEY)
             .return_old(true)
             .build()?;
-        check_url(config, RETURN_OLD_ACTUAL)
+        check_url(&config, RETURN_OLD_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -186,7 +190,8 @@ mod test {
             .wait_for_sync(true)
             .return_old(true)
             .build()?;
-        check_url(config, WAIT_RETURN_ACTUAL)
+        check_url(&config, WAIT_RETURN_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -197,7 +202,8 @@ mod test {
             .wait_for_sync(true)
             .silent(true)
             .build()?;
-        check_url(config, WAIT_SILENT_ACTUAL)
+        check_url(&config, WAIT_SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -209,7 +215,8 @@ mod test {
             .silent(true)
             .return_old(true)
             .build()?;
-        check_url(config, WAIT_SILENT_ACTUAL)
+        check_url(&config, WAIT_SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]

@@ -122,17 +122,15 @@ pub(crate) enum CreateMockKind {
 impl Mock<CreateMockKind> for DocMeta<(), ()> {
     fn try_mock(name: CreateMockKind) -> Result<Self> {
         match name {
-            CreateMockKind::FirstCreate => {
-                let mut create = Self::default();
-                create.key = "test_key".to_string();
-                Ok(create)
-            }
-            CreateMockKind::SecondCreate => {
-                let mut create = Self::default();
-                create.key = "test_key".to_string();
-                create.old_rev = Some("ghi".to_string());
-                Ok(create)
-            }
+            CreateMockKind::FirstCreate => Ok(DocMeta::<(), ()> {
+                key: "test_key".to_string(),
+                ..Default::default()
+            }),
+            CreateMockKind::SecondCreate => Ok(DocMeta::<(), ()> {
+                key: "test_key".to_string(),
+                old_rev: Some("ghi".to_string()),
+                ..Default::default()
+            }),
             _ => Err(InvalidMock.into()),
         }
     }
@@ -152,11 +150,10 @@ impl Mock<CreateMockKind> for DocMeta<OutputDoc, ()> {
 impl Mock<CreateMockKind> for DocMeta<OutputDoc, OutputDoc> {
     fn try_mock(name: CreateMockKind) -> Result<Self> {
         match name {
-            CreateMockKind::NewOldDoc => {
-                let mut create = Self::default();
-                create.key = "test_key".to_string();
-                Ok(create)
-            }
+            CreateMockKind::NewOldDoc => Ok(DocMeta::<OutputDoc, OutputDoc> {
+                key: "test_key".to_string(),
+                ..Default::default()
+            }),
             _ => Err(InvalidMock.into()),
         }
     }

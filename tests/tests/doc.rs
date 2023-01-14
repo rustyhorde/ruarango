@@ -33,7 +33,7 @@ async fn doc_read_async() -> Result<()> {
         .build()?;
     let res: ArangoEither<OutputDoc> = conn.read(config).await?;
     assert!(res.is_left());
-    let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
+    let doc: OutputDoc = process_async_doc_result(res, conn).await?;
     assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
@@ -55,9 +55,7 @@ async fn doc_read() -> Result<()> {
 #[tokio::test]
 async fn doc_reads() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let mut search_docs = vec![];
-    search_docs.push(SearchDoc::new(DOC_KEY));
-    search_docs.push(SearchDoc::new("abcd"));
+    let search_docs = vec![SearchDoc::new(DOC_KEY), SearchDoc::new("abcd")];
     let config = ReadsConfigBuilder::default()
         .collection(TEST_COLL)
         .documents(search_docs)
@@ -106,7 +104,7 @@ async fn doc_read_if_none_match_matches_async() -> Result<()> {
     let res: ArangoEither<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::Match)?)
         .await?;
-    let none_match: Result<OutputDoc> = process_async_doc_result(res, &conn).await;
+    let none_match: Result<OutputDoc> = process_async_doc_result(res, conn).await;
     assert!(none_match.is_err());
     Ok(())
 }
@@ -128,7 +126,7 @@ async fn doc_read_if_none_match_doesnt_match_async() -> Result<()> {
     let res: ArangoEither<OutputDoc> = conn
         .read(if_none_match_config(IfNoneMatchKind::NoneMatch)?)
         .await?;
-    let doc: OutputDoc = process_async_doc_result(res, &conn).await?;
+    let doc: OutputDoc = process_async_doc_result(res, conn).await?;
     assert_eq!(doc.test(), TEST_FIELD_VAL);
     Ok(())
 }
@@ -298,15 +296,15 @@ pub async fn delete_docs(conn: &Connection, keys: Vec<String>, val: &str) -> Res
 #[tokio::test]
 async fn doc_create_delete_basic() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let key = create_doc(&conn).await?;
-    delete_doc(&conn, &key, "test").await
+    let key = create_doc(conn).await?;
+    delete_doc(conn, &key, "test").await
 }
 
 #[tokio::test]
 async fn doc_creates_deletes_basic() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let keys = create_docs(&conn, 3).await?;
-    delete_docs(&conn, keys, "test").await
+    let keys = create_docs(conn, 3).await?;
+    delete_docs(conn, keys, "test").await
 }
 
 #[tokio::test]
@@ -314,7 +312,7 @@ async fn doc_create_overwrite_replace_delete() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let key = create_doc(&conn).await?;
+    let key = create_doc(conn).await?;
 
     // Overwrite with replace
     let mut new_doc = TestDoc::default();
@@ -331,7 +329,7 @@ async fn doc_create_overwrite_replace_delete() -> Result<()> {
     let key = doc_meta.key();
 
     // Delete that document
-    delete_doc(&conn, &key, "testing").await
+    delete_doc(conn, key, "testing").await
 }
 
 #[tokio::test]
@@ -339,7 +337,7 @@ async fn doc_create_replace_delete() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let key = create_doc(&conn).await?;
+    let key = create_doc(conn).await?;
 
     // Replace
     let mut new_doc = TestDoc::default();
@@ -359,7 +357,7 @@ async fn doc_create_replace_delete() -> Result<()> {
     assert_eq!(unwrap_doc(doc_opt)?.test(), "testing");
 
     // Delete that document
-    delete_doc(&conn, &key, "testing").await
+    delete_doc(conn, key, "testing").await
 }
 
 #[tokio::test]
@@ -367,7 +365,7 @@ async fn doc_create_update_delete() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
 
     // Create a document
-    let key = create_doc(&conn).await?;
+    let key = create_doc(conn).await?;
 
     // Update
     let mut new_doc = TestDoc::default();
@@ -391,7 +389,7 @@ async fn doc_create_update_delete() -> Result<()> {
     assert_eq!(unwrap_doc(old_doc_opt)?.test(), "test");
 
     // Delete that document
-    delete_doc(&conn, &key, "testing").await
+    delete_doc(conn, key, "testing").await
 }
 
 #[tokio::test]
@@ -399,7 +397,7 @@ async fn doc_creates_updates_deletes_basic() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
 
     // Create some documents
-    let keys = create_docs(&conn, 3).await?;
+    let keys = create_docs(conn, 3).await?;
 
     // Update the documents
     let update_docs: Vec<TestDoc> = keys
@@ -436,5 +434,5 @@ async fn doc_creates_updates_deletes_basic() -> Result<()> {
     }
 
     // Delete the documents
-    delete_docs(&conn, keys, "blah").await
+    delete_docs(conn, keys, "blah").await
 }

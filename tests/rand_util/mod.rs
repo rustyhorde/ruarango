@@ -130,7 +130,7 @@ pub struct GraphMeta {
 }
 
 pub async fn create_random_graph(conn: &Connection) -> Result<GraphMeta> {
-    let (edm, edge_defs) = edge_definition(&conn).await?;
+    let (edm, edge_defs) = edge_definition(conn).await?;
     let graph_meta = GraphMetaBuilder::default()
         .name(rand_name())
         .edge_definitions(edge_defs)
@@ -157,9 +157,9 @@ pub async fn delete_random_graph(conn: &Connection, graph_meta: GraphMeta) -> Re
         to_coll,
     } = graph_meta;
 
-    let _ = delete_random_collection(&conn, to_coll).await?;
-    let _ = delete_random_collection(&conn, from_coll).await?;
-    let _ = delete_random_collection(&conn, edge_coll).await?;
+    delete_random_collection(conn, to_coll).await?;
+    delete_random_collection(conn, from_coll).await?;
+    delete_random_collection(conn, edge_coll).await?;
 
     let delete_config = DeleteConfigBuilder::default().name(graph).build()?;
     let res = Graph::delete(conn, delete_config).await?;

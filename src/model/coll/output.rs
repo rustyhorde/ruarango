@@ -122,7 +122,7 @@ coll_output!(
         wait_for_sync: bool => true,
         /// New journal size
         #[serde(rename = "journalSize", skip_serializing_if = "Option::is_none")]
-        journal_size: Option<usize> => Some(12000000),
+        journal_size: Option<usize> => Some(12_000_000),
         /// New schema
         #[serde(skip_serializing_if = "Option::is_none")]
         schema: Option<String> => None,
@@ -311,6 +311,7 @@ impl Default for Collections {
 
 /// Figure details that are part of the [`Figures`](Figures) output
 #[derive(Clone, Copy, Debug, Deserialize, Getters, Serialize)]
+#[cfg_attr(test, derive(Default))]
 #[getset(get = "pub")]
 pub struct FiguresDetails {
     /// Index details
@@ -327,19 +328,6 @@ pub struct FiguresDetails {
     /// Cache usage in bytes
     #[serde(rename = "cacheUsage")]
     cache_usage: usize,
-}
-
-#[cfg(test)]
-impl Default for FiguresDetails {
-    fn default() -> Self {
-        Self {
-            indexes: FiguresIndexes::default(),
-            documents_size: 0,
-            cache_in_use: false,
-            cache_size: 0,
-            cache_usage: 0,
-        }
-    }
 }
 
 /// Index details that are part of the [`Figures`](Figures) output

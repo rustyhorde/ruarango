@@ -48,12 +48,12 @@ int_test_sync_new!(res; database_user, user() => {
 });
 
 int_test_async_new!(res; Response<Vec<String>>; crate::pool::ROOT_ASYNC_POOL; database_list_async, list() => {
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
     assert!(res.result().contains(&"ruarango".to_string()));
 });
 
 int_test_sync_new!(res; crate::pool::ROOT_POOL; database_list, list() => {
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
     assert!(res.result().contains(&"ruarango".to_string()));
 });
 
@@ -77,7 +77,7 @@ fn create_config(kind: CreateKind) -> Result<Create> {
 int_test_sync_new!(res; conn; 201; crate::pool::ROOT_POOL; database_create_drop, create(&create_config(CreateKind::Sync)?) => {
     assert!(res.result());
 
-    let either = conn.drop(&*DB_NAME).await?;
+    let either = conn.drop(&DB_NAME).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
@@ -87,8 +87,8 @@ int_test_sync_new!(res; conn; 201; crate::pool::ROOT_POOL; database_create_drop,
 int_test_async_new!(res; conn; Response<bool>; crate::pool::ROOT_ASYNC_POOL; database_create_drop_async, create(&create_config(CreateKind::Async)?) => {
     assert!(res.result());
 
-    let res = conn.drop(&*DB_NAME_ASYNC).await?;
-    let res: Response<bool> = process_async_result(res, &conn).await?;
+    let res = conn.drop(&DB_NAME_ASYNC).await?;
+    let res: Response<bool> = process_async_result(res, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(res.result());

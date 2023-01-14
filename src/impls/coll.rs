@@ -236,7 +236,7 @@ mod test {
     });
 
     mock_test_right!(get_collections, res; collections(true); mock_collections_exclude => {
-        assert!(res.result().len() > 0);
+        assert!(!res.result().is_empty());
     });
 
     mock_test_async!(get_collections_with_sys_async, res; collections(true); mock_collections_async => {
@@ -248,7 +248,7 @@ mod test {
     });
 
     mock_test_right!(get_collections_with_sys_works, res; collections(false); mock_collections => {
-        assert!(res.result().len() > 0);
+        assert!(!res.result().is_empty());
     });
 
     mock_test_async!(get_collection_async, res; collection("keti"); mock_collection_async => {

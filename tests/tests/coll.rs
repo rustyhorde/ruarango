@@ -31,41 +31,41 @@ const TEST_COLL: &str = "test_coll";
 int_test_async_new!(res; Response<Vec<Collections>>; collection_collections_ruarango_no_system_async, collections(true) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_sync_new!(res; collection_collections_ruarango_no_system, collections(true) => {
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_async_new!(res; Response<Vec<Collections>>; crate::pool::ROOT_ASYNC_POOL; collection_collections_root_no_system_async, collections(true) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert_eq!(res.result().len(), 0);
+    assert!(res.result().is_empty());
 });
 
 int_test_sync_new!(res; crate::pool::ROOT_POOL; collection_collections_root_no_system, collections(true) => {
-    assert_eq!(res.result().len(), 0);
+    assert!(res.result().is_empty());
 });
 
 int_test_async_new!(res; Response<Vec<Collections>>; collection_collections_ruarango_async, collections(false) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_sync_new!(res; collection_collections_ruarango, collections(false) => {
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_async_new!(res; Response<Vec<Collections>>; crate::pool::ROOT_ASYNC_POOL; collection_collections_root_async, collections(false) => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_sync_new!(res; crate::pool::ROOT_POOL; collection_collections, collections(false) => {
-    assert!(res.result().len() > 0);
+    assert!(!res.result().is_empty());
 });
 
 int_test_async_new!(res; Coll; collection_collection_async, collection(TEST_COLL) => {
@@ -128,8 +128,8 @@ fn create_config(kind: CreateKind) -> Result<Config> {
 int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_create_drop_async, create(&create_config(CreateKind::CollAsync)?) => {
     assert_eq!(res.name(), &*COLL_NAME_ASYNC);
 
-    let res = conn.drop(&*COLL_NAME_ASYNC, false).await?;
-    let res = process_async_result(res, &conn).await?;
+    let res = conn.drop(&COLL_NAME_ASYNC, false).await?;
+    let res = process_async_result(res, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -137,7 +137,7 @@ int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collect
 int_test_sync_new!(res; conn; collection_create_drop, create(&create_config(CreateKind::Coll)?) => {
     assert_eq!(res.name(), &*COLL_NAME);
 
-    let either = conn.drop(&*COLL_NAME, false).await?;
+    let either = conn.drop(&COLL_NAME, false).await?;
     assert!(either.is_right());
     let res = either.right_safe()?;
     assert!(!res.error());
@@ -246,7 +246,7 @@ fn props_config(wait_for_sync: bool) -> Result<Props> {
 int_test_async_new!(res; conn; ModifyProps; crate::pool::RUARANGO_ASYNC_POOL; collection_modify_props_async, modify_props(TEST_COLL, props_config(true)?) => {
     assert!(res.wait_for_sync());
     let either = conn.modify_props(TEST_COLL, props_config(false)?).await?;
-    let res = process_async_result(either, &conn).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert!(!res.wait_for_sync());
@@ -275,14 +275,14 @@ int_test_sync_new!(res; collection_recalculate_count, recalculate_count(TEST_COL
 int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_rename_async, create(&create_config(CreateKind::RenameAsync)?) => {
     assert_eq!(res.name(), &*RENAME_NAME_ASYNC);
 
-    let either = conn.rename(&*RENAME_NAME_ASYNC, &RENAME_NEW_NAME_ASYNC).await?;
-    let res = process_async_result(either, &conn).await?;
+    let either = conn.rename(&RENAME_NAME_ASYNC, &RENAME_NEW_NAME_ASYNC).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.name(), &*RENAME_NEW_NAME_ASYNC);
 
-    let either = conn.drop(&*RENAME_NEW_NAME_ASYNC, false).await?;
-    let res = process_async_result(either, &conn).await?;
+    let either = conn.drop(&RENAME_NEW_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -290,13 +290,13 @@ int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collect
 int_test_sync_new!(res; conn; collection_rename, create(&create_config(CreateKind::Rename)?) => {
     assert_eq!(res.name(), &*RENAME_NAME);
 
-    let either = conn.rename(&*RENAME_NAME, &RENAME_NEW_NAME).await?;
+    let either = conn.rename(&RENAME_NAME, &RENAME_NEW_NAME).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.name(), &*RENAME_NEW_NAME);
 
-    let either = conn.drop(&*RENAME_NEW_NAME, false).await?;
+    let either = conn.drop(&RENAME_NEW_NAME, false).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
@@ -305,13 +305,13 @@ int_test_sync_new!(res; conn; collection_rename, create(&create_config(CreateKin
 int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_truncate_async, create(&create_config(CreateKind::TruncateAsync)?) => {
     assert_eq!(res.name(), &*TRUNCATE_NAME_ASYNC);
 
-    let either = conn.truncate(&*TRUNCATE_NAME_ASYNC).await?;
-    let res = process_async_result(either, &conn).await?;
+    let either = conn.truncate(&TRUNCATE_NAME_ASYNC).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 
-    let either = conn.drop(&*TRUNCATE_NAME_ASYNC, false).await?;
-    let res = process_async_result(either, &conn).await?;
+    let either = conn.drop(&TRUNCATE_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -319,12 +319,12 @@ int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collect
 int_test_sync_new!(res; conn; collection_truncate, create(&create_config(CreateKind::Truncate)?) => {
     assert_eq!(res.name(), &*TRUNCATE_NAME);
 
-    let either = conn.truncate(&*TRUNCATE_NAME).await?;
+    let either = conn.truncate(&TRUNCATE_NAME).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 
-    let either = conn.drop(&*TRUNCATE_NAME, false).await?;
+    let either = conn.drop(&TRUNCATE_NAME, false).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
@@ -333,11 +333,11 @@ int_test_sync_new!(res; conn; collection_truncate, create(&create_config(CreateK
 int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collection_unload_async, create(&create_config(CreateKind::UnloadAsync)?) => {
     assert_eq!(res.name(), &*UNLOAD_NAME_ASYNC);
 
-    let either = conn.unload(&*UNLOAD_NAME_ASYNC).await?;
-    let _res = process_async_result(either, &conn).await?;
+    let either = conn.unload(&UNLOAD_NAME_ASYNC).await?;
+    let _res = process_async_result(either, conn).await?;
 
-    let either = conn.drop(&*UNLOAD_NAME_ASYNC, false).await?;
-    let res = process_async_result(either, &conn).await?;
+    let either = conn.drop(&UNLOAD_NAME_ASYNC, false).await?;
+    let res = process_async_result(either, conn).await?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
 });
@@ -345,10 +345,10 @@ int_test_async_new!(res; conn; Create; crate::pool::RUARANGO_ASYNC_POOL; collect
 int_test_sync_new!(res; conn; collection_unload, create(&create_config(CreateKind::Unload)?) => {
     assert_eq!(res.name(), &*UNLOAD_NAME);
 
-    let either = conn.unload(&*UNLOAD_NAME).await?;
+    let either = conn.unload(&UNLOAD_NAME).await?;
     let _res = process_sync_result(either)?;
 
-    let either = conn.drop(&*UNLOAD_NAME, false).await?;
+    let either = conn.drop(&UNLOAD_NAME, false).await?;
     let res = process_sync_result(either)?;
     assert!(!res.error());
     assert_eq!(*res.code(), 200);

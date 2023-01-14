@@ -69,9 +69,8 @@ mod test {
     const BASIC_ACTUAL: &str = concatcp!(BASE_DOC_SUFFIX, "/", TEST_COLL, "?", ONLYGET_QP);
     const IGNORE_REVS_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "&", IGNORE_REVS_QP);
 
-    fn check_url<T>(config: Config<T>, actual: &str) -> Result<()> {
+    fn check_url<T>(config: &Config<T>, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
-        Ok(())
     }
 
     #[test]
@@ -80,7 +79,8 @@ mod test {
             .collection(TEST_COLL)
             .documents(vec![TEST_KEY])
             .build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -90,6 +90,7 @@ mod test {
             .documents(vec![TEST_KEY])
             .ignore_revs(true)
             .build()?;
-        check_url(config, IGNORE_REVS_ACTUAL)
+        check_url(&config, IGNORE_REVS_ACTUAL);
+        Ok(())
     }
 }

@@ -151,9 +151,8 @@ mod test {
         RETURN_OLD_QP
     );
 
-    fn check_url<T>(config: Config<T>, actual: &str) -> Result<()> {
+    fn check_url<T>(config: &Config<T>, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
-        Ok(())
     }
 
     #[test]
@@ -163,7 +162,8 @@ mod test {
             .key(TEST_KEY)
             .document("test")
             .build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -174,7 +174,8 @@ mod test {
             .document("test")
             .wait_for_sync(true)
             .build()?;
-        check_url(config, WAIT_FOR_SYNC_ACTUAL)
+        check_url(&config, WAIT_FOR_SYNC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -185,7 +186,8 @@ mod test {
             .document("test")
             .silent(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -198,7 +200,8 @@ mod test {
             .return_old(true)
             .return_new(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -209,7 +212,8 @@ mod test {
             .document("test)")
             .return_old(true)
             .build()?;
-        check_url(config, RETURN_OLD_ACTUAL)
+        check_url(&config, RETURN_OLD_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -220,7 +224,8 @@ mod test {
             .document("test)")
             .return_new(true)
             .build()?;
-        check_url(config, RETURN_NEW_ACTUAL)
+        check_url(&config, RETURN_NEW_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -232,7 +237,8 @@ mod test {
             .wait_for_sync(true)
             .silent(true)
             .build()?;
-        check_url(config, WAIT_SILENT_ACTUAL)
+        check_url(&config, WAIT_SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -244,7 +250,8 @@ mod test {
             .wait_for_sync(true)
             .return_old(true)
             .build()?;
-        check_url(config, WAIT_RETURN_OLD_ACTUAL)
+        check_url(&config, WAIT_RETURN_OLD_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -256,7 +263,8 @@ mod test {
             .wait_for_sync(true)
             .return_new(true)
             .build()?;
-        check_url(config, WAIT_RETURN_NEW_ACTUAL)
+        check_url(&config, WAIT_RETURN_NEW_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -269,7 +277,8 @@ mod test {
             .return_old(true)
             .return_new(true)
             .build()?;
-        check_url(config, WAIT_RETURNS_ACTUAL)
+        check_url(&config, WAIT_RETURNS_ACTUAL);
+        Ok(())
     }
 
     #[test]

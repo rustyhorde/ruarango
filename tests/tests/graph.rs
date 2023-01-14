@@ -27,40 +27,40 @@ use serde::Serialize;
 #[tokio::test]
 async fn graph_list_all() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let graph_meta = create_random_graph(&conn).await?;
+    let graph_meta = create_random_graph(conn).await?;
 
     let res = conn.list().await?;
     assert!(res.is_right());
     let list = res.right_safe()?;
     assert!(!list.error());
     assert_eq!(*list.code(), 200);
-    assert!(list.graphs().len() >= 1);
+    assert!(!list.graphs().is_empty());
 
     for graph in list.graphs() {
         assert!(!graph.id().is_empty());
         assert!(!graph.key().is_empty());
         assert!(!graph.rev().is_empty());
         assert!(!graph.name().is_empty());
-        assert!(graph.edge_definitions().len() >= 1);
+        assert!(!graph.edge_definitions().is_empty());
         let ed = graph.edge_definitions().get(0).unwrap();
         assert_eq!(ed.to().len(), 1);
         assert_eq!(ed.from().len(), 1);
     }
 
-    delete_random_graph(&conn, graph_meta).await
+    delete_random_graph(conn, graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let graph_meta = create_random_graph(&conn).await?;
-    delete_random_graph(&conn, graph_meta).await
+    let graph_meta = create_random_graph(conn).await?;
+    delete_random_graph(conn, graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_read() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
 
     let config = ReadConfigBuilder::default()
         .name(rand_graph_meta.graph())
@@ -81,19 +81,19 @@ async fn graph_read() -> Result<()> {
     assert_eq!(ed.to().len(), 1);
     assert_eq!(ed.from().len(), 1);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let edge_coll = rand_graph_meta.edge_coll();
     let from_coll = rand_graph_meta.from_coll();
     let to_coll = rand_graph_meta.to_coll();
-    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
-    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+    let from_doc = create_random_document(conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(conn, to_coll, TestDoc::default()).await?;
 
     let from_to = FromToBuilder::default()
         .from(from_doc.id())
@@ -137,19 +137,19 @@ async fn graph_create_delete_edge() -> Result<()> {
     assert!(delete_edge.removed());
     assert!(delete_edge.old().is_none());
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_read_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let edge_coll = rand_graph_meta.edge_coll();
     let from_coll = rand_graph_meta.from_coll();
     let to_coll = rand_graph_meta.to_coll();
-    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
-    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+    let from_doc = create_random_document(conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(conn, to_coll, TestDoc::default()).await?;
 
     let from_to = FromToBuilder::default()
         .from(from_doc.id())
@@ -190,7 +190,7 @@ async fn graph_create_read_delete_edge() -> Result<()> {
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -201,13 +201,13 @@ struct EdgeStuff {
 #[tokio::test]
 async fn graph_create_update_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let edge_coll = rand_graph_meta.edge_coll();
     let from_coll = rand_graph_meta.from_coll();
     let to_coll = rand_graph_meta.to_coll();
-    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
-    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+    let from_doc = create_random_document(conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(conn, to_coll, TestDoc::default()).await?;
 
     let from_to = FromToBuilder::default()
         .from(from_doc.id())
@@ -250,19 +250,19 @@ async fn graph_create_update_delete_edge() -> Result<()> {
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_replace_delete_edge() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let edge_coll = rand_graph_meta.edge_coll();
     let from_coll = rand_graph_meta.from_coll();
     let to_coll = rand_graph_meta.to_coll();
-    let from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
-    let to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+    let from_doc = create_random_document(conn, from_coll, TestDoc::default()).await?;
+    let to_doc = create_random_document(conn, to_coll, TestDoc::default()).await?;
 
     let from_to = FromToBuilder::default()
         .from(from_doc.id())
@@ -282,8 +282,8 @@ async fn graph_create_replace_delete_edge() -> Result<()> {
     let edge = create_edge.edge();
     let key = edge.key();
 
-    let new_from_doc = create_random_document(&conn, from_coll, TestDoc::default()).await?;
-    let new_to_doc = create_random_document(&conn, to_coll, TestDoc::default()).await?;
+    let new_from_doc = create_random_document(conn, from_coll, TestDoc::default()).await?;
+    let new_to_doc = create_random_document(conn, to_coll, TestDoc::default()).await?;
     let from_to_new = FromToBuilder::default()
         .to(new_to_doc.id())
         .from(new_from_doc.id())
@@ -311,17 +311,17 @@ async fn graph_create_replace_delete_edge() -> Result<()> {
     assert!(!delete_edge.error());
     assert_eq!(*delete_edge.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete_edge_def() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
-    let (edge_coll, _) = create_random_collection(&conn, CollKind::Edge).await?;
-    let (from_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
-    let (to_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+    let (edge_coll, _) = create_random_collection(conn, CollKind::Edge).await?;
+    let (from_coll, _) = create_random_collection(conn, CollKind::Document).await?;
+    let (to_coll, _) = create_random_collection(conn, CollKind::Document).await?;
 
     let edge_def = EdgeDefinitionBuilder::default()
         .collection(&edge_coll)
@@ -350,17 +350,17 @@ async fn graph_create_delete_edge_def() -> Result<()> {
     assert!(!delete_edge_def.error());
     assert_eq!(*delete_edge_def.code(), 202);
 
-    let _ = delete_random_collection(&conn, &to_coll).await?;
-    let _ = delete_random_collection(&conn, &from_coll).await?;
-    let _ = delete_random_collection(&conn, &edge_coll).await?;
+    delete_random_collection(conn, &to_coll).await?;
+    delete_random_collection(conn, &from_coll).await?;
+    delete_random_collection(conn, &edge_coll).await?;
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_read_edge_defs() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
 
     let config = ReadEdgeDefsConfigBuilder::default()
         .name(rand_graph_meta.graph())
@@ -370,19 +370,19 @@ async fn graph_read_edge_defs() -> Result<()> {
     let graph_meta = res.right_safe()?;
     assert!(!graph_meta.error());
     assert_eq!(*graph_meta.code(), 200);
-    assert!(graph_meta.collections().len() >= 1);
+    assert!(!graph_meta.collections().is_empty());
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_replace_delete_edge_def() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
-    let (edge_coll, _) = create_random_collection(&conn, CollKind::Edge).await?;
-    let (from_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
-    let (to_coll, _) = create_random_collection(&conn, CollKind::Document).await?;
+    let (edge_coll, _) = create_random_collection(conn, CollKind::Edge).await?;
+    let (from_coll, _) = create_random_collection(conn, CollKind::Document).await?;
+    let (to_coll, _) = create_random_collection(conn, CollKind::Document).await?;
 
     let edge_def = EdgeDefinitionBuilder::default()
         .collection(&edge_coll)
@@ -426,17 +426,17 @@ async fn graph_create_replace_delete_edge_def() -> Result<()> {
     assert!(!delete_edge_def.error());
     assert_eq!(*delete_edge_def.code(), 202);
 
-    let _ = delete_random_collection(&conn, &to_coll).await?;
-    let _ = delete_random_collection(&conn, &from_coll).await?;
-    let _ = delete_random_collection(&conn, &edge_coll).await?;
+    delete_random_collection(conn, &to_coll).await?;
+    delete_random_collection(conn, &from_coll).await?;
+    delete_random_collection(conn, &edge_coll).await?;
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_read_vertex_colls() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
 
     let config = ReadVertexCollsConfigBuilder::default()
         .name(rand_graph_meta.graph())
@@ -446,15 +446,15 @@ async fn graph_read_vertex_colls() -> Result<()> {
     let vertex_colls = res.right_safe()?;
     assert!(!vertex_colls.error());
     assert_eq!(*vertex_colls.code(), 200);
-    assert!(vertex_colls.collections().len() >= 1);
+    assert!(!vertex_colls.collections().is_empty());
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_delete_vertex_coll() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let rand_coll_name = rand_name();
 
     let coll = CreateVertexCollectionBuilder::default()
@@ -470,7 +470,7 @@ async fn graph_create_delete_vertex_coll() -> Result<()> {
     assert!(!graph_meta.error());
     assert_eq!(*graph_meta.code(), 202);
     let graph = graph_meta.graph();
-    assert!(graph.orphan_collections().len() >= 1);
+    assert!(!graph.orphan_collections().is_empty());
     assert!(graph.orphan_collections().contains(&rand_coll_name));
 
     let delete_config = DeleteVertexCollConfigBuilder::default()
@@ -484,7 +484,7 @@ async fn graph_create_delete_vertex_coll() -> Result<()> {
     assert!(!graph_meta.error());
     assert_eq!(*graph_meta.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[derive(Clone, Serialize)]
@@ -495,7 +495,7 @@ struct TestVertex {
 #[tokio::test]
 async fn graph_create_read_delete_vertex() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let from_coll = rand_graph_meta.from_coll();
 
@@ -542,13 +542,13 @@ async fn graph_create_read_delete_vertex() -> Result<()> {
     assert!(delete_vertex_meta.removed());
     assert_eq!(*delete_vertex_meta.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_update_delete_vertex() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let from_coll = rand_graph_meta.from_coll();
 
@@ -596,13 +596,13 @@ async fn graph_create_update_delete_vertex() -> Result<()> {
     assert!(delete_vertex_meta.removed());
     assert_eq!(*delete_vertex_meta.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }
 
 #[tokio::test]
 async fn graph_create_replace_delete_vertex() -> Result<()> {
     let conn = &*RUARANGO_POOL.get()?;
-    let rand_graph_meta = create_random_graph(&conn).await?;
+    let rand_graph_meta = create_random_graph(conn).await?;
     let graph_name = rand_graph_meta.graph();
     let from_coll = rand_graph_meta.from_coll();
 
@@ -652,5 +652,5 @@ async fn graph_create_replace_delete_vertex() -> Result<()> {
     assert!(delete_vertex_meta.removed());
     assert_eq!(*delete_vertex_meta.code(), 202);
 
-    delete_random_graph(&conn, rand_graph_meta).await
+    delete_random_graph(conn, rand_graph_meta).await
 }

@@ -120,7 +120,7 @@ mod test {
     });
 
     mock_test_right!(test_user, res; user(); mock_user => {
-        assert!(res.result().len() > 0);
+        assert!(!res.result().is_empty());
     });
 
     mock_test_async!(no_db_conn_async, test_list_async, res; list(); mock_list_async => {
@@ -132,7 +132,7 @@ mod test {
     });
 
     mock_test_right!(no_db_conn, 200, test_list, res; list(); mock_list => {
-        assert!(res.result().len() > 0);
+        assert!(!res.result().is_empty());
         assert!(res.result().contains(&"_system".to_string()));
     });
 
@@ -141,7 +141,7 @@ mod test {
         let mock_server = MockServer::start().await;
         mock_auth(&mock_server).await;
         mock_create(&mock_server).await;
-        mock_drop(&&mock_server).await;
+        mock_drop(&mock_server).await;
 
         let conn = no_db_conn(mock_server.uri()).await?;
         let options = OptionsBuilder::default().build()?;

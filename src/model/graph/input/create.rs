@@ -98,9 +98,8 @@ mod test {
     const BASIC_ACTUAL: &str = concatcp!(BASE_GRAPH_SUFFIX);
     const WAIT_FOR_SYNC_ACTUAL: &str = concatcp!(BASIC_ACTUAL, "?", WAIT_FOR_SYNC_QP);
 
-    fn check_url(config: Config, actual: &str) -> Result<()> {
+    fn check_url(config: &Config, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_GRAPH_SUFFIX));
-        Ok(())
     }
 
     fn ve(vec: Vec<&str>) -> Vec<String> {
@@ -123,7 +122,8 @@ mod test {
             .edge_definitions(edge_definition()?)
             .build()?;
         let config = ConfigBuilder::default().graph(graph_meta).build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -136,11 +136,12 @@ mod test {
             .graph(graph_meta)
             .wait_for_sync(true)
             .build()?;
-        check_url(config, WAIT_FOR_SYNC_ACTUAL)
+        check_url(&config, WAIT_FOR_SYNC_ACTUAL);
+        Ok(())
     }
 
     #[test]
-    fn empty_ed_errors() -> Result<()> {
+    fn empty_ed_errors() {
         match GraphMetaBuilder::default()
             .name("test")
             .edge_definitions(vec![])
@@ -149,6 +150,5 @@ mod test {
             Ok(_) => panic!("The builder should fail!"),
             Err(e) => assert_eq!(EMPTY_EDGE_DEFINITIONS_ERR, format!("{}", e)),
         }
-        Ok(())
     }
 }

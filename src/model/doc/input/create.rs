@@ -165,9 +165,8 @@ mod test {
         MERGE_OBJECTS_QP
     );
 
-    fn check_url<T>(config: Config<T>, actual: &str) -> Result<()> {
+    fn check_url<T>(config: &Config<T>, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
-        Ok(())
     }
 
     #[test]
@@ -176,7 +175,8 @@ mod test {
             .collection(TEST_COLL)
             .document("test")
             .build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -186,7 +186,8 @@ mod test {
             .document("test")
             .wait_for_sync(true)
             .build()?;
-        check_url(config, WAIT_FOR_SYNC_ACTUAL)
+        check_url(&config, WAIT_FOR_SYNC_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -196,7 +197,8 @@ mod test {
             .document("test")
             .silent(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -208,7 +210,8 @@ mod test {
             .return_old(true)
             .return_new(true)
             .build()?;
-        check_url(config, SILENT_ACTUAL)
+        check_url(&config, SILENT_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -218,7 +221,8 @@ mod test {
             .document("test)")
             .return_old(true)
             .build()?;
-        check_url(config, RETURN_OLD_ACTUAL)
+        check_url(&config, RETURN_OLD_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -228,7 +232,8 @@ mod test {
             .document("test)")
             .return_new(true)
             .build()?;
-        check_url(config, RETURN_NEW_ACTUAL)
+        check_url(&config, RETURN_NEW_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -238,7 +243,8 @@ mod test {
             .document("test)")
             .overwrite(true)
             .build()?;
-        check_url(config, OVERWRITE_ACTUAL)
+        check_url(&config, OVERWRITE_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -248,7 +254,8 @@ mod test {
             .document("test)")
             .overwrite_mode(OverwriteMode::Update)
             .build()?;
-        check_url(config, OVERWRITE_MODE_ACTUAL)
+        check_url(&config, OVERWRITE_MODE_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -259,7 +266,8 @@ mod test {
             .overwrite_mode(OverwriteMode::Update)
             .overwrite(true)
             .build()?;
-        check_url(config, OVERWRITE_MODE_ACTUAL)
+        check_url(&config, OVERWRITE_MODE_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -271,7 +279,8 @@ mod test {
             .keep_null(true)
             .merge_objects(true)
             .build()?;
-        check_url(config, OVERWRITE_MODE_UPDATE_ACTUAL)
+        check_url(&config, OVERWRITE_MODE_UPDATE_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -283,7 +292,8 @@ mod test {
             .keep_null(true)
             .merge_objects(true)
             .build()?;
-        check_url(config, OVERWRITE_MODE_REPLACE_ACTUAL)
+        check_url(&config, OVERWRITE_MODE_REPLACE_ACTUAL);
+        Ok(())
     }
 
     #[test]
@@ -298,6 +308,7 @@ mod test {
             .keep_null(true)
             .merge_objects(true)
             .build()?;
-        check_url(config, ALL_ACTUAL)
+        check_url(&config, ALL_ACTUAL);
+        Ok(())
     }
 }

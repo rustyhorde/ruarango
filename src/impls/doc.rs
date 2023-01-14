@@ -271,25 +271,28 @@ mod test {
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoErr>("".into())?
+                .ok_or_else(|| -> RuarangoErr { "".into() })?
                 .key(),
             "abc"
         );
         assert_eq!(
-            res.new_doc().as_ref().ok_or::<RuarangoErr>("".into())?.id(),
+            res.new_doc()
+                .as_ref()
+                .ok_or_else(|| -> RuarangoErr { "".into() })?
+                .id(),
             "def"
         );
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoErr>("".into())?
+                .ok_or_else(|| -> RuarangoErr { "".into() })?
                 .rev(),
             "ghi"
         );
         assert_eq!(
             res.new_doc()
                 .as_ref()
-                .ok_or::<RuarangoErr>("".into())?
+                .ok_or_else(|| -> RuarangoErr { "".into() })?
                 .test(),
             "test"
         );
@@ -376,7 +379,7 @@ mod test {
         mock_builder
             .respond_with(mock_response)
             .up_to_n_times(1)
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
         Ok(())
     }
@@ -432,7 +435,7 @@ mod test {
         mock_builder
             .respond_with(mock_response)
             .up_to_n_times(1)
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
         Ok(())
     }

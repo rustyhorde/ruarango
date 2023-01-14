@@ -103,9 +103,8 @@ mod test {
 
     const BASIC_ACTUAL: &str = concatcp!(BASE_DOC_SUFFIX, "/", TEST_COLL, "/", TEST_KEY);
 
-    fn check_url(config: Config, actual: &str) -> Result<()> {
+    fn check_url(config: &Config, actual: &str) {
         assert_eq!(actual, config.build_suffix(BASE_DOC_SUFFIX));
-        Ok(())
     }
 
     #[test]
@@ -114,7 +113,8 @@ mod test {
             .collection(TEST_COLL)
             .key(TEST_KEY)
             .build()?;
-        check_url(config, BASIC_ACTUAL)
+        check_url(&config, BASIC_ACTUAL);
+        Ok(())
     }
 
     #[test]

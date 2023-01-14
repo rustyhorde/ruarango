@@ -307,7 +307,7 @@ pub(crate) async fn mock_auth(mock_server: &MockServer) {
         .and(body_string_contains("username"))
         .and(body_string_contains("password"))
         .respond_with(mock_response)
-        .mount(&mock_server)
+        .mount(mock_server)
         .await;
 }
 

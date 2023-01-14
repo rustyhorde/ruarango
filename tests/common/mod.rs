@@ -21,7 +21,7 @@ where
     U: FnOnce() -> Result<()>,
 {
     setup()?;
-    let result = panic::catch_unwind(|| test());
+    let result = panic::catch_unwind(test);
     teardown()?;
     assert!(result.is_ok());
     assert!(result.unwrap().is_ok());
@@ -56,7 +56,7 @@ where
         status = conn.status(id).await?;
     }
 
-    Ok(conn.fetch(id).await?)
+    conn.fetch(id).await
 }
 
 pub(crate) async fn process_async_doc_result<T>(
@@ -82,5 +82,5 @@ where
         status = conn.status(id).await?;
     }
 
-    Ok(conn.fetch_doc_job(id).await?)
+    conn.fetch_doc_job(id).await
 }

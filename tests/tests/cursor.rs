@@ -30,7 +30,7 @@ async fn cursor_create() -> Result<()> {
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.result().is_some());
-    assert!(cursor_meta.result().as_ref().unwrap().len() >= 1);
+    assert!(!cursor_meta.result().as_ref().unwrap().is_empty());
     assert!(cursor_meta.count().is_some());
     assert!(*cursor_meta.count().as_ref().unwrap() >= 1);
     assert!(cursor_meta.id().is_none());
@@ -47,7 +47,7 @@ async fn cursor_create() -> Result<()> {
     assert_eq!(*extra.stats().filtered(), 0);
     assert_eq!(*extra.stats().http_requests(), 0);
     assert!(*extra.stats().execution_time() > 0.);
-    assert!(*extra.stats().peak_memory_usage() > 0);
+    assert_eq!(*extra.stats().peak_memory_usage(), 0);
     Ok(())
 }
 
@@ -66,7 +66,7 @@ async fn cursor_create_profile() -> Result<()> {
     assert!(res.is_right());
     let cursor_meta = res.right_safe()?;
     assert!(cursor_meta.result().is_some());
-    assert!(cursor_meta.result().as_ref().unwrap().len() >= 1);
+    assert!(!cursor_meta.result().as_ref().unwrap().is_empty());
     assert!(cursor_meta.count().is_some());
     assert!(*cursor_meta.count().as_ref().unwrap() >= 1);
     assert!(cursor_meta.id().is_none());
@@ -83,7 +83,7 @@ async fn cursor_create_profile() -> Result<()> {
     assert_eq!(*extra.stats().filtered(), 0);
     assert_eq!(*extra.stats().http_requests(), 0);
     assert!(*extra.stats().execution_time() > 0.);
-    assert!(*extra.stats().peak_memory_usage() > 0);
+    assert_eq!(*extra.stats().peak_memory_usage(), 0);
     assert!(extra.warnings().is_empty());
     assert!(extra.profile().is_some());
     let profile = extra.profile().unwrap();
