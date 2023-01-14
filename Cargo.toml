@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 name = "ruarango"
 readme = "README.md"
 repository = "https://github.com/rustyhorde/ruarango"
-version = "0.1.1"
+version = "0.1.2"
 autotests = false
 
 [dependencies]
@@ -36,9 +36,7 @@ tokio-test = "0.4.2"
 wiremock = "0.5.15"
 
 [build-dependencies]
-anyhow = "1.0.68"
 rustversion = "1.0.11"
-vergen = "7.4.3"
 
 [[test]]
 name = "integration"
