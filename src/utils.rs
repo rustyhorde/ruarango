@@ -224,7 +224,8 @@ where
         }
         _ => {
             let status = res.status().as_u16();
-            Err(InvalidDocResponse { status, err: None }.into())
+            let err: Option<DocErr> = handle_text(res).await.ok();
+            Err(InvalidDocResponse { status, err }.into())
         }
     }
 }
