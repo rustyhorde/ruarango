@@ -18,8 +18,8 @@ use ruarango::{
 };
 
 const TEST_COLL: &str = "test_coll";
-const DOC_KEY: &str = "2916385";
-const ACTUAL_REV: &str = r#""_cRwlNbO---""#;
+const DOC_KEY: &str = "4316629";
+const ACTUAL_REV: &str = r#""_gD2QzfK---""#;
 const FAKE_REV: &str = r#""_cJG9Tz1---""#;
 const TEST_FIELD_VAL: &str = "tester";
 

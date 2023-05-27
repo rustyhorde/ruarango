@@ -17,7 +17,7 @@ int_test_async_new!(res; Response<Current>; database_current_async, current() =>
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.result().name(), "ruarango");
-    assert_eq!(res.result().id(), "415");
+    assert_eq!(res.result().id(), "4310866");
     assert!(!res.result().is_system());
     assert_eq!(res.result().path(), "none");
     assert!(res.result().sharding().is_none());
@@ -29,7 +29,7 @@ int_test_sync_new!(res; database_current, current() => {
     assert!(!res.error());
     assert_eq!(*res.code(), 200);
     assert_eq!(res.result().name(), "ruarango");
-    assert_eq!(res.result().id(), "415");
+    assert_eq!(res.result().id(), "4310866");
     assert!(!res.result().is_system());
     assert_eq!(res.result().path(), "none");
     assert!(res.result().sharding().is_none());

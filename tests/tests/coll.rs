@@ -73,8 +73,8 @@ int_test_async_new!(res; Coll; collection_collection_async, collection(TEST_COLL
     assert_eq!(*res.status(), Status::Loaded);
     assert!(!res.is_system());
     assert_eq!(res.name(), TEST_COLL);
-    assert_eq!(res.id(), "2916362");
-    assert_eq!(res.globally_unique_id(), "h963E57B880A3/2916362");
+    assert_eq!(res.id(), "4313753");
+    assert_eq!(res.globally_unique_id(), "h6FE59D04BDF2/4313753");
 });
 
 int_test_sync_new!(res; collection_collection, collection(TEST_COLL) => {
@@ -82,8 +82,8 @@ int_test_sync_new!(res; collection_collection, collection(TEST_COLL) => {
     assert_eq!(*res.status(), Status::Loaded);
     assert!(!res.is_system());
     assert_eq!(res.name(), TEST_COLL);
-    assert_eq!(res.id(), "2916362");
-    assert_eq!(res.globally_unique_id(), "h963E57B880A3/2916362");
+    assert_eq!(res.id(), "4313753");
+    assert_eq!(res.globally_unique_id(), "h6FE59D04BDF2/4313753");
 });
 
 lazy_static! {
