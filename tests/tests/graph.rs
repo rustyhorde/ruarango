@@ -42,7 +42,7 @@ async fn graph_list_all() -> Result<()> {
         assert!(!graph.rev().is_empty());
         assert!(!graph.name().is_empty());
         assert!(!graph.edge_definitions().is_empty());
-        let ed = graph.edge_definitions().get(0).unwrap();
+        let ed = graph.edge_definitions().first().unwrap();
         assert_eq!(ed.to().len(), 1);
         assert_eq!(ed.from().len(), 1);
     }
@@ -77,7 +77,7 @@ async fn graph_read() -> Result<()> {
     assert!(!graph.rev().is_empty());
     assert_eq!(graph.name(), rand_graph_meta.graph());
     assert_eq!(graph.edge_definitions().len(), 1);
-    let ed = graph.edge_definitions().get(0).unwrap();
+    let ed = graph.edge_definitions().first().unwrap();
     assert_eq!(ed.to().len(), 1);
     assert_eq!(ed.from().len(), 1);
 

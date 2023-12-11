@@ -64,7 +64,7 @@ async fn doc_reads() -> Result<()> {
     assert!(res.is_right());
     let docs = res.right_safe()?;
     assert_eq!(docs.len(), 2);
-    let output_doc = docs.get(0).unwrap().clone();
+    let output_doc = docs.first().unwrap().clone();
     assert!(output_doc.is_right());
     let doc = output_doc.right_safe()?;
     assert_eq!(doc.key(), DOC_KEY);
