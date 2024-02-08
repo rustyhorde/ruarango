@@ -256,7 +256,6 @@
         non_shorthand_field_patterns,
         non_snake_case,
         non_upper_case_globals,
-        nontrivial_structural_match,
         noop_method_call,
         overlapping_range_endpoints,
         path_statements,
