@@ -79,7 +79,7 @@ macro_rules! add_qp {
 
 fn invalid_body(e: &serde_json::Error, text: &str) -> anyhow::Error {
     InvalidBody {
-        err: format!("{}", e),
+        err: format!("{e}"),
         body: text.to_string(),
     }
     .into()

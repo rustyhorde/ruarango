@@ -48,7 +48,7 @@ impl BuildUrl for Config {
         let suffix = self.build_suffix(base);
         conn.db_url()
             .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
+            .with_context(|| format!("Unable to build '{suffix}' url"))
     }
 }
 
@@ -148,7 +148,7 @@ mod test {
             .build()
         {
             Ok(_) => panic!("The builder should fail!"),
-            Err(e) => assert_eq!(EMPTY_EDGE_DEFINITIONS_ERR, format!("{}", e)),
+            Err(e) => assert_eq!(EMPTY_EDGE_DEFINITIONS_ERR, format!("{e}")),
         }
     }
 }

@@ -26,11 +26,11 @@ const DONE_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/done#by-type");
 #[async_trait]
 impl Job for Connection {
     async fn status(&self, id: &str) -> Result<u16> {
-        let job_id_url = format!("{}/{}", BASE_SUFFIX, id);
+        let job_id_url = format!("{BASE_SUFFIX}/{id}");
         let current_url = self
             .db_url()
             .join(&job_id_url)
-            .with_context(|| format!("Unable to build '{}' url", job_id_url))?;
+            .with_context(|| format!("Unable to build '{job_id_url}' url"))?;
         let res = self.client().get(current_url).send().await?;
         Ok(res.status().as_u16())
     }
@@ -39,14 +39,14 @@ impl Job for Connection {
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {
-        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id))
+        api_put!(self, db_url, &format!("{BASE_SUFFIX}/{id}"))
     }
 
     async fn fetch_doc_job<T>(&self, id: &str) -> Result<T>
     where
         T: Serialize + DeserializeOwned + Send + Sync,
     {
-        api_put!(self, db_url, &format!("{}/{}", BASE_SUFFIX, id) => doc_resp)
+        api_put!(self, db_url, &format!("{BASE_SUFFIX}/{id}") => doc_resp)
     }
 
     async fn jobs(&self, _kind: &str) -> Result<Vec<String>> {

@@ -208,16 +208,16 @@ impl fmt::Display for DocErr {
         write!(f, ", code: {}", self.code)?;
         write!(f, ", error_num: {}", self.error_num)?;
         if let Some(error_message) = &self.error_message {
-            write!(f, ", error_message: {}", error_message)?;
+            write!(f, ", error_message: {error_message}")?;
         }
         if let Some(key) = &self.key {
-            write!(f, ", key: {}", key)?;
+            write!(f, ", key: {key}")?;
         }
         if let Some(id) = &self.id {
-            write!(f, ", id: {}", id)?;
+            write!(f, ", id: {id}")?;
         }
         if let Some(rev) = &self.rev {
-            write!(f, ", rev: {}", rev)?;
+            write!(f, ", rev: {rev}")?;
         }
         Ok(())
     }

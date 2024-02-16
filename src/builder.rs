@@ -108,7 +108,7 @@ impl ConnectionBuilder {
 
         // Setup the db prefix if necessary
         let db_url = if let Some(Some(db)) = self.database {
-            base_url.clone().join(&format!("_db/{}/", db))?
+            base_url.clone().join(&format!("_db/{db}/"))?
         } else {
             base_url.clone()
         };

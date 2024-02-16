@@ -49,7 +49,7 @@ impl Collection for Connection {
     }
 
     async fn collection(&self, name: &str) -> ArangoResult<Coll> {
-        let url = &format!("{}/{}", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}");
         if *self.is_async() {
             api_get_async!(self, db_url, url)
         } else {
@@ -66,8 +66,8 @@ impl Collection for Connection {
     }
 
     async fn drop(&self, name: &str, is_system: bool) -> ArangoResult<Drop> {
-        let url = &format!("{}/{}", BASE_SUFFIX, name);
-        let is_system_url = &format!("{}/{}?isSystem=true", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}");
+        let is_system_url = &format!("{BASE_SUFFIX}/{name}?isSystem=true");
         if *self.is_async() {
             if is_system {
                 api_delete_async!(self, db_url, is_system_url)
@@ -87,7 +87,7 @@ impl Collection for Connection {
         with_revisions: bool,
         with_data: bool,
     ) -> ArangoResult<Checksum> {
-        let mut url = format!("{}/{}/checksum", BASE_SUFFIX, name);
+        let mut url = format!("{BASE_SUFFIX}/{name}/checksum");
         let mut has_qp = false;
         if with_revisions {
             url += "?withRevisions=true";
@@ -110,7 +110,7 @@ impl Collection for Connection {
     }
 
     async fn count(&self, name: &str) -> ArangoResult<Count> {
-        let url = &format!("{}/{}/count", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/count");
         if *self.is_async() {
             api_get_async!(self, db_url, url)
         } else {
@@ -119,7 +119,7 @@ impl Collection for Connection {
     }
 
     async fn figures(&self, name: &str) -> ArangoResult<Figures> {
-        let url = &format!("{}/{}/figures", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/figures");
         if *self.is_async() {
             api_get_async!(self, db_url, url)
         } else {
@@ -128,7 +128,7 @@ impl Collection for Connection {
     }
 
     async fn revision(&self, name: &str) -> ArangoResult<Revision> {
-        let url = &format!("{}/{}/revision", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/revision");
         if *self.is_async() {
             api_get_async!(self, db_url, url)
         } else {
@@ -137,7 +137,7 @@ impl Collection for Connection {
     }
 
     async fn load(&self, name: &str, include_count: bool) -> ArangoResult<Load> {
-        let url = &format!("{}/{}/load", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/load");
         let should_count = &ShouldCountBuilder::default().count(include_count).build()?;
         if *self.is_async() {
             api_put_async!(self, db_url, url, should_count)
@@ -147,7 +147,7 @@ impl Collection for Connection {
     }
 
     async fn load_indexes(&self, name: &str) -> ArangoResult<LoadIndexes> {
-        let url = &format!("{}/{}/loadIndexesIntoMemory", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/loadIndexesIntoMemory");
         if *self.is_async() {
             api_put_async!(self, db_url, url)
         } else {
@@ -156,7 +156,7 @@ impl Collection for Connection {
     }
 
     async fn modify_props(&self, name: &str, props: Props) -> ArangoResult<ModifyProps> {
-        let url = &format!("{}/{}/properties", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/properties");
         if *self.is_async() {
             api_put_async!(self, db_url, url, &props)
         } else {
@@ -165,7 +165,7 @@ impl Collection for Connection {
     }
 
     async fn recalculate_count(&self, name: &str) -> ArangoResult<RecalculateCount> {
-        let url = &format!("{}/{}/recalculateCount", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/recalculateCount");
 
         if *self.is_async() {
             api_put_async!(self, db_url, url)
@@ -175,7 +175,7 @@ impl Collection for Connection {
     }
 
     async fn rename(&self, name: &str, new_name: &str) -> ArangoResult<Rename> {
-        let url = &format!("{}/{}/rename", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/rename");
         let body = &NewNameBuilder::default().name(new_name).build()?;
 
         if *self.is_async() {
@@ -186,7 +186,7 @@ impl Collection for Connection {
     }
 
     async fn truncate(&self, name: &str) -> ArangoResult<Truncate> {
-        let url = &format!("{}/{}/truncate", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/truncate");
 
         if *self.is_async() {
             api_put_async!(self, db_url, url)
@@ -196,7 +196,7 @@ impl Collection for Connection {
     }
 
     async fn unload(&self, name: &str) -> ArangoResult<Unload> {
-        let url = &format!("{}/{}/unload", BASE_SUFFIX, name);
+        let url = &format!("{BASE_SUFFIX}/{name}/unload");
 
         if *self.is_async() {
             api_put_async!(self, db_url, url)

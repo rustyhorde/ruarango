@@ -118,7 +118,7 @@ impl From<QueryParam> for String {
             QueryParam::Overwrite(v) => {
                 if v { OVERWRITE_QP } else { OVERWRITE_FALSE_QP }.to_string()
             }
-            QueryParam::OverwriteMode(v) => format!("{}{}", OVERWRITE_MODE_QP, v),
+            QueryParam::OverwriteMode(v) => format!("{OVERWRITE_MODE_QP}{v}"),
             QueryParam::ReturnNew(v) => if v {
                 RETURN_NEW_QP
             } else {
@@ -189,7 +189,7 @@ impl fmt::Display for BaseErr {
         write!(f, ", code: {}", self.code)?;
         write!(f, ", error_num: {}", self.error_num)?;
         if let Some(error_message) = &self.error_message {
-            write!(f, ", error_message: {}", error_message)?;
+            write!(f, ", error_message: {error_message}")?;
         }
         Ok(())
     }

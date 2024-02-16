@@ -92,7 +92,7 @@ impl BuildUrl for Config {
         let suffix = base.to_string();
         conn.db_url()
             .join(&suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
+            .with_context(|| format!("Unable to build '{suffix}' url"))
     }
 }
 
@@ -245,7 +245,7 @@ mod test {
     fn batch_size_zero_errors() {
         match ConfigBuilder::default().batch_size(0).build() {
             Ok(_) => panic!("The builder should fail!"),
-            Err(e) => assert_eq!(BATCH_SIZE_ZERO_ERR, format!("{}", e)),
+            Err(e) => assert_eq!(BATCH_SIZE_ZERO_ERR, format!("{e}")),
         }
     }
 }

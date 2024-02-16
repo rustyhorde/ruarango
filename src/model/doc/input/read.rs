@@ -57,7 +57,7 @@ impl BuildUrl for Config {
         let suffix = &self.build_suffix(base);
         conn.db_url()
             .join(suffix)
-            .with_context(|| format!("Unable to build '{}' url", suffix))
+            .with_context(|| format!("Unable to build '{suffix}' url"))
     }
 }
 

@@ -108,9 +108,9 @@ impl Serialize for RuarangoErr {
         S: Serializer,
     {
         let mut state = serializer.serialize_struct("RuarangoErr", 2)?;
-        state.serialize_field("reason", &format!("{}", self))?;
+        state.serialize_field("reason", &format!("{self}"))?;
         if let Some(source) = self.source() {
-            state.serialize_field("source", &format!("{}", source))?;
+            state.serialize_field("source", &format!("{source}"))?;
         }
         state.end()
     }

@@ -40,7 +40,7 @@ impl Graph for Connection {
         let url = self
             .db_url()
             .join(BASE_GRAPH_SUFFIX)
-            .with_context(|| format!("Unable to build '{}' url", BASE_CURSOR_SUFFIX))?;
+            .with_context(|| format!("Unable to build '{BASE_CURSOR_SUFFIX}' url"))?;
         self.get(url, None, EMPTY_BODY, handle_response).await
     }
 

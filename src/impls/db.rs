@@ -63,12 +63,12 @@ impl Database for Connection {
 
     async fn drop(&self, name: &str) -> ArangoResult<Response<bool>> {
         if *self.is_async() {
-            api_delete_async!(self, base_url, &format!("{}/{}", BASE_SUFFIX, name))
+            api_delete_async!(self, base_url, &format!("{BASE_SUFFIX}/{name}"))
         } else {
             api_delete_right!(
                 self,
                 base_url,
-                &format!("{}/{}", BASE_SUFFIX, name),
+                &format!("{BASE_SUFFIX}/{name}"),
                 Response<bool>
             )
         }
