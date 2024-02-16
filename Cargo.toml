@@ -12,6 +12,7 @@ readme = "README.md"
 repository = "https://github.com/rustyhorde/ruarango"
 version = "0.1.3"
 autotests = false
+rust-version = "1.68.2"
 
 [dependencies]
 anyhow = "1.0.68"
