@@ -435,6 +435,7 @@ pub use model::cursor;
 pub use model::db;
 pub use model::doc;
 pub use model::graph;
+pub use model::BaseErr;
 pub use traits::Collection;
 pub use traits::Cursor;
 pub use traits::Database;

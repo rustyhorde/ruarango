@@ -15,7 +15,7 @@ mod next;
 pub use create::{
     Config as CreateConfig, ConfigBuilder as CreateConfigBuilder,
     ConfigBuilderError as CreateConfigBuilderError, Options, OptionsBuilder, OptionsBuilderError,
-    ProfileKind,
+    ProfileKind, Rules,
 };
 pub use delete::{
     Config as DeleteConfig, ConfigBuilder as DeleteConfigBuilder,
