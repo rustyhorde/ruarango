@@ -93,24 +93,24 @@ pub struct Stats {
 #[derive(Clone, Copy, Debug, Deserialize, Getters, Serialize)]
 #[getset(get = "pub")]
 pub struct Profile {
-    ///
+    /// Initializing
     initializing: f64,
-    ///
+    /// parsing
     parsing: f64,
-    ///
+    /// optimizing ast
     #[serde(rename = "optimizing ast")]
     optimizing_ast: f64,
-    ///
+    /// loading collections
     #[serde(rename = "loading collections")]
     loading_collections: f64,
-    ///
+    /// instantiating plan
     #[serde(rename = "instantiating plan")]
     instantiating_plan: f64,
-    ///
+    /// optimizing plan
     #[serde(rename = "optimizing plan")]
     optimizing_plan: f64,
-    ///
+    /// executing
     executing: f64,
-    ///
+    /// finalizing
     finalizing: f64,
 }

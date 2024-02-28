@@ -18,77 +18,77 @@ use std::num::ParseIntError;
 #[derive(thiserror::Error, Clone, Debug, Eq, PartialEq)]
 #[allow(variant_size_differences)]
 pub enum RuarangoErr {
-    ///
+    /// Invalid body error
     #[error("{}\nInvalid Body: {}", err, body)]
     InvalidBody {
-        ///
+        /// error
         err: String,
-        ///
+        /// body
         body: String,
     },
-    ///
+    /// Unreachable
     #[error("Unreachable: {}", msg)]
     Unreachable {
-        ///
+        /// message
         msg: String,
     },
-    ///
+    /// Invalid connection url
     #[error("You have supplied an invalid connection url")]
     InvalidConnectionUrl,
-    ///
+    /// invalid document response
     #[error("Invalid document response: {}\n{}", status, doc_err(err))]
     InvalidDocResponse {
-        ///
+        /// status
         status: u16,
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
+    /// Invalid cursor response
     #[error("Invalid cursor response: {}", status)]
     InvalidCursorResponse {
-        ///
+        /// status
         status: u16,
     },
-    ///
+    /// Un-authorized
     #[error("You are not authorized to perform the request action")]
     Forbidden {
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
+    /// The request resource is not found
     #[error("The server can not find the requested resource.")]
     NotFound {
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
+    /// Unmodified document
     #[error("The document you requested has not been modified")]
     NotModified,
-    ///
+    /// A precondition has failed
     #[error("A precondition has failed: '{}'", doc_err(err))]
     PreconditionFailed {
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
+    /// A bad request was made
     #[error(
         "The server could not understand the request due to invalid syntax.: '{}'",
         doc_err(err)
     )]
     BadRequest {
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
-    #[error("A precondition has failed: '{}'", doc_err(err))]
+    /// A conflict has occurred
+    #[error("A conflict has occurred: '{}'", doc_err(err))]
     Conflict {
-        ///
+        /// error
         err: Option<DocErr>,
     },
-    ///
+    /// cursor request error
     #[error("A cursor request error has occurred: {}", base_err(err))]
     Cursor {
-        ///
+        /// Error
         err: Option<BaseErr>,
     },
     #[cfg(test)]

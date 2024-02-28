@@ -26,11 +26,11 @@ use reqwest::{
 #[derive(Clone, Copy, Debug)]
 pub enum AsyncKind {
     /// This will add the HTTP header `x-arango-async: true` to client requests
-    /// and ArangoDB will put the request into an in-memory task queue and return an
+    /// and `ArangoDB` will put the request into an in-memory task queue and return an
     /// HTTP 202 (accepted) response to the client instantly.
     FireAndForget,
     /// This will add the HTTP header `x-arango-async: store` to a request.
-    /// Clients can instruct the ArangoDB server to execute the operation
+    /// Clients can instruct the `ArangoDB` server to execute the operation
     /// asynchronously as with [`FireAndForget`](Self::FireAndForget), but also
     /// store the operation result in memory for a later retrieval.
     Store,

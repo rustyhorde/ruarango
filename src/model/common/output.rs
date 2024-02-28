@@ -76,7 +76,7 @@ impl Default for Response<Vec<Collections>> {
 pub struct ArangoErr {
     /// Is this an error?
     error: bool,
-    /// The ArangoDB code
+    /// The `ArangoDB` code
     #[serde(rename = "errorNum")]
     error_num: usize,
     /// The error message
