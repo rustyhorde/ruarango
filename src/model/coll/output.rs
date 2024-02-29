@@ -369,7 +369,7 @@ pub struct CreateKeyOptions {
     /// the initial offset and the spacing can be configured (note: autoincrement is currently only
     /// supported for non-sharded collections).
     /// The padded key generator generates keys of a fixed length (16 bytes) in
-    /// ascending lexicographical sort order. This is ideal for usage with the RocksDB
+    /// ascending lexicographical sort order. This is ideal for usage with the `RocksDB`
     /// engine, which will slightly benefit keys that are inserted in lexicographically
     /// ascending order. The key generator can be used in a single-server or cluster.
     /// The uuid key generator generates universally unique 128 bit keys, which

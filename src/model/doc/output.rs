@@ -185,7 +185,7 @@ pub struct DocErr {
     error: bool,
     /// The error code
     code: u16,
-    /// The ArangoDB code
+    /// The `ArangoDB` code
     #[serde(rename = "errorNum")]
     error_num: usize,
     /// The error message

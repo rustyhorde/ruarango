@@ -31,11 +31,11 @@ pub type ArangoResult<T> = Result<ArangoEither<T>>;
 /// * The type `O` is the type of the [`old_doc`](crate::model::doc::output::DocMeta::old_doc) output if enabled.
 pub type DocMetaResult<N, O> = ArangoResult<DocMeta<N, O>>;
 
-///
+/// arango vector
 pub type ArangoVec<T> = Vec<Either<ArangoErr, T>>;
 
-///
+/// arango vector result
 pub type ArangoVecResult<T> = ArangoResult<ArangoVec<T>>;
 
-///
+/// Doc meta vector result
 pub type DocMetaVecResult<N, O> = ArangoResult<ArangoVec<DocMeta<N, O>>>;

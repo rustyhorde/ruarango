@@ -142,7 +142,7 @@ pub struct Options {
     /// in the sub-attribute `extra.plan`.
     #[builder(setter(strip_option), default)]
     profile: Option<ProfileKind>,
-    /// Transaction size limit in bytes. Honored by the RocksDB storage
+    /// Transaction size limit in bytes. Honored by the `RocksDB` storage
     /// engine only.
     #[builder(setter(strip_option), default)]
     #[serde(rename = "maxTransactionSize")]
@@ -161,7 +161,7 @@ pub struct Options {
     /// accessible via the cursor API (with respect to the ttl).
     ///
     /// It is advisable to only use this option on short-running queries or
-    /// without exclusive locks (write-locks on MMFiles).
+    /// without exclusive locks (write-locks on `MMFiles`).
     ///
     /// Please note that the query options cache, count and fullCount will
     /// not work on streaming queries.
@@ -186,13 +186,13 @@ pub struct Options {
     #[serde(rename = "maxWarningCount")]
     max_warning_count: Option<usize>,
     /// Maximum number of operations after which an intermediate
-    /// commit is performed automatically. Honored by the RocksDB
+    /// commit is performed automatically. Honored by the `RocksDB`
     /// storage engine only.
     #[builder(setter(strip_option), default)]
     #[serde(rename = "intermediateCommitCount")]
     intermediate_commit_count: Option<usize>,
     /// Maximum total size of operations after which an intermediate
-    /// commit is performed automatically. Honored by the RocksDB
+    /// commit is performed automatically. Honored by the `RocksDB`
     /// storage engine only.
     #[builder(setter(strip_option), default)]
     #[serde(rename = "intermediateCommitSize")]
@@ -204,14 +204,14 @@ pub struct Options {
     max_plans: Option<usize>,
     /// If set to true and the query contains a LIMIT clause, then the
     /// result will have an extra attribute with the sub-attributes
-    /// `stats` and `full_count`, { ... , "extra": { "stats": { "full_count": 123 } } }.
+    /// `stats` and `full_count`, { ... , "extra": { "stats": { "`full_count`": 123 } } }.
     /// The `fullCount` attribute will contain the number of documents
     /// in the result before the last top-level LIMIT in the query
     /// was applied. It can be used to count the number of documents
     /// that match certain filter criteria, but only return a subset of them,
     /// in one go.
     ///
-    /// It is thus similar to MySQL's `SQL_CALC_FOUND_ROWS` hint.
+    /// It is thus similar to `MySQL`'s `SQL_CALC_FOUND_ROWS` hint.
     ///
     /// Note that setting the option will disable a few LIMIT optimizations
     /// and may lead to more documents being processed, and thus make

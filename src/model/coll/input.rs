@@ -21,14 +21,14 @@ pub struct Config {
     name: String,
     /// The maximal size of a journal or datafile in bytes. The value
     /// must be at least 1048576 (1 MiB). (The default is a configuration parameter)
-    /// This option is meaningful for the MMFiles storage engine only.
+    /// This option is meaningful for the `MMFiles` storage engine only.
     #[serde(rename = "journalSize", skip_serializing_if = "Option::is_none")]
     #[builder(setter(strip_option), default)]
     journal_size: Option<usize>,
     /// (The default is 1): in a cluster, this attribute determines how many copies
     /// of each shard are kept on different DB-Servers. The value 1 means that only one
     /// copy (no synchronous replication) is kept. A value of k means that k-1 replicas
-    /// are kept. It can also be the string "satellite" for a SatelliteCollection,
+    /// are kept. It can also be the string "satellite" for a `SatelliteCollection`,
     /// where the replication factor is matched to the number of DB-Servers
     /// (Enterprise Edition only).
     /// Any two copies reside on different DB-Servers. Replication between them is
@@ -49,31 +49,31 @@ pub struct Config {
     #[builder(setter(strip_option), default)]
     wait_for_sync: Option<bool>,
     /// Whether or not the collection will be compacted (default is true)
-    /// This option is meaningful for the MMFiles storage engine only.
+    /// This option is meaningful for the `MMFiles` storage engine only.
     #[serde(rename = "doCompact", skip_serializing_if = "Option::is_none")]
     #[builder(setter(strip_option), default)]
     do_compact: Option<bool>,
     /// This attribute specifies the name of the sharding strategy to use for
-    /// the collection. Since ArangoDB 3.4 there are different sharding strategies
+    /// the collection. Since `ArangoDB` 3.4 there are different sharding strategies
     /// to select from when creating a new collection. The selected shardingStrategy
     /// value will remain fixed for the collection and cannot be changed afterwards.
     /// This is important to make the collection keep its sharding settings and
     /// always find documents already distributed to shards using the same
     /// initial sharding algorithm.
     /// The available sharding strategies are:
-    /// community-compat: default sharding used by ArangoDB
+    /// community-compat: default sharding used by `ArangoDB`
     /// Community Edition before version 3.4
-    /// enterprise-compat: default sharding used by ArangoDB
+    /// enterprise-compat: default sharding used by `ArangoDB`
     /// Enterprise Edition before version 3.4
     /// enterprise-smart-edge-compat: default sharding used by smart edge
-    /// collections in ArangoDB Enterprise Edition before version 3.4
+    /// collections in `ArangoDB` Enterprise Edition before version 3.4
     /// hash: default sharding used for new collections starting from version 3.4
     /// (excluding smart edge collections)
     /// enterprise-hash-smart-edge: default sharding used for new
     /// smart edge collections starting from version 3.4
     /// If no sharding strategy is specified, the default will be hash for
     /// all collections, and enterprise-hash-smart-edge for all smart edge
-    /// collections (requires the Enterprise Edition of ArangoDB).
+    /// collections (requires the Enterprise Edition of `ArangoDB`).
     /// Manually overriding the sharding strategy does not yet provide a
     /// benefit, but it may later in case other sharding strategies are added.
     #[serde(rename = "shardingStrategy", skip_serializing_if = "Option::is_none")]
@@ -83,13 +83,13 @@ pub struct Config {
     /// Unloading the collection will cause the collection data to be discarded. Stopping
     /// or re-starting the server will also cause full loss of data in the
     /// collection. Setting this option will make the resulting collection be
-    /// slightly faster than regular collections because ArangoDB does not
+    /// slightly faster than regular collections because `ArangoDB` does not
     /// enforce any synchronization to disk and does not calculate any CRC
     /// checksums for datafiles (as there are no datafiles). This option
     /// should therefore be used for cache-type collections only, and not
     /// for data that cannot be re-created otherwise.
     /// (The default is false)
-    /// This option is meaningful for the MMFiles storage engine only.
+    /// This option is meaningful for the `MMFiles` storage engine only.
     #[serde(rename = "isVolatile", skip_serializing_if = "Option::is_none")]
     #[builder(setter(strip_option), default)]
     is_volatile: Option<bool>,
@@ -104,7 +104,7 @@ pub struct Config {
     write_concern: Option<usize>,
     /// In an Enterprise Edition cluster, this attribute determines an attribute
     /// of the collection that must contain the shard key value of the referred-to
-    /// SmartJoin collection. Additionally, the shard key for a document in this
+    /// `SmartJoin` collection. Additionally, the shard key for a document in this
     /// collection must contain the value of this attribute, followed by a colon,
     /// followed by the actual primary key of the document.
     /// This feature can only be used in the Enterprise Edition and requires the
@@ -152,7 +152,7 @@ pub struct Config {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     #[builder(setter(strip_option), default)]
     kind: Option<usize>,
-    /// (The default is [ "_key" ]): in a cluster, this attribute determines
+    /// (The default is `[ "_key" ]`): in a cluster, this attribute determines
     /// which document attributes are used to determine the target shard for documents.
     /// Documents are sent to shards based on the values of their shard key attributes.
     /// The values of all shard key attributes in a document are hashed,
@@ -188,7 +188,7 @@ pub struct KeyOptions {
     /// the initial offset and the spacing can be configured (note: autoincrement is currently only
     /// +supported for non-sharded collections).
     /// The padded key generator generates keys of a fixed length (16 bytes) in
-    /// ascending lexicographical sort order. This is ideal for usage with the RocksDB
+    /// ascending lexicographical sort order. This is ideal for usage with the `RocksDB`
     /// engine, which will slightly benefit keys that are inserted in lexicographically
     /// ascending order. The key generator can be used in a single-server or cluster.
     /// The uuid key generator generates universally unique 128 bit keys, which
