@@ -27,6 +27,7 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Document for Connection {
     async fn create<T, U, V>(&self, config: CreateConfig<T>) -> DocMetaResult<U, V>
     where

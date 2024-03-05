@@ -24,6 +24,7 @@ const BASE_SUFFIX: &str = "_api/job";
 const DONE_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/done#by-type");
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Job for Connection {
     async fn status(&self, id: &str) -> Result<u16> {
         let job_id_url = format!("{BASE_SUFFIX}/{id}");

@@ -14,6 +14,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// Collection Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Job {
     /// Returns the processing status of the specified job. The processing status
     /// can be determined by checking the HTTP response code.

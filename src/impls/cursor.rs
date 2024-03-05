@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Cursor for Connection {
     async fn create<T>(&self, config: CreateConfig) -> ArangoResult<CursorMeta<T>>
     where

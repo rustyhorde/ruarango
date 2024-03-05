@@ -20,6 +20,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// Document Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Document {
     /// Create a document
     async fn create<T, U, V>(&self, config: CreateConfig<T>) -> DocMetaResult<U, V>

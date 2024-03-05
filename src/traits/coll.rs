@@ -23,6 +23,7 @@ use async_trait::async_trait;
 
 /// Collection Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Collection {
     /// Returns a vector of collection descriptions
     ///

@@ -17,6 +17,7 @@ use async_trait::async_trait;
 
 /// Database Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Database {
     /// Retrieves the properties of the current database
     async fn current(&self) -> ArangoResult<Response<Current>>;

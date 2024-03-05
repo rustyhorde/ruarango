@@ -35,6 +35,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Graph for Connection {
     async fn list(&self) -> ArangoResult<List> {
         let url = self
