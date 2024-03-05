@@ -29,6 +29,7 @@ use serde::Serialize;
 
 /// Database Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Graph {
     /// List all graphs
     async fn list(&self) -> ArangoResult<List>;

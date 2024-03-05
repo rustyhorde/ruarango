@@ -33,6 +33,7 @@ const BASE_SUFFIX: &str = "_api/collection";
 const EXCLUDE_SUFFIX: &str = concatcp!(BASE_SUFFIX, "?excludeSystem=true");
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Collection for Connection {
     async fn collections(&self, exclude_system: bool) -> ArangoResult<Response<Vec<Collections>>> {
         if *self.is_async() {

@@ -28,6 +28,7 @@ const USER_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/user");
 const CURRENT_SUFFIX: &str = concatcp!(BASE_SUFFIX, "/current");
 
 #[async_trait]
+#[allow(unused_qualifications)]
 impl Database for Connection {
     async fn current(&self) -> ArangoResult<Response<Current>> {
         if *self.is_async() {

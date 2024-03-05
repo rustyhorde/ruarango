@@ -18,6 +18,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 /// Cursor Operations
 #[async_trait]
+#[allow(unused_qualifications)]
 pub trait Cursor {
     /// Create a cursor
     async fn create<T>(&self, config: CreateConfig) -> ArangoResult<CursorMeta<T>>
