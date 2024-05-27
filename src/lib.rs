@@ -246,7 +246,6 @@
         hidden_glob_reexports,
         improper_ctypes,
         improper_ctypes_definitions,
-        indirect_structural_match,
         inline_no_sanitize,
         internal_features,
         invalid_from_utf8,
@@ -283,7 +282,6 @@
         opaque_hidden_inferred_bound,
         overlapping_range_endpoints,
         path_statements,
-        pointer_structural_match,
         private_bounds,
         private_interfaces,
         redundant_lifetimes,
@@ -372,7 +370,6 @@
 #![cfg_attr(
     all(feature = "unstable", nightly),
     deny(
-        dereferencing_mut_binding,
         fuzzy_provenance_casts,
         lossy_provenance_casts,
         multiple_supertrait_upcastable,
